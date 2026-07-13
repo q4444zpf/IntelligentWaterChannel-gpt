@@ -1,0 +1,18 @@
+{
+  "type": "module",
+  "scripts": {
+    "generate:flume-model": "node scripts/generate-flume-model.mjs",
+    "dev": "vite --host 127.0.0.1 --port 4173",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4173"
+  },
+  "dependencies": {
+    "three": "^0.166.1",
+    "vue": "^3.5.17"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.4",
+    "vite": "^5.4.19"
+  },
+  "optionalDependencies": {}
+}
