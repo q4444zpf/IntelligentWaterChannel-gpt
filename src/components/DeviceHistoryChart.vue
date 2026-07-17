@@ -90,6 +90,7 @@ function chartOption() {
       type: 'time',
       name: '时间',
       nameGap: 24,
+      splitNumber: 6,
       axisLine: { lineStyle: { color: '#47627e' } },
       axisLabel: { color: '#8da8c8', hideOverlap: true },
       splitLine: { show: false }

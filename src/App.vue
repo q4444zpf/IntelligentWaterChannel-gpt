@@ -161,7 +161,7 @@
         </section>
       </section>
 
-      <section v-show="activePage === 'history'" class="page page-history active">
+      <section v-if="activePage === 'history'" class="page page-history active">
         <div class="sub-tabs">
           <button :class="{ active: activeHistoryTab === 'analysis' }" @click="showHistoryTab('analysis')">历史数据查询与曲线分析</button>
           <button :class="{ active: activeHistoryTab === 'replay' }" @click="showHistoryTab('replay')">传感器时序总览与节点水位回放</button>
