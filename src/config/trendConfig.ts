@@ -72,9 +72,7 @@ export const TREND_DEVICES: Record<TrendType, readonly TrendDevice[]> = {
     device('level', 'WL-06', '集水池水位计', '集水池', '集水池', '在线', '#ff7f96', 6)
   ],
   pump: [
-    device('pump', 'P1', '一号变频泵', '前池泵站', '前池泵站', '在线', '#39f6ff', 1),
-    device('pump', 'P2', '二号变频泵', '循环泵站', '循环泵站', '在线', '#4f93ff', 2),
-    device('pump', 'P3', '三号变频泵', '回水泵站', '回水泵站', '在线', '#53d99f', 3)
+    device('pump', 'P1', '一号变频泵', '前池泵站', '前池泵站', '在线', '#39f6ff', 1)
   ],
   siphon: [
     device('siphon', 'SI-01', '倒虹吸①压力', '渠①-渠②', '倒虹吸①', '在线', '#39f6ff', 1),
@@ -86,6 +84,10 @@ export const TREND_DEVICES: Record<TrendType, readonly TrendDevice[]> = {
 
 export function getDefaultDeviceIds(type: TrendType): string[] {
   return TREND_DEVICES[type].filter((item) => item.state === '在线').map((item) => item.id);
+}
+
+export function getDefaultDeviceId(type: TrendType): string {
+  return TREND_DEVICES[type].find((item) => item.state === '在线')?.id ?? TREND_DEVICES[type][0]?.id ?? '';
 }
 
 export function sortDeviceIds(type: TrendType, ids: readonly string[]): string[] {

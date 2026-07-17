@@ -1,14 +1,14 @@
-import { getDefaultDeviceIds, sortDeviceIds, type TimeRangeKey, type TrendSnapshot, type TrendType } from './config/trendConfig.ts';
+import { getDefaultDeviceId, type TimeRangeKey, type TrendSnapshot, type TrendType } from './config/trendConfig.ts';
 import { resolveTimeRange, type CustomTimeRange, type TrendQuery } from './data/realtime-trend-data.ts';
 
 interface Scheduler {
   setInterval(callback: () => void, intervalMs: number): unknown;
   clearInterval(id: unknown): void;
 }
-interface Preference { selectedIds: string[]; rangeKey: TimeRangeKey; customRange?: CustomTimeRange }
+interface Preference { selectedDeviceId: string; rangeKey: TimeRangeKey; customRange?: CustomTimeRange }
 export interface RealtimeTrendState {
   trendType: TrendType;
-  selectedIds: string[];
+  selectedDeviceId: string;
   rangeKey: TimeRangeKey;
   customRange?: CustomTimeRange;
   snapshot: TrendSnapshot | null;
@@ -38,22 +38,22 @@ export function createRealtimeTrendController({
   onChange?: (state: RealtimeTrendState) => void;
 }) {
   const preferences = Object.fromEntries((['flow', 'level', 'pump', 'siphon'] as TrendType[]).map((type) => [type, {
-    selectedIds: getDefaultDeviceIds(type), rangeKey: '10m' as TimeRangeKey
+    selectedDeviceId: getDefaultDeviceId(type), rangeKey: '10m' as TimeRangeKey
   }])) as Record<TrendType, Preference>;
   const state: RealtimeTrendState = {
-    trendType: 'flow', selectedIds: [...preferences.flow.selectedIds], rangeKey: '10m', snapshot: null,
+    trendType: 'flow', selectedDeviceId: preferences.flow.selectedDeviceId, rangeKey: '10m', snapshot: null,
     loading: true, refreshing: false, error: '', paused: false, lastUpdated: null
   };
   let intervalId: unknown = null;
   let inFlight: Promise<void> | null = null;
-  const notify = () => onChange({ ...state, selectedIds: [...state.selectedIds] });
+  const notify = () => onChange({ ...state });
   const stopInterval = () => { if (intervalId !== null) scheduler.clearInterval(intervalId); intervalId = null; };
   const startInterval = () => { stopInterval(); if (!state.paused) intervalId = scheduler.setInterval(() => { void refresh(); }, intervalMs); };
 
   function setTrendType(type: TrendType) {
     state.trendType = type;
     const preference = preferences[type];
-    state.selectedIds = [...preference.selectedIds];
+    state.selectedDeviceId = preference.selectedDeviceId;
     state.rangeKey = preference.rangeKey;
     state.customRange = preference.customRange;
     state.snapshot = null;
@@ -61,10 +61,9 @@ export function createRealtimeTrendController({
     notify();
   }
 
-  function setSelectedIds(ids: readonly string[]) {
-    const sorted = sortDeviceIds(state.trendType, ids);
-    state.selectedIds = sorted;
-    preferences[state.trendType].selectedIds = [...sorted];
+  function setSelectedDeviceId(id: string) {
+    state.selectedDeviceId = id;
+    preferences[state.trendType].selectedDeviceId = id;
     notify();
   }
 
@@ -78,7 +77,7 @@ export function createRealtimeTrendController({
 
   function refresh(): Promise<void> {
     if (inFlight) return inFlight;
-    if (!state.selectedIds.length) {
+    if (!state.selectedDeviceId) {
       state.loading = false;
       state.snapshot = null;
       state.error = '请至少选择一个设备';
@@ -93,7 +92,7 @@ export function createRealtimeTrendController({
     notify();
     let result: Promise<TrendSnapshot>;
     try {
-      result = source({ trendType: state.trendType, deviceIds: state.selectedIds, ...range, now: currentNow });
+      result = source({ trendType: state.trendType, deviceIds: [state.selectedDeviceId], ...range, now: currentNow });
     } catch (error) {
       result = Promise.reject(error);
     }
@@ -116,5 +115,5 @@ export function createRealtimeTrendController({
   async function resume() { state.paused = false; notify(); await refresh(); startInterval(); }
   function dispose() { stopInterval(); }
 
-  return { state, start, setTrendType, setSelectedIds, setRange, refresh, pause, resume, dispose };
+  return { state, start, setTrendType, setSelectedDeviceId, setRange, refresh, pause, resume, dispose };
 }

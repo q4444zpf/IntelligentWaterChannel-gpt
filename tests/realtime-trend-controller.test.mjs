@@ -10,26 +10,34 @@ function scheduler() {
 
 test('keeps selections independent between trend tabs', () => {
   const controller = createRealtimeTrendController({ source: async () => ({ timestamp: 1, series: [] }) });
-  controller.setSelectedIds(['FM-01']);
+  controller.setSelectedDeviceId('FM-02');
   controller.setTrendType('level');
-  controller.setSelectedIds(['WL-01']);
+  controller.setSelectedDeviceId('WL-03');
   controller.setTrendType('flow');
-  assert.deepEqual(controller.state.selectedIds, ['FM-01']);
+  assert.equal(controller.state.selectedDeviceId, 'FM-02');
 });
 
 test('suppresses empty and concurrent refreshes', async () => {
   let calls = 0;
   let resolve;
   const controller = createRealtimeTrendController({ source: () => { calls += 1; return new Promise((done) => { resolve = done; }); } });
-  controller.setSelectedIds([]);
+  controller.setSelectedDeviceId('');
   await controller.refresh();
   assert.equal(calls, 0);
-  controller.setSelectedIds(['FM-01']);
+  controller.setSelectedDeviceId('FM-01');
   const first = controller.refresh();
   const second = controller.refresh();
   assert.equal(calls, 1);
   resolve({ timestamp: 1, series: [] });
   await Promise.all([first, second]);
+});
+
+test('queries exactly one selected device', async () => {
+  let requestedIds;
+  const controller = createRealtimeTrendController({ source: async (query) => { requestedIds = query.deviceIds; return { timestamp: 1, series: [] }; } });
+  controller.setSelectedDeviceId('FM-03');
+  await controller.refresh();
+  assert.deepEqual(requestedIds, ['FM-03']);
 });
 
 test('retains data on failure and manages one polling interval', async () => {

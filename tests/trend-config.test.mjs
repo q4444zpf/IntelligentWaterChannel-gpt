@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   TREND_CONFIGS,
   TREND_DEVICES,
+  getDefaultDeviceId,
   getDefaultDeviceIds,
   sortDeviceIds
 } from '../src/config/trendConfig.ts';
@@ -20,10 +21,11 @@ test('defines the four time-trend types and their business units', () => {
 test('provides complete device catalogs and online defaults', () => {
   assert.equal(TREND_DEVICES.flow.length, 3);
   assert.equal(TREND_DEVICES.level.length, 6);
-  assert.equal(TREND_DEVICES.pump.length, 3);
+  assert.deepEqual(TREND_DEVICES.pump.map((device) => device.id), ['P1']);
   assert.equal(TREND_DEVICES.siphon.length, 4);
   assert.ok(getDefaultDeviceIds('flow').length > 1);
   assert.ok(getDefaultDeviceIds('level').every((id) => id !== 'WL-04'));
+  assert.equal(getDefaultDeviceId('flow'), 'FM-01');
 });
 
 test('sorts selected IDs in engineering order and ignores unknown IDs', () => {
