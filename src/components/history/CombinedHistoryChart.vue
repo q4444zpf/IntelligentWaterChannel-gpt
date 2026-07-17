@@ -27,7 +27,7 @@ import {
 } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
-import { buildCombinedChartModel } from '../history-chart-options.js';
+import { buildCombinedChartModel } from '../../history-chart-options.js';
 
 echarts.use([
   LineChart,
