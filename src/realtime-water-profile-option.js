@@ -51,7 +51,7 @@ export function buildRealtimeWaterProfileOption(snapshot) {
       splitLine: { lineStyle: { color: 'rgba(91, 139, 181, .12)' } }
     },
     yAxis: {
-      type: 'value', min: 0.15, max: 0.55, name: '节点水位 H（m）', nameGap: 42,
+      type: 'value', min: 0.15, max: 0.55, name: '节点水位 H（m）', nameLocation: 'middle', nameRotate: 90, nameGap: 42,
       axisLine: { show: true, lineStyle: { color: '#55718c' } }, axisLabel: { color: '#91abc4', formatter: '{value}' },
       splitLine: { lineStyle: { color: 'rgba(91, 139, 181, .17)' } }
     },
