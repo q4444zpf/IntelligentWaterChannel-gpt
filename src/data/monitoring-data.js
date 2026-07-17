@@ -5,10 +5,6 @@ export const PAGE_TABS = Object.freeze([
 ]);
 
 export const VIEW_ACTIONS = Object.freeze(['默认视角', '俯视图', '正视图', '左视图', '右视图', '自动漫游', '复位']);
-export const REALTIME_CHART_TABS = Object.freeze(['节点水位曲线', '流量计曲线', '水位计曲线', '泵频率曲线', '倒虹吸曲线']);
-export const REALTIME_CHART_ACTIONS = Object.freeze(['近5分钟', '近30分钟', '近1小时', '刷新', '全屏']);
-export const REALTIME_PROFILE_ACTIONS = Object.freeze(['立即刷新', '复位']);
-
 export const GATES = Object.freeze([
   { id: 'G0', open: '60%', before: '0.42', after: '0.40', state: '在线', color: 'red' },
   { id: 'G1', open: '100%', before: '0.40', after: '0.38', state: '在线', color: 'red' },
