@@ -92,7 +92,7 @@
                 <button v-for="(action, index) in realtimeChartActions" :key="action" :class="{ active: index === 0 }">{{ action }}</button>
               </div>
             </div>
-            <canvas ref="realtimeChart" height="210"></canvas>
+            <LineChart :series="trendSeries" :labels="['0', '50', '100', '150', '200', '250', '300', '350', '400', '450', '500', '550', '600', '650', '700', '750', '800']" :height="215" />
           </section>
         </section>
 
@@ -251,16 +251,29 @@
 
 <script setup>
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import LineChart from './components/LineChart.vue';
 
 const activePage = ref('realtime');
 const activeHistoryTab = ref('analysis');
 const alarmModalOpen = ref(false);
 const selectedAlarm = ref(null);
 const handleRemark = ref('现场检查反馈正常，已重启控制器，开度反馈恢复。');
-const realtimeChart = ref(null);
 const historyChart = ref(null);
 const alarmChart = ref(null);
 const profileChart = ref(null);
+
+const trendSeries = [
+  {
+    name: '上游水位',
+    color: '#00d4ff',
+    points: [1.05, 1.02, 1.00, 0.95, 0.92, 0.88, 0.85, 0.82, 0.78, 0.75, 0.72, 0.68, 0.65, 0.62, 0.60, 0.58, 0.55, 0.52, 0.50, 0.48, 0.45, 0.42]
+  },
+  {
+    name: '下游水位',
+    color: '#00ff9d',
+    points: [0.75, 0.72, 0.70, 0.68, 0.65, 0.62, 0.58, 0.55, 0.52, 0.50, 0.48, 0.45, 0.42, 0.40, 0.38, 0.35, 0.32, 0.30, 0.28, 0.25, 0.22, 0.20]
+  }
+];
 
 const StatusText = defineComponent({
   props: { value: { type: String, required: true } },
@@ -579,7 +592,6 @@ function drawAlarmMark(ctx, x, y, text) {
 }
 
 function drawAllCharts() {
-  drawLineChart(realtimeChart.value);
   drawLineChart(historyChart.value, { alarm: true });
   drawLineChart(alarmChart.value, { drop: true, labels: ['开度反馈(%)', '设定开度(%)'], alarm: true });
   drawProfileChart(profileChart.value);
