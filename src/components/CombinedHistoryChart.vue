@@ -93,7 +93,8 @@ function chartOption() {
     xAxis: {
       type: 'time',
       name: '时间',
-      nameGap: 24,
+      nameLocation: 'middle',
+      nameGap: 34,
       splitNumber: 8,
       axisLine: { lineStyle: { color: '#47627e' } },
       axisLabel: { color: '#8da8c8', hideOverlap: true },
