@@ -57,7 +57,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.water-profile-shell { position: relative; min-width: 0; height: 292px; margin: 4px 12px 10px; overflow: hidden; border: 1px solid rgba(54, 135, 190, .2); border-radius: 6px; background: rgba(2, 16, 29, .72); }
+.water-profile-shell { position: relative; min-width: 0; height: calc(100% - 58px); min-height: 210px; margin: 4px 12px 10px; overflow: hidden; border: 1px solid rgba(54, 135, 190, .2); border-radius: 6px; background: rgba(2, 16, 29, .72); }
 .water-profile-chart { width: 100%; height: 100%; }
 .profile-state { position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center; gap: 9px; color: #7798b7; font-size: 13px; }
 .profile-loading span, .profile-refreshing span { width: 12px; height: 12px; border: 2px solid rgba(57, 246, 255, .25); border-top-color: #39f6ff; border-radius: 50%; animation: spin .8s linear infinite; }
@@ -65,5 +65,5 @@ onBeforeUnmount(() => {
 .profile-refreshing { position: absolute; right: 12px; top: 42px; z-index: 4; display: flex; align-items: center; gap: 6px; color: #8edce7; font-size: 11px; }
 :global(.profile-tooltip-time) { margin: 3px 0 7px; color: #7ea2bf; font-size: 11px; }
 @keyframes spin { to { transform: rotate(360deg); } }
-@media (max-width: 1100px) { .water-profile-shell { height: 320px; } }
+@media (max-width: 1100px) { .water-profile-shell { min-height: 230px; } }
 </style>

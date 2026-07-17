@@ -24,10 +24,18 @@
           <div class="float-tag t5">P1 运行中 <span class="dot ok"></span><br>频率 32 Hz<br>压力 0.23 MPa</div><div class="float-tag alarm t6">G6 闸门异常<br><b>反馈超时</b></div>
         </div>
       </section>
-      <section class="panel chart-panel"><div class="panel-head"><h2>实时趋势分析</h2>
-        <div class="tabs small-tabs"><button v-for="(tab, index) in REALTIME_CHART_TABS" :key="tab" :class="{ active: index === 0 }">{{ tab }}</button></div>
-        <div class="mini-actions"><button v-for="(action, index) in REALTIME_CHART_ACTIONS" :key="action" :class="{ active: index === 0 }">{{ action }}</button></div>
-      </div><canvas ref="realtimeChart" height="210"></canvas></section>
+      <section class="panel chart-panel"><div class="panel-head realtime-chart-head"><h2>实时趋势分析</h2>
+        <div class="tabs small-tabs"><button v-for="tab in REALTIME_CHART_TABS" :key="tab" :class="{ active: activeTrendTab === tab }" @click="selectTrendTab(tab)">{{ tab }}</button></div>
+        <div v-if="isWaterProfile" class="mini-actions profile-actions">
+          <span class="refresh-status" :title="lastUpdatedLabel">5秒刷新</span>
+          <button type="button" @click="togglePolling">{{ paused ? '继续' : '暂停' }}</button>
+          <button v-for="action in REALTIME_PROFILE_ACTIONS" :key="action" type="button" :disabled="refreshing && action === '立即刷新'" @click="runProfileAction(action)">{{ action }}</button>
+        </div>
+        <div v-else class="mini-actions"><button v-for="(action, index) in REALTIME_CHART_ACTIONS" :key="action" :class="{ active: index === 0 }">{{ action }}</button></div>
+      </div>
+        <RealtimeWaterProfileChart v-if="isWaterProfile" ref="profileChart" :snapshot="snapshot" :loading="loading" :refreshing="refreshing" :error="error" />
+        <canvas v-else ref="realtimeChart" height="210"></canvas>
+      </section>
     </section>
 
     <aside class="right-stack">
@@ -44,11 +52,41 @@
 </template>
 
 <script setup>
+import { computed, nextTick, ref } from 'vue';
 import StatusText from '../components/common/StatusText.vue';
+import RealtimeWaterProfileChart from '../components/realtime/RealtimeWaterProfileChart.vue';
 import { useCanvasChart } from '../composables/useCanvasChart.js';
-import { ALARMS, GATES, REALTIME_CHART_ACTIONS, REALTIME_CHART_TABS, SENSOR_GROUPS, VIEW_ACTIONS } from '../data/monitoring-data.js';
+import { useRealtimeWaterProfile } from '../composables/useRealtimeWaterProfile.js';
+import { ALARMS, GATES, REALTIME_CHART_ACTIONS, REALTIME_CHART_TABS, REALTIME_PROFILE_ACTIONS, SENSOR_GROUPS, VIEW_ACTIONS } from '../data/monitoring-data.js';
+import { createMockWaterProfileSource } from '../realtime-water-profile.js';
 import { drawRealtimeChart } from '../utils/canvas-charts.js';
 
 defineEmits(['navigate']);
-const { canvasRef: realtimeChart } = useCanvasChart(drawRealtimeChart);
+const activeTrendTab = ref(REALTIME_CHART_TABS[0]);
+const profileChart = ref(null);
+const source = createMockWaterProfileSource({ gates: GATES, sensorGroups: SENSOR_GROUPS });
+const { snapshot, loading, refreshing, error, paused, lastUpdated, refresh, pause, resume } = useRealtimeWaterProfile({ source });
+const { canvasRef: realtimeChart, redraw } = useCanvasChart(drawRealtimeChart);
+const isWaterProfile = computed(() => activeTrendTab.value === REALTIME_CHART_TABS[0]);
+const lastUpdatedLabel = computed(() => lastUpdated.value
+  ? `最近更新：${new Date(lastUpdated.value).toLocaleTimeString('zh-CN', { hour12: false })}`
+  : '等待首次数据');
+
+async function selectTrendTab(tab) {
+  activeTrendTab.value = tab;
+  if (tab !== REALTIME_CHART_TABS[0]) {
+    await nextTick();
+    redraw();
+  }
+}
+
+function togglePolling() {
+  if (paused.value) resume();
+  else pause();
+}
+
+function runProfileAction(action) {
+  if (action === '立即刷新') refresh();
+  if (action === '复位') profileChart.value?.resetZoom();
+}
 </script>
