@@ -20,8 +20,6 @@ export function useRealtimeTrends({ source, intervalMs = 5000 }: {
 
   const setTrendType = async (type: TrendType) => { controller.setTrendType(type); await controller.refresh(); };
   const setSelectedDeviceId = async (id: string) => { controller.setSelectedDeviceId(id); await controller.refresh(); };
-  const selectedIds = computed(() => state.selectedDeviceId ? [state.selectedDeviceId] : []);
-  const setSelectedIds = async (ids: readonly string[]) => setSelectedDeviceId(ids[0] ?? '');
   const setRange = async (key: TimeRangeKey, custom?: CustomTimeRange) => { controller.setRange(key, custom); await controller.refresh(); };
 
   return {
@@ -29,9 +27,7 @@ export function useRealtimeTrends({ source, intervalMs = 5000 }: {
     config: computed(() => TREND_CONFIGS[state.trendType]),
     devices: computed(() => TREND_DEVICES[state.trendType]),
     statistics: computed(() => state.snapshot?.series.map((series) => ({ device: series.device, ...summarizeSeries(series) })) ?? []),
-    selectedIds,
     setTrendType,
-    setSelectedIds,
     setSelectedDeviceId,
     setRange,
     refresh: controller.refresh,
