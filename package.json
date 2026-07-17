@@ -4,7 +4,8 @@
     "generate:flume-model": "node scripts/generate-flume-model.mjs",
     "dev": "vite --host 127.0.0.1 --port 4173",
     "build": "vite build",
-    "preview": "vite preview --host 127.0.0.1 --port 4173"
+    "preview": "vite preview --host 127.0.0.1 --port 4173",
+    "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "three": "^0.166.1",
