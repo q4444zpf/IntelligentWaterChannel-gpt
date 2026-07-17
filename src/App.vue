@@ -225,19 +225,48 @@
             </div>
             <div class="history-query-actions">
               <p v-if="historyError" class="query-error" role="alert">{{ historyError }}</p>
-              <p v-else class="query-summary">设备按水槽前后位置排列，查询后每台设备独立显示曲线。</p>
+              <p v-else class="query-summary">支持综合趋势对比与分设备独立曲线，设备按水槽前后位置排列。</p>
               <button class="primary" :disabled="historyLoading || !historyDraft.deviceIds.length" @click="runHistoryQuery">{{ historyLoading ? '正在查询...' : '查询' }}</button>
               <button :disabled="historyLoading" @click="resetHistoryQuery">重置</button>
               <button :disabled="historyLoading" @click="refreshHistoryQuery">刷新</button>
               <button class="success" :disabled="!canExportHistory" @click="exportHistoryCsv">导出CSV</button>
             </div>
           </section>
-          <section class="panel history-chart-section">
-            <div class="panel-head">
-              <h2>历史曲线分析</h2>
+          <section class="panel history-results-panel">
+            <div class="history-results-head">
+              <div class="history-result-tabs" role="tablist" aria-label="历史结果视图">
+                <button
+                  type="button"
+                  role="tab"
+                  :aria-selected="historyResultTab === 'combined'"
+                  :class="{ active: historyResultTab === 'combined' }"
+                  @click="historyResultTab = 'combined'"
+                >综合曲线 <span>{{ historyResults.length }}</span></button>
+                <button
+                  type="button"
+                  role="tab"
+                  :aria-selected="historyResultTab === 'devices'"
+                  :class="{ active: historyResultTab === 'devices' }"
+                  @click="historyResultTab = 'devices'"
+                >分设备曲线 <span>{{ historyResults.length }}</span></button>
+                <button
+                  type="button"
+                  role="tab"
+                  :aria-selected="historyResultTab === 'table'"
+                  :class="{ active: historyResultTab === 'table' }"
+                  @click="historyResultTab = 'table'"
+                >数据表格 <span>{{ historyRows.length }}</span></button>
+              </div>
               <div class="history-result-summary">{{ historyRangeLabel }} · {{ historyResults.length }} 台设备 · {{ historyRows.length }} 条记录</div>
             </div>
-            <div v-if="historyResults.length" class="history-chart-grid">
+
+            <CombinedHistoryChart
+              v-if="historyResultTab === 'combined'"
+              :results="historyResults"
+              :range-label="historyRangeLabel"
+            />
+
+            <div v-else-if="historyResultTab === 'devices' && historyResults.length" class="history-chart-grid">
               <DeviceHistoryChart
                 v-for="result in historyResults"
                 :key="result.device.id"
@@ -245,20 +274,22 @@
                 :range-label="historyRangeLabel"
               />
             </div>
-            <div v-else class="history-empty">当前条件下没有历史数据</div>
-          </section>
-          <section class="panel">
-            <h2>历史数据表格</h2>
-            <table class="data-table">
-              <thead><tr><th>时间</th><th>设备类型</th><th>设备名称</th><th>所属渠道</th><th>数据项</th><th>数值</th><th>单位</th><th>状态</th></tr></thead>
-              <tbody>
-                <tr v-for="row in visibleHistoryRows" :key="`${row.timestampValue}-${row.name}`">
-                  <td>{{ row.timestamp }}</td><td>{{ row.type }}</td><td>{{ row.name }}</td><td>{{ row.location }}</td><td>{{ row.metric }}</td><td>{{ row.value }}</td><td>{{ row.unit }}</td><td><StatusText :value="row.state" /></td>
-                </tr>
-                <tr v-if="!historyRows.length"><td colspan="8" class="table-empty">当前条件下没有历史数据</td></tr>
-              </tbody>
-            </table>
-            <div class="pager">共 {{ historyRows.length }} 条 <span>当前展示前 {{ visibleHistoryRows.length }} 条</span></div>
+            <div v-else-if="historyResultTab === 'devices'" class="history-empty">当前条件下没有历史数据</div>
+
+            <div v-else class="history-table-view" role="tabpanel" aria-label="历史数据表格">
+              <div class="history-table-scroll">
+                <table class="data-table">
+                  <thead><tr><th>时间</th><th>设备类型</th><th>设备名称</th><th>所属渠道</th><th>数据项</th><th>数值</th><th>单位</th><th>状态</th></tr></thead>
+                  <tbody>
+                    <tr v-for="row in visibleHistoryRows" :key="`${row.timestampValue}-${row.name}`">
+                      <td>{{ row.timestamp }}</td><td>{{ row.type }}</td><td>{{ row.name }}</td><td>{{ row.location }}</td><td>{{ row.metric }}</td><td>{{ row.value }}</td><td>{{ row.unit }}</td><td><StatusText :value="row.state" /></td>
+                    </tr>
+                    <tr v-if="!historyRows.length"><td colspan="8" class="table-empty">当前条件下没有历史数据</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="pager">共 {{ historyRows.length }} 条 <span>当前展示前 {{ visibleHistoryRows.length }} 条</span></div>
+            </div>
           </section>
         </section>
 
@@ -319,6 +350,7 @@
 
 <script setup>
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import CombinedHistoryChart from './components/CombinedHistoryChart.vue';
 import DeviceHistoryChart from './components/DeviceHistoryChart.vue';
 import {
   DEFAULT_DEVICE_IDS,
@@ -332,6 +364,7 @@ import {
 
 const activePage = ref('realtime');
 const activeHistoryTab = ref('analysis');
+const historyResultTab = ref('combined');
 const alarmModalOpen = ref(false);
 const selectedAlarm = ref(null);
 const handleRemark = ref('现场检查反馈正常，已重启控制器，开度反馈恢复。');
@@ -462,6 +495,7 @@ function statusClass(value) {
 }
 
 function showPage(page) {
+  if (page === 'history' && activePage.value !== 'history') historyResultTab.value = 'combined';
   activePage.value = page;
   nextTick(drawAllCharts);
 }
