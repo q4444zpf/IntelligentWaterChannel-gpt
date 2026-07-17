@@ -168,29 +168,97 @@
         </div>
 
         <section v-show="activeHistoryTab === 'analysis'" class="history-tab active">
-          <section class="panel query-panel history-query">
-            <QueryField v-for="field in historyQuery" :key="field.label" :field="field" />
-            <button class="primary">查询</button><button>重置</button><button>刷新</button><button class="success">导出CSV</button>
+          <section class="panel history-query">
+            <div class="history-query-fields">
+              <label class="query-field">开始时间
+                <input v-model="historyDraft.start" type="datetime-local">
+              </label>
+              <label class="query-field">结束时间
+                <input v-model="historyDraft.end" type="datetime-local">
+              </label>
+              <div ref="devicePicker" class="query-field device-picker-field">
+                <span>设备选择</span>
+                <button
+                  type="button"
+                  class="device-picker-trigger"
+                  aria-controls="history-device-options"
+                  :aria-expanded="devicePickerOpen"
+                  @click="devicePickerOpen = !devicePickerOpen"
+                >
+                  <span>已选 {{ historyDraft.deviceIds.length }} 台设备</span><b>{{ devicePickerOpen ? '收起' : '展开' }}</b>
+                </button>
+                <div v-if="devicePickerOpen" id="history-device-options" class="device-picker-menu">
+                  <div class="device-picker-tools">
+                    <input v-model.trim="deviceSearch" type="search" placeholder="搜索编号、类型或位置" aria-label="搜索设备">
+                    <button type="button" @click="selectAllDevices">全选</button>
+                    <button type="button" @click="clearDevices">清空</button>
+                  </div>
+                  <div class="device-option-list">
+                    <label v-for="device in filteredDevices" :key="device.id" class="device-option">
+                      <input
+                        type="checkbox"
+                        :checked="historyDraft.deviceIds.includes(device.id)"
+                        @change="toggleDevice(device.id)"
+                      >
+                      <strong>{{ device.id }}</strong><span>{{ device.type }}</span><span>{{ device.location }}</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <label class="query-field">数据粒度
+                <select v-model.number="historyDraft.intervalSeconds">
+                  <option :value="5">5 秒</option><option :value="60">1 分钟</option><option :value="300">5 分钟</option><option :value="900">15 分钟</option>
+                </select>
+              </label>
+              <label class="query-field">数据状态
+                <select v-model="historyDraft.status">
+                  <option>全部</option><option>在线</option><option>异常</option><option>离线</option>
+                </select>
+              </label>
+            </div>
+            <div class="selected-device-row" aria-live="polite">
+              <span class="selected-device-label">已选设备</span>
+              <button v-for="device in selectedDevices" :key="device.id" type="button" class="selected-device-tag" :title="`移除 ${device.id}`" @click="toggleDevice(device.id)">
+                {{ device.id }}<span>{{ device.type }} · {{ device.location }}</span><b aria-hidden="true">x</b>
+              </button>
+              <span v-if="!selectedDevices.length" class="selection-empty">尚未选择设备</span>
+            </div>
+            <div class="history-query-actions">
+              <p v-if="historyError" class="query-error" role="alert">{{ historyError }}</p>
+              <p v-else class="query-summary">设备按水槽前后位置排列，查询后每台设备独立显示曲线。</p>
+              <button class="primary" :disabled="historyLoading || !historyDraft.deviceIds.length" @click="runHistoryQuery">{{ historyLoading ? '正在查询...' : '查询' }}</button>
+              <button :disabled="historyLoading" @click="resetHistoryQuery">重置</button>
+              <button :disabled="historyLoading" @click="refreshHistoryQuery">刷新</button>
+              <button class="success" :disabled="!canExportHistory" @click="exportHistoryCsv">导出CSV</button>
+            </div>
           </section>
-          <section class="panel chart-panel large">
+          <section class="panel history-chart-section">
             <div class="panel-head">
               <h2>历史曲线分析</h2>
-              <div class="tabs small-tabs"><button v-for="(tab, index) in historyChartTabs" :key="tab" :class="{ active: index === 0 }">{{ tab }}</button></div>
-              <div class="mini-actions"><button v-for="action in historyChartActions" :key="action">{{ action }}</button></div>
+              <div class="history-result-summary">{{ historyRangeLabel }} · {{ historyResults.length }} 台设备 · {{ historyRows.length }} 条记录</div>
             </div>
-            <canvas ref="historyChart" height="300"></canvas>
+            <div v-if="historyResults.length" class="history-chart-grid">
+              <DeviceHistoryChart
+                v-for="result in historyResults"
+                :key="result.device.id"
+                :result="result"
+                :range-label="historyRangeLabel"
+              />
+            </div>
+            <div v-else class="history-empty">当前条件下没有历史数据</div>
           </section>
           <section class="panel">
             <h2>历史数据表格</h2>
             <table class="data-table">
               <thead><tr><th>时间</th><th>设备类型</th><th>设备名称</th><th>所属渠道</th><th>数据项</th><th>数值</th><th>单位</th><th>状态</th></tr></thead>
               <tbody>
-                <tr v-for="row in historyRows" :key="`${row.time}-${row.name}`">
-                  <td>{{ row.time }}</td><td>{{ row.type }}</td><td>{{ row.name }}</td><td>{{ row.channel }}</td><td>{{ row.item }}</td><td>{{ row.value }}</td><td>{{ row.unit }}</td><td><StatusText :value="row.state" /></td>
+                <tr v-for="row in visibleHistoryRows" :key="`${row.timestampValue}-${row.name}`">
+                  <td>{{ row.timestamp }}</td><td>{{ row.type }}</td><td>{{ row.name }}</td><td>{{ row.location }}</td><td>{{ row.metric }}</td><td>{{ row.value }}</td><td>{{ row.unit }}</td><td><StatusText :value="row.state" /></td>
                 </tr>
+                <tr v-if="!historyRows.length"><td colspan="8" class="table-empty">当前条件下没有历史数据</td></tr>
               </tbody>
             </table>
-            <div class="pager">共 12,480 条 <button>1</button><button>2</button><button>3</button><span>...</span><button>208</button><span>每页显示 50</span></div>
+            <div class="pager">共 {{ historyRows.length }} 条 <span>当前展示前 {{ visibleHistoryRows.length }} 条</span></div>
           </section>
         </section>
 
@@ -251,6 +319,16 @@
 
 <script setup>
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import DeviceHistoryChart from './components/DeviceHistoryChart.vue';
+import {
+  DEFAULT_DEVICE_IDS,
+  DEVICES,
+  buildHistoryResults,
+  buildHistoryRows,
+  sortDeviceIds,
+  toHistoryCsv,
+  validateHistoryQuery
+} from './history-data.js';
 
 const activePage = ref('realtime');
 const activeHistoryTab = ref('analysis');
@@ -258,9 +336,36 @@ const alarmModalOpen = ref(false);
 const selectedAlarm = ref(null);
 const handleRemark = ref('现场检查反馈正常，已重启控制器，开度反馈恢复。');
 const realtimeChart = ref(null);
-const historyChart = ref(null);
 const alarmChart = ref(null);
 const profileChart = ref(null);
+const devicePicker = ref(null);
+const devicePickerOpen = ref(false);
+const deviceSearch = ref('');
+const historyLoading = ref(false);
+const historyError = ref('');
+const defaultHistoryQuery = Object.freeze({
+  start: '2026-07-08T09:00',
+  end: '2026-07-08T10:00',
+  deviceIds: [...DEFAULT_DEVICE_IDS],
+  intervalSeconds: 300,
+  status: '全部'
+});
+const createDefaultHistoryQuery = () => ({ ...defaultHistoryQuery, deviceIds: [...defaultHistoryQuery.deviceIds] });
+const historyDraft = ref(createDefaultHistoryQuery());
+const appliedHistoryQuery = ref(createDefaultHistoryQuery());
+const historyResults = ref(buildHistoryResults(appliedHistoryQuery.value));
+const historyRows = computed(() => buildHistoryRows(historyResults.value));
+const visibleHistoryRows = computed(() => historyRows.value.slice(0, 50));
+const selectedDevices = computed(() => sortDeviceIds(historyDraft.value.deviceIds)
+  .map((id) => DEVICES.find((device) => device.id === id))
+  .filter(Boolean));
+const filteredDevices = computed(() => {
+  const keyword = deviceSearch.value.toLocaleLowerCase('zh-CN');
+  if (!keyword) return DEVICES;
+  return DEVICES.filter((device) => `${device.id} ${device.type} ${device.location}`.toLocaleLowerCase('zh-CN').includes(keyword));
+});
+const historyRangeLabel = computed(() => `${appliedHistoryQuery.value.start.replace('T', ' ')} 至 ${appliedHistoryQuery.value.end.replace('T', ' ')}`);
+const canExportHistory = computed(() => !historyLoading.value && historyRows.value.length > 0);
 
 const StatusText = defineComponent({
   props: { value: { type: String, required: true } },
@@ -288,8 +393,6 @@ const pageTabs = [
 const viewActions = ['默认视角', '俯视图', '正视图', '左视图', '右视图', '自动漫游', '复位'];
 const realtimeChartTabs = ['节点水位曲线', '流量计曲线', '水位计曲线', '泵频率曲线', '倒虹吸曲线'];
 const realtimeChartActions = ['近5分钟', '近30分钟', '近1小时', '刷新', '全屏'];
-const historyChartTabs = ['水位曲线', '流量曲线', '压力曲线', '闸门开度', '泵频率', '综合对比'];
-const historyChartActions = ['缩放', '平移', '刷新', '重置', '全屏'];
 
 const gates = [
   { id: 'G0', open: '60%', before: '0.42', after: '0.40', state: '在线', color: 'red' },
@@ -341,15 +444,6 @@ const alarmStats = [
   { label: '严重报警', value: 2, level: 'red' }, { label: '设备离线', value: 4 }, { label: '水位超限', value: 8, level: 'orange' }, { label: '闸门异常', value: 3, level: 'orange' }
 ];
 
-const historyRows = [
-  ['2026-07-08 09:30:20', '水位计', 'WL-01', '渠①', '水位', '0.384', 'm', '正常'],
-  ['2026-07-08 09:30:20', '水位计', 'WL-02', '渠②', '水位', '0.338', 'm', '正常'],
-  ['2026-07-08 09:30:20', '水位计', 'WL-03', '渠③', '水位', '0.412', 'm', '正常'],
-  ['2026-07-08 09:30:20', '水位计', 'WL-04', '集水池', '水位', '0.296', 'm', '正常'],
-  ['2026-07-08 09:30:20', '闸门', 'G2', '渠②', '开度', '43.2', '%', '正常'],
-  ['2026-07-08 09:30:20', '水泵', 'P1', '集水池', '频率', '32.6', 'Hz', '正常']
-].map(([time, type, name, channel, item, value, unit, state]) => ({ time, type, name, channel, item, value, unit, state }));
-
 const replayRows = [
   ['2026-07-08 09:00:00', '0.402', '0.380', '0.390', '12.50', '0.230', '42', '32.0'],
   ['2026-07-08 09:00:05', '0.402', '0.381', '0.392', '12.60', '0.231', '42', '32.0'],
@@ -358,10 +452,6 @@ const replayRows = [
   ['2026-07-08 09:30:20', '0.384', '0.338', '0.412', '13.20', '0.236', '43', '32.6']
 ].map(([time, wl01, wl02, wl03, fm01, pt01, g2, p1]) => ({ time, wl01, wl02, wl03, fm01, pt01, g2, p1 }));
 
-const historyQuery = [
-  ['开始时间', '2026-07-08 09:00:00'], ['结束时间', '2026-07-08 10:00:00'], ['设备类型', '水位计'],
-  ['设备名称', '<span class="tag">WL-01</span><span class="tag">WL-02</span><span class="tag">WL-03</span>'], ['所属渠道', '全部'], ['数据粒度', '5秒'], ['数据状态', '全部']
-].map(([label, value]) => ({ label, value }));
 const replayQuery = [['开始时间', '2026-07-08 09:00:00'], ['结束时间', '2026-07-08 10:00:00'], ['数据粒度', '5秒'], ['渠道范围', '全部']].map(([label, value]) => ({ label, value }));
 const alarmQuery = [['开始时间', '2026-07-08 00:00:00'], ['结束时间', '2026-07-08 23:59:59'], ['报警类型', '全部'], ['报警等级', '全部'], ['报警信息', '请输入报警信息关键字'], ['设备类型', '全部'], ['设备名称', '请输入设备名称'], ['处理状态', '全部'], ['所属渠道', '全部']].map(([label, value]) => ({ label, value }));
 
@@ -404,6 +494,73 @@ function locateAlarm() {
 function viewAlarmHistory() {
   closeAlarmModal();
   showPage('history');
+}
+
+function toggleDevice(id) {
+  const ids = historyDraft.value.deviceIds;
+  historyDraft.value.deviceIds = ids.includes(id) ? ids.filter((item) => item !== id) : sortDeviceIds([...ids, id]);
+  historyError.value = historyDraft.value.deviceIds.length ? '' : '请至少选择一台设备';
+}
+
+function selectAllDevices() {
+  historyDraft.value.deviceIds = DEVICES.map((device) => device.id);
+  historyError.value = '';
+}
+
+function clearDevices() {
+  historyDraft.value.deviceIds = [];
+  historyError.value = '请至少选择一台设备';
+}
+
+async function runHistoryQuery() {
+  const error = validateHistoryQuery(historyDraft.value);
+  if (error) {
+    historyError.value = error;
+    return;
+  }
+  historyError.value = '';
+  historyLoading.value = true;
+  await new Promise((resolve) => window.setTimeout(resolve, 180));
+  const nextQuery = { ...historyDraft.value, deviceIds: sortDeviceIds(historyDraft.value.deviceIds) };
+  const results = buildHistoryResults(nextQuery);
+  historyResults.value = nextQuery.status === '全部'
+    ? results
+    : results.filter((result) => result.device.state === nextQuery.status);
+  appliedHistoryQuery.value = nextQuery;
+  historyLoading.value = false;
+  devicePickerOpen.value = false;
+}
+
+function resetHistoryQuery() {
+  historyDraft.value = createDefaultHistoryQuery();
+  historyError.value = '';
+  deviceSearch.value = '';
+  runHistoryQuery();
+}
+
+function refreshHistoryQuery() {
+  runHistoryQuery();
+}
+
+function exportHistoryCsv() {
+  if (!canExportHistory.value) return;
+  const blob = new Blob([toHistoryCsv(historyRows.value)], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `历史数据_${appliedHistoryQuery.value.start.replaceAll(':', '')}_${appliedHistoryQuery.value.end.replaceAll(':', '')}.csv`;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+function handleDocumentPointerDown(event) {
+  if (devicePickerOpen.value && !devicePicker.value?.contains(event.target)) devicePickerOpen.value = false;
+}
+
+function handleDocumentKeydown(event) {
+  if (event.key === 'Escape') devicePickerOpen.value = false;
 }
 
 function drawLineChart(canvas, options = {}) {
@@ -580,7 +737,6 @@ function drawAlarmMark(ctx, x, y, text) {
 
 function drawAllCharts() {
   drawLineChart(realtimeChart.value);
-  drawLineChart(historyChart.value, { alarm: true });
   drawLineChart(alarmChart.value, { drop: true, labels: ['开度反馈(%)', '设定开度(%)'], alarm: true });
   drawProfileChart(profileChart.value);
 }
@@ -588,9 +744,13 @@ function drawAllCharts() {
 onMounted(() => {
   nextTick(drawAllCharts);
   window.addEventListener('resize', drawAllCharts);
+  document.addEventListener('pointerdown', handleDocumentPointerDown);
+  document.addEventListener('keydown', handleDocumentKeydown);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', drawAllCharts);
+  document.removeEventListener('pointerdown', handleDocumentPointerDown);
+  document.removeEventListener('keydown', handleDocumentKeydown);
 });
 </script>
