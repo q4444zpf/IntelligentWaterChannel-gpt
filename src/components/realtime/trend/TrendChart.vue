@@ -61,4 +61,5 @@ onBeforeUnmount(() => { resizeObserver?.disconnect(); chart?.dispose(); });
 :global(.trend-tooltip-row) { display: grid; grid-template-columns: auto minmax(110px, 1fr) auto auto; gap: 7px; align-items: center; margin-top: 6px; }
 :global(.trend-tooltip-row b) { color: #fff; }
 @keyframes trend-spin { to { transform: rotate(360deg); } }
+@media (max-width: 1400px) { .trend-chart-shell { min-height: 150px; } }
 </style>

@@ -73,7 +73,7 @@ function formatStat(value: number | null) { return value === null ? '--' : `${va
 .trend-live-status { display: flex; gap: 5px; align-items: center; white-space: nowrap; }.trend-live-status button { padding: 5px 8px; font-size: 10px; }
 .trend-workbench { flex: 1; min-width: 0; min-height: 0; margin: 0 10px 10px; overflow: hidden; border: 1px solid rgba(54, 135, 190, .2); border-radius: 5px; }
 .trend-main { display: flex; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0; padding: 6px; gap: 5px; }
-.trend-toolbar { display: flex; align-items: center; gap: 10px; min-height: 28px; }
+.trend-toolbar { display: flex; flex: 0 0 auto; align-items: center; gap: 10px; min-height: 28px; }
 .fixed-device { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; color: #82a2bd; font-size: 10px; }.fixed-device b { padding: 6px 9px; border: 1px solid rgba(72, 151, 207, .35); border-radius: 4px; color: #d9ecff; background: rgba(2, 18, 32, .8); font-weight: 500; }
 .trend-statistics { display: flex; gap: 5px; min-width: 0; overflow-x: auto; }.trend-statistics > span { flex: 0 0 auto; color: #7898b4; font-size: 8px; white-space: nowrap; }.trend-statistics b { margin-right: 3px; }.trend-statistics i { margin-left: 4px; color: #55dc83; font-style: normal; }.trend-statistics i.stopped { color: #8b99a8; }
 @media (max-width: 1400px) {
