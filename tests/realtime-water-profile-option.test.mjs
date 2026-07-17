@@ -10,7 +10,9 @@ test('builds the node-water business axes and two distinct profile series', () =
   const option = buildRealtimeWaterProfileOption(snapshot);
 
   assert.equal(option.title.text, '节点水位曲线');
-  assert.match(option.xAxis.name, /m/);
+  assert.equal(option.xAxis.type, 'category');
+  assert.deepEqual(option.xAxis.data, snapshot.nodes.map((node) => node.label));
+  assert.doesNotMatch(option.xAxis.name ?? '', /距离|m/);
   assert.match(option.yAxis.name, /m/);
   assert.deepEqual(option.legend.data, ['实测水位', '模拟水位']);
   assert.equal(option.series.length, 2);
@@ -31,7 +33,7 @@ test('includes seven gate markers, two thresholds, and eight process segments', 
   assert.equal(segments.at(-1)[0].name, '集水池');
 });
 
-test('formats node details and constrains zoom to the chart', () => {
+test('formats node details without distance zoom controls', () => {
   const option = buildRealtimeWaterProfileOption(snapshot);
   const html = option.tooltip.formatter([
     { dataIndex: 0, marker: '<i></i>', value: option.series[0].data[0] },
@@ -39,9 +41,9 @@ test('formats node details and constrains zoom to the chart', () => {
   ]);
 
   assert.match(html, /前池/);
-  assert.match(html, /沿程距离/);
+  assert.doesNotMatch(html, /沿程距离/);
   assert.match(html, /实测水位/);
   assert.match(html, /模拟水位/);
   assert.equal(option.tooltip.confine, true);
-  assert.deepEqual(option.dataZoom.map((zoom) => zoom.type), ['inside', 'slider']);
+  assert.equal(option.dataZoom, undefined);
 });

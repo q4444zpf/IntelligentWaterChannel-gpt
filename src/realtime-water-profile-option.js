@@ -17,7 +17,6 @@ export function buildRealtimeWaterProfileOption(snapshot) {
     const node = nodes[params?.[0]?.dataIndex];
     if (!node) return '';
     return `<strong>${node.label}</strong><div class="profile-tooltip-time">${formatTime(snapshot.timestamp)}</div>`
-      + `<div>沿程距离 <b>${node.distance} m</b></div>`
       + `<div>${params[0]?.marker ?? ''}实测水位 <b>${formatValue(node.measured)}</b></div>`
       + `<div>${params[1]?.marker ?? ''}模拟水位 <b>${formatValue(node.simulated)}</b></div>`
       + `<div>设备状态 <b>${node.state}</b></div>`;
@@ -25,7 +24,7 @@ export function buildRealtimeWaterProfileOption(snapshot) {
 
   const gateLines = PROFILE_GATES.map((gate) => ({
     name: gate.id,
-    xAxis: gate.distance,
+    xAxis: gate.label,
     label: { formatter: gate.id, color: '#f4c76a', position: 'insideEndTop' },
     lineStyle: { color: 'rgba(244, 199, 106, .58)', width: 1, type: 'dashed' }
   }));
@@ -46,8 +45,8 @@ export function buildRealtimeWaterProfileOption(snapshot) {
     },
     grid: { left: 62, right: 30, top: 62, bottom: 72, containLabel: true },
     xAxis: {
-      type: 'value', min: 0, max: 830, name: '沿程距离 L（m）', nameLocation: 'middle', nameGap: 34,
-      axisLine: { lineStyle: { color: '#55718c' } }, axisLabel: { color: '#91abc4', hideOverlap: true },
+      type: 'category', data: nodes.map((node) => node.label), name: '', boundaryGap: false,
+      axisLine: { lineStyle: { color: '#55718c' } }, axisLabel: { color: '#91abc4', hideOverlap: true, interval: 0, rotate: 28, fontSize: 9 },
       splitLine: { lineStyle: { color: 'rgba(91, 139, 181, .12)' } }
     },
     yAxis: {
@@ -55,14 +54,10 @@ export function buildRealtimeWaterProfileOption(snapshot) {
       axisLine: { show: true, lineStyle: { color: '#55718c' } }, axisLabel: { color: '#91abc4', formatter: '{value}' },
       splitLine: { lineStyle: { color: 'rgba(91, 139, 181, .17)' } }
     },
-    dataZoom: [
-      { type: 'inside', filterMode: 'none', minSpan: 15 },
-      { type: 'slider', filterMode: 'none', height: 18, bottom: 10, borderColor: 'rgba(65, 139, 191, .3)', backgroundColor: 'rgba(3, 18, 32, .7)', fillerColor: 'rgba(57, 246, 255, .15)', handleStyle: { color: '#39f6ff' }, textStyle: { color: '#7897b3' } }
-    ],
     series: [
       {
         name: '实测水位', type: 'line', smooth: 0.18, connectNulls: false, symbol: 'circle', symbolSize: 7,
-        data: nodes.map((node) => [node.distance, node.measured]),
+        data: nodes.map((node) => node.measured),
         lineStyle: { color: '#39f6ff', width: 3, type: 'solid', shadowColor: 'rgba(57, 246, 255, .7)', shadowBlur: 9 },
         itemStyle: { color: '#39f6ff', borderColor: '#d9fdff', borderWidth: 1 },
         markLine: { silent: true, symbol: ['none', 'none'], data: [...gateLines, ...thresholdLines] },
@@ -77,7 +72,7 @@ export function buildRealtimeWaterProfileOption(snapshot) {
       },
       {
         name: '模拟水位', type: 'line', smooth: 0.22, connectNulls: false, showSymbol: false,
-        data: nodes.map((node) => [node.distance, node.simulated]),
+        data: nodes.map((node) => node.simulated),
         lineStyle: { color: '#4f93ff', width: 2, type: 'dashed' }, itemStyle: { color: '#4f93ff' }
       }
     ]

@@ -20,7 +20,8 @@ test('builds an ordered water-only profile from current monitoring fixtures', ()
   assert.equal(snapshot.timestamp, 1000);
   assert.equal(snapshot.nodes[0].label, '前池');
   assert.equal(snapshot.nodes.at(-1).label, '集水池');
-  assert.ok(snapshot.nodes.every((node, index, nodes) => !index || node.distance >= nodes[index - 1].distance));
+  assert.ok(snapshot.nodes.every((node, index, nodes) => !index || node.order > nodes[index - 1].order));
+  assert.ok(snapshot.nodes.every((node) => !('distance' in node)));
   assert.equal(snapshot.nodes.find((node) => node.id === 'PT-03'), undefined);
   assert.equal(PROFILE_GATES.length, 7);
   assert.equal(PROFILE_SEGMENTS.length, 8);

@@ -12,7 +12,6 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { LineChart } from 'echarts/charts';
 import {
-  DataZoomComponent,
   GridComponent,
   LegendComponent,
   MarkAreaComponent,
@@ -26,7 +25,6 @@ import { buildRealtimeWaterProfileOption } from '../../realtime-water-profile-op
 
 echarts.use([
   LineChart,
-  DataZoomComponent,
   GridComponent,
   LegendComponent,
   MarkAreaComponent,
@@ -62,7 +60,7 @@ async function renderChart() {
 }
 
 function resetZoom() {
-  chart?.dispatchAction({ type: 'dataZoom', start: 0, end: 100 });
+  void renderChart();
 }
 
 defineExpose({ resetZoom });
