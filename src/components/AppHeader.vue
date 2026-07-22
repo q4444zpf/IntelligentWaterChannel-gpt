@@ -21,15 +21,31 @@
       <span class="status ok">数据库 正常</span>
     </div>
     <time class="clock">09:35:21</time>
+    <div class="user-area">
+      <span class="user-name">{{ username }}</span>
+      <button class="logout-btn" title="退出登录" @click="handleLogout">退出</button>
+    </div>
   </header>
 </template>
 
 <script setup>
+import { computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { PAGE_TABS } from '../data/monitoring-data.js';
+
+const router = useRouter();
 
 defineProps({
   activePage: { type: String, required: true }
 });
 
 defineEmits(['navigate']);
+
+const username = computed(() => sessionStorage.getItem('username') || '用户');
+
+function handleLogout() {
+  sessionStorage.removeItem('isLoggedIn');
+  sessionStorage.removeItem('username');
+  router.replace({ name: 'login' });
+}
 </script>
