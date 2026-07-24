@@ -105,7 +105,7 @@ main { padding-top: 8px; }
 .sensor-title { padding: 8px 10px; color: #59baff; font-weight: 700; background: rgba(11, 55, 91, .5); }
 .sensor-section table { width: 100%; margin: 0; border: 0; border-radius: 0; }
 
-.twin-stage { position: relative; height: calc(100% - 48px); margin: 0 10px 10px; border: 1px solid rgba(57, 161, 255, .28); border-radius: 7px; overflow: hidden; background: radial-gradient(circle at center, rgba(18, 93, 157, .28), rgba(0, 5, 12, .84) 68%); }
+.twin-stage { display: block; position: relative; width: calc(100% - 20px); height: calc(100% - 48px); box-sizing: border-box; margin: 0 10px 10px; border: 1px solid rgba(57, 161, 255, .28); border-radius: 7px; overflow: hidden; background: radial-gradient(circle at center, rgba(18, 93, 157, .28), rgba(0, 5, 12, .84) 68%); }
 .twin-stage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; filter: saturate(1.2) contrast(1.04) drop-shadow(0 0 12px rgba(0, 145, 255, .18)); }
 .float-tag { position: absolute; z-index: 2; padding: 7px 10px; min-width: 86px; border-radius: 6px; border: 1px solid rgba(51, 184, 255, .86); background: rgba(0, 24, 45, .82); color: #eaf7ff; text-align: center; font-size: 13px; line-height: 1.45; box-shadow: 0 0 16px rgba(0, 150, 255, .32); }
 .float-tag b { font-size: 17px; font-weight: 700; }
