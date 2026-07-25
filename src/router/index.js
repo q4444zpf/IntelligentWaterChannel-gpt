@@ -2,6 +2,9 @@ import { createRouter, createWebHistory } from 'vue-router';
 import WelcomePage from '../views/WelcomePage.vue';
 import LoginPage from '../views/LoginPage.vue';
 import MainPage from '../views/MainPage.vue';
+import { clearAuth, initializeAuth } from '../stores/auth.js';
+import { getToken } from '../utils/auth.js';
+import { setUnauthorizedHandler } from '../utils/request.js';
 
 const routes = [
   {
@@ -40,17 +43,43 @@ const router = createRouter({
   routes,
 });
 
-// 简单的登录状态守卫
-router.beforeEach((to, from, next) => {
-  const isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
+function loginRoute(form) {
+  return {
+    name: 'login',
+    query: form && form !== '/login' ? { form } : undefined,
+  };
+}
 
-  if (to.meta.requiresAuth && !isLoggedIn) {
-    next({ name: 'login' });
-  } else if ((to.name === 'login' || to.name === 'welcome') && isLoggedIn) {
-    // 已登录就不要再回到登录/欢迎页
-    next({ name: 'main' });
-  } else {
-    next();
+router.beforeEach(async (to) => {
+  const token = getToken();
+
+  if (to.meta.requiresAuth && !token) {
+    return loginRoute(to.fullPath);
+  }
+
+  if (!token) {
+    return true;
+  }
+
+  try {
+    await initializeAuth();
+  } catch {
+    clearAuth();
+    return to.meta.requiresAuth ? loginRoute(to.fullPath) : true;
+  }
+
+  if (to.name === 'login' || to.name === 'welcome') {
+    return { name: 'main' };
+  }
+
+  return true;
+});
+
+setUnauthorizedHandler(() => {
+  const currentRoute = router.currentRoute.value;
+  clearAuth();
+  if (currentRoute.name !== 'login') {
+    router.replace(loginRoute(currentRoute.fullPath)).catch(() => {});
   }
 });
 

@@ -26,12 +26,12 @@
 
 <script setup>
 import { useRouter } from 'vue-router';
+import { getToken } from '../utils/auth.js';
 
 const router = useRouter();
 
 function enterWorkbench() {
-  const isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
-  router.push({ name: isLoggedIn ? 'main' : 'login' });
+  router.push({ name: getToken() ? 'main' : 'login' });
 }
 </script>
 

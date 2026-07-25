@@ -23,15 +23,18 @@
     <time class="clock">09:35:21</time>
     <div class="user-area">
       <span class="user-name">{{ username }}</span>
-      <button class="logout-btn" title="退出登录" @click="handleLogout">退出</button>
+      <button class="logout-btn" title="退出登录" :disabled="loggingOut" @click="handleLogout">
+        {{ loggingOut ? '退出中' : '退出' }}
+      </button>
     </div>
   </header>
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { PAGE_TABS } from '../data/monitoring-data.js';
+import { authState, signOut } from '../stores/auth.js';
 
 const router = useRouter();
 
@@ -41,11 +44,23 @@ defineProps({
 
 defineEmits(['navigate']);
 
-const username = computed(() => sessionStorage.getItem('username') || '用户');
+const loggingOut = ref(false);
+const username = computed(() => {
+  const user = authState.user.value;
+  return user?.name || user?.username || user?.account || '用户';
+});
 
-function handleLogout() {
-  sessionStorage.removeItem('isLoggedIn');
-  sessionStorage.removeItem('username');
-  router.replace({ name: 'login' });
+async function handleLogout() {
+  if (loggingOut.value) return;
+
+  loggingOut.value = true;
+  try {
+    await signOut();
+  } catch (error) {
+    console.error(error);
+  } finally {
+    await router.replace({ name: 'login' });
+    loggingOut.value = false;
+  }
 }
 </script>

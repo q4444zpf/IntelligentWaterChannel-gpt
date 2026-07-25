@@ -57,7 +57,6 @@
               autocomplete="current-password"
               :disabled="loading"
               @focus="shake = false"
-              @keyup.enter="handleLogin"
             />
             <button type="button" class="password-toggle" @click="showPassword = !showPassword" tabindex="-1">
               <svg v-if="!showPassword" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -89,13 +88,11 @@
               maxlength="4"
               :disabled="loading"
               @focus="shake = false"
-              @keyup.enter="handleLogin"
             />
-            <canvas
-              ref="captchaCanvas"
-              class="captcha-canvas"
-              width="110"
-              height="44"
+            <img
+              class="captcha-image"
+              :src="captchaUrl"
+              alt="验证码"
               @click="refreshCaptcha"
               title="点击刷新验证码"
             />
@@ -116,15 +113,16 @@
         </button>
       </form>
 
-      <!-- 底部提示 -->
-      <p class="login-tip">默认账号：admin / admin123</p>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { getCaptchaUrl, getCode } from '../api/auth.js';
+import { SUCCESS_CODE } from '../constants/auth.js';
+import { authenticate } from '../stores/auth.js';
 
 const router = useRouter();
 
@@ -135,83 +133,31 @@ const loading = ref(false);
 const errorMsg = ref('');
 const shake = ref(false);
 
-const captchaCanvas = ref(null);
 const captchaCode = ref('');
 const captchaInput = ref('');
+const captchaUrl = ref('');
 
-// 演示用账号
-const VALID_USERS = {
-  admin: 'admin123',
-  operator: 'oper123',
-  viewer: 'view123',
-};
+async function refreshCaptcha() {
+  try {
+    const response = await getCode();
+    if (response?.code !== SUCCESS_CODE) {
+      throw new Error(response?.message || '验证码加载失败');
+    }
 
-const CAPTCHA_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-
-function generateCaptcha() {
-  if (!captchaCanvas.value) return;
-
-  const canvas = captchaCanvas.value;
-  const ctx = canvas.getContext('2d');
-  const w = canvas.width;
-  const h = canvas.height;
-
-  // 随机码
-  let code = '';
-  for (let i = 0; i < 4; i++) {
-    code += CAPTCHA_CHARS[Math.floor(Math.random() * CAPTCHA_CHARS.length)];
-  }
-  captchaCode.value = code;
-
-  // 背景
-  ctx.fillStyle = '#051a30';
-  ctx.fillRect(0, 0, w, h);
-
-  // 噪点
-  for (let i = 0; i < 40; i++) {
-    ctx.fillStyle = `rgba(${40 + Math.random() * 60},${100 + Math.random() * 100},${160 + Math.random() * 95},${0.15 + Math.random() * 0.25})`;
-    ctx.beginPath();
-    ctx.arc(Math.random() * w, Math.random() * h, Math.random() * 2 + 0.5, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // 干扰线
-  for (let i = 0; i < 3; i++) {
-    ctx.strokeStyle = `rgba(${50 + Math.random() * 50},${130 + Math.random() * 80},${200 + Math.random() * 55},${0.2 + Math.random() * 0.2})`;
-    ctx.lineWidth = 1 + Math.random();
-    ctx.beginPath();
-    ctx.moveTo(Math.random() * w, Math.random() * h);
-    ctx.lineTo(Math.random() * w, Math.random() * h);
-    ctx.stroke();
-  }
-
-  // 字符
-  for (let i = 0; i < code.length; i++) {
-    const char = code[i];
-    const x = 16 + i * 22;
-    const y = 30 + (Math.random() - 0.5) * 10;
-    const angle = (Math.random() - 0.5) * 0.5;
-
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(angle);
-    ctx.font = 'bold 24px "Microsoft YaHei", sans-serif';
-    const colors = ['#4cc7ff', '#2da6ff', '#73ff92', '#ffd21f', '#ff9d22'];
-    ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
-    ctx.fillText(char, 0, 0);
-    ctx.restore();
+    captchaCode.value = String(response.data);
+    captchaUrl.value = getCaptchaUrl(captchaCode.value);
+  } catch (error) {
+    captchaCode.value = '';
+    captchaUrl.value = '';
+    errorMsg.value = error.message || '验证码加载失败，请稍后重试';
   }
 }
 
-function refreshCaptcha() {
-  generateCaptcha();
-}
+onMounted(refreshCaptcha);
 
-onMounted(() => {
-  generateCaptcha();
-});
+async function handleLogin() {
+  if (loading.value) return;
 
-function handleLogin() {
   errorMsg.value = '';
   shake.value = false;
 
@@ -229,35 +175,32 @@ function handleLogin() {
     return;
   }
 
-  if (captchaInput.value.trim().toUpperCase() !== captchaCode.value) {
-    errorMsg.value = '验证码错误，请重新输入';
-    captchaInput.value = '';
-    shake.value = true;
-    refreshCaptcha();
-    setTimeout(() => shake.value = false, 500);
+  if (!captchaCode.value) {
+    errorMsg.value = '验证码尚未加载，请点击图片重试';
     return;
   }
 
   loading.value = true;
+  try {
+    await authenticate({
+      code: captchaCode.value,
+      captcha: captchaInput.value.trim(),
+      username: username.value.trim(),
+      password: password.value,
+    });
 
-  // 模拟异步验证
-  setTimeout(() => {
-    const expectedPwd = VALID_USERS[username.value.trim()];
-
-    if (expectedPwd && password.value === expectedPwd) {
-      sessionStorage.setItem('isLoggedIn', 'true');
-      sessionStorage.setItem('username', username.value.trim());
-      router.replace({ name: 'main' });
-    } else {
-      errorMsg.value = '用户名或密码错误，请重试';
-      password.value = '';
-      captchaInput.value = '';
-      refreshCaptcha();
-      shake.value = true;
-      setTimeout(() => shake.value = false, 500);
-      loading.value = false;
-    }
-  }, 800);
+    const form = router.currentRoute.value.query.form;
+    const target = typeof form === 'string' && form.startsWith('/') ? form : { name: 'main' };
+    await router.replace(target);
+  } catch (error) {
+    errorMsg.value = error.message || '登录失败，请重试';
+    captchaInput.value = '';
+    shake.value = true;
+    await refreshCaptcha();
+    setTimeout(() => shake.value = false, 500);
+  } finally {
+    loading.value = false;
+  }
 }
 </script>
 
@@ -479,10 +422,11 @@ function handleLogin() {
 }
 .captcha-input {
   flex: 1;
+  min-width: 0;
   text-transform: uppercase;
   letter-spacing: 4px;
 }
-.captcha-canvas {
+.captcha-image {
   flex: 0 0 auto;
   width: 110px;
   height: 44px;
@@ -563,12 +507,25 @@ function handleLogin() {
   40% { transform: scale(1); opacity: 1; }
 }
 
-/* 底部提示 */
-.login-tip {
-  margin: 24px 0 0;
-  text-align: center;
-  font-size: 12px;
-  color: rgba(130, 180, 210, 0.35);
-  letter-spacing: 0.5px;
+@media (max-width: 520px) {
+  .login-card {
+    width: calc(100% - 32px);
+    padding: 36px 24px 32px;
+  }
+
+  .login-brand {
+    font-size: 21px;
+  }
+
+  .deco-ring-1 {
+    width: 460px;
+    height: 460px;
+  }
+
+  .deco-ring-2 {
+    width: 580px;
+    height: 580px;
+  }
 }
+
 </style>

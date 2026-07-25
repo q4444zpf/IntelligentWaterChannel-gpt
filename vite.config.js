@@ -6,5 +6,14 @@ export default defineConfig({
   plugins: [vue(), VueDevTools({
     // launchEditor: 'D:\\Trae CN\\bin\\trae-launcher.bat', // 自定义脚本，同时打开webstorm和Trae CN
     launchEditor: 'webstorm64', // 关键：点击组件时自动打开 webstorm
-  })]
+  })],
+  server: {
+    proxy: {
+      '^/api': {
+        target: 'http://127.0.0.1:9427',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+    },
+  },
 });
