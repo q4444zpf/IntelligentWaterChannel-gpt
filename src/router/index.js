@@ -22,6 +22,19 @@ const routes = [
   },
 ];
 
+// 修复Edge浏览器不能最小化的问题
+const isEdge = /edg\//i.test(navigator.userAgent)
+if (isEdge) {
+  const rawReplaceState = history.replaceState
+  history.replaceState = function (...args) {
+    // 页面隐藏时不执行 replaceState
+    if (document.visibilityState === 'hidden') {
+      return
+    }
+    return rawReplaceState.apply(this, args)
+  }
+}
+
 const router = createRouter({
   history: createWebHistory(),
   routes,
