@@ -114,6 +114,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { getToken } from '../utils/auth.js';
 
 const router = useRouter();
 const currentTime = ref('');
@@ -137,8 +138,7 @@ onUnmounted(() => {
 });
 
 function enterWorkbench() {
-  const isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
-  router.push({ name: isLoggedIn ? 'main' : 'login' });
+  router.push({ name: getToken() ? 'main' : 'login' });
 }
 
 const features = [

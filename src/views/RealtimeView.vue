@@ -15,14 +15,12 @@
     <section class="center-stack">
       <section class="panel twin-panel">
         <div class="panel-head"><h2>三维水槽工艺监控</h2><div class="mini-actions"><button v-for="action in VIEW_ACTIONS" :key="action">{{ action }}</button></div></div>
-        <div class="twin-stage">
-          <img src="/智能水槽系统设计图与说明/00_原始三维水槽工艺图.png" alt="智能水槽三维工艺图">
-          <span class="flow-arrow a1"></span><span class="flow-arrow a2"></span><span class="flow-arrow a3"></span>
-          <div class="float-tag t1">渠①水位<br><b>0.40 m</b></div>
-          <div class="float-tag t2">G2 <span class="dot ok"></span><br>闸前 0.38 m<br>闸后 0.35 m<br>开度 42%</div>
-          <div class="float-tag t3">FM-01 流量计<br><b>18.2 L/s</b></div><div class="float-tag t4">渠⑥水位<br><b>0.32 m</b></div>
-          <div class="float-tag t5">P1 运行中 <span class="dot ok"></span><br>频率 32 Hz<br>压力 0.23 MPa</div><div class="float-tag alarm t6">G6 闸门异常<br><b>反馈超时</b></div>
-        </div>
+        <iframe
+          class="twin-stage"
+          src="http://27.185.55.121:9426/preview?webTopoId=2079771269045444608"
+          title="三维水槽工艺监控"
+          allowfullscreen
+        ></iframe>
       </section>
       <TrendAnalysis />
     </section>
