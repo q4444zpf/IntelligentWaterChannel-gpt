@@ -455,8 +455,8 @@ const dataStreams = Array.from({ length: 8 }, () => ({
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px 32px;
-  gap: 36px;
+  padding: 16px 32px;
+  gap: 28px;
 }
 
 /* ===== Hero section ===== */
@@ -465,7 +465,7 @@ const dataStreams = Array.from({ length: 8 }, () => ({
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   text-align: center;
   animation: contentSettle 0.7s ease-out both;
 }
@@ -959,6 +959,192 @@ const dataStreams = Array.from({ length: 8 }, () => ({
 
   .hero-title {
     font-size: 36px;
+  }
+}
+
+@media (max-height: 800px) {
+  .welcome-header {
+    padding: 10px 24px;
+  }
+
+  .welcome-main {
+    padding: 12px 24px;
+    gap: 18px;
+  }
+
+  .hero-logo {
+    width: 72px;
+    height: 72px;
+    margin-bottom: 0;
+  }
+
+  .logo-mark {
+    width: 34px;
+    height: 42px;
+  }
+
+  .hero-title {
+    font-size: 32px;
+    letter-spacing: 2px;
+  }
+
+  .hero-desc {
+    font-size: 13px;
+  }
+
+  .enter-btn {
+    min-width: 160px;
+    height: 42px;
+    padding: 0 28px;
+    font-size: 14px;
+  }
+
+  .features-grid {
+    gap: 12px;
+    max-width: 720px;
+  }
+
+  .feature-card {
+    padding: 16px 12px;
+    border-radius: 8px;
+  }
+
+  .feature-icon {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 10px;
+  }
+
+  .feature-icon :deep(svg) {
+    width: 20px;
+    height: 20px;
+  }
+
+  .feature-title {
+    font-size: 14px;
+  }
+
+  .feature-desc {
+    font-size: 11px;
+  }
+
+  .stats-bar {
+    max-width: 720px;
+  }
+
+  .stat-item {
+    padding: 10px 8px;
+  }
+
+  .stat-value {
+    font-size: 20px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+  }
+
+  .welcome-footer {
+    padding: 8px 24px;
+  }
+
+  .bg-horizon {
+    bottom: 18%;
+  }
+}
+
+@media (max-height: 680px) {
+  .welcome-header {
+    padding: 8px 20px;
+  }
+
+  .brand-text {
+    font-size: 13px;
+  }
+
+  .welcome-main {
+    padding: 8px 20px;
+    gap: 12px;
+  }
+
+  .hero-logo {
+    width: 60px;
+    height: 60px;
+  }
+
+  .logo-mark {
+    width: 28px;
+    height: 36px;
+  }
+
+  .hero-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+  }
+
+  .hero-title {
+    font-size: 26px;
+  }
+
+  .hero-desc {
+    font-size: 12px;
+  }
+
+  .features-grid {
+    gap: 10px;
+  }
+
+  .feature-card {
+    padding: 12px 10px;
+  }
+
+  .feature-icon {
+    width: 34px;
+    height: 34px;
+    margin-bottom: 8px;
+  }
+
+  .feature-icon :deep(svg) {
+    width: 18px;
+    height: 18px;
+  }
+
+  .feature-title {
+    font-size: 12px;
+  }
+
+  .feature-desc {
+    font-size: 10px;
+  }
+
+  .stat-item {
+    padding: 8px 6px;
+  }
+
+  .stat-value {
+    font-size: 17px;
+  }
+
+  .stat-label {
+    font-size: 10px;
+  }
+
+  .welcome-footer {
+    padding: 6px 20px;
+    font-size: 11px;
+  }
+}
+
+@media (max-height: 600px), (max-width: 560px) {
+  .welcome-screen {
+    overflow-y: auto;
+    justify-content: flex-start;
+  }
+
+  .welcome-main {
+    justify-content: flex-start;
+    padding-top: 70px;
+    padding-bottom: 30px;
   }
 }
 
