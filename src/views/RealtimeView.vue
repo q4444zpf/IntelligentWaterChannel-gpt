@@ -14,13 +14,10 @@
 
     <section class="center-stack">
       <section class="panel twin-panel">
-        <div class="panel-head"><h2>三维水槽工艺监控</h2><div class="mini-actions"><button v-for="action in VIEW_ACTIONS" :key="action">{{ action }}</button></div></div>
-        <iframe
-          class="twin-stage"
-          src="http://27.185.55.121:9426/preview?webTopoId=2079771269045444608"
-          title="三维水槽工艺监控"
-          allowfullscreen
-        ></iframe>
+        <div class="panel-head"><h2>三维水槽工艺监控</h2><div class="mini-actions"><button v-for="action in VIEW_ACTIONS" :key="action" type="button" @click="previewRef?.handleAction(action)">{{ action }}</button></div></div>
+        <div class="twin-stage">
+          <SmartWaterFlumePreview ref="previewRef" />
+        </div>
       </section>
       <TrendAnalysis />
     </section>
@@ -39,9 +36,13 @@
 </template>
 
 <script setup>
+import { ref } from 'vue';
 import StatusText from '../components/common/StatusText.vue';
+import SmartWaterFlumePreview from '../components/realtime/SmartWaterFlumePreview.vue';
 import TrendAnalysis from '../components/realtime/trend/TrendAnalysis.vue';
 import { ALARMS, GATES, SENSOR_GROUPS, VIEW_ACTIONS } from '../data/monitoring-data.js';
 
 defineEmits(['navigate']);
+
+const previewRef = ref(null);
 </script>
