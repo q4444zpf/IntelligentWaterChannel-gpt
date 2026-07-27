@@ -2,6 +2,7 @@
   "type": "module",
   "scripts": {
     "generate:flume-model": "node scripts/generate-flume-model.mjs",
+    "export:webtopo-r4": "node scripts/export-r4-webtopo-project.mjs",
     "dev": "vite --host 127.0.0.1 --port 4173",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4173",

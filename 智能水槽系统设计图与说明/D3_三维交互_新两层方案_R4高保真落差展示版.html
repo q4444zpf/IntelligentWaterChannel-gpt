@@ -1,0 +1,1486 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>蛇形明满混合实验水槽 · 新两层方案 · 三维交互模型 (L3@ODD)</title>
+<style>
+  :root{ --ink:#1f2a37; --panel:rgba(255,255,255,.92); --line:#d6dde6; }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; height:100%; overflow:hidden; font-family:"Noto Sans SC","Microsoft YaHei",system-ui,sans-serif; color:var(--ink); }
+  #app{ position:fixed; inset:0; }
+  canvas{ display:block; }
+
+  /* 顶部标题 */
+  #title{ position:fixed; left:16px; top:14px; z-index:20; pointer-events:none; }
+  #title h1{ font-size:16px; margin:0 0 3px; letter-spacing:.3px; text-shadow:0 1px 2px rgba(255,255,255,.7); }
+  #title .sub{ font-size:12px; color:#516072; text-shadow:0 1px 2px rgba(255,255,255,.7); }
+
+  /* 信息面板 */
+  #info{ position:fixed; right:14px; top:14px; z-index:20; width:268px; background:var(--panel);
+    border:1px solid var(--line); border-radius:12px; padding:12px 14px; backdrop-filter:blur(6px);
+    box-shadow:0 8px 30px rgba(20,40,70,.12); font-size:12px; line-height:1.5; max-height:calc(100vh - 28px); overflow:auto; }
+  #info h2{ font-size:13px; margin:0 0 8px; padding-bottom:6px; border-bottom:1px solid var(--line); }
+  #info .status-strip{ display:flex; flex-wrap:wrap; gap:5px; margin:-1px 0 9px; }
+  #info .status{ display:inline-flex; align-items:center; gap:4px; padding:3px 6px; border:1px solid #c8d8e5; border-radius:999px; background:#f4f8fb; color:#35566e; font-size:10.5px; white-space:nowrap; }
+  #info .status::before{ content:""; width:6px; height:6px; border-radius:50%; background:#2e9d73; box-shadow:0 0 0 2px rgba(46,157,115,.12); }
+  #info .status.pending{ border-color:#e8d0a9; background:#fff8ed; color:#8a5b1b; }
+  #info .status.pending::before{ background:#d88922; box-shadow:0 0 0 2px rgba(216,137,34,.12); }
+  #info table{ width:100%; border-collapse:collapse; }
+  #info td{ padding:2px 0; vertical-align:top; }
+  #info td.k{ color:#5a6a7d; white-space:nowrap; padding-right:8px; }
+  #info .em{ color:#b4531a; font-weight:600; }
+  #info .sel{ margin-top:9px; padding-top:8px; border-top:1px dashed var(--line); min-height:34px; }
+  #info .sel b{ color:#12507a; }
+  #info .hint{ color:#8493a3; font-size:11px; }
+  #live{ margin-top:10px; padding:9px 0 2px; border-top:1px dashed var(--line); }
+  #live .live-head{ display:flex; justify-content:space-between; align-items:center; gap:8px; font-weight:600; color:#12507a; }
+  #live .live-head output{ color:#b4531a; font-size:14px; }
+  #live input[type=range]{ width:100%; accent-color:#12507a; margin:7px 0 2px; }
+  #live .scale{ display:flex; justify-content:space-between; color:#8493a3; font-size:10px; }
+  #live .state{ margin-top:6px; padding:5px 7px; border-radius:7px; background:#edf5fb; border:1px solid #c7dced; color:#24516f; }
+  #live .state.warn{ background:#fff5e8; border-color:#f1c78d; color:#8a4b15; }
+  #live .state.danger{ background:#fff0ed; border-color:#e5a59b; color:#8e2f24; }
+  #s2scan{ display:flex; gap:5px; margin-top:7px; }
+  #s2scan button{ flex:1; font:inherit; font-size:10.5px; padding:4px 3px; border:1px solid var(--line); background:#fff; border-radius:6px; cursor:pointer; }
+  #s2scan button.on{ color:#fff; background:#8a4fd0; border-color:#8a4fd0; }
+  #modelNote{ margin-top:6px; color:#8493a3; font-size:10.5px; line-height:1.35; }
+
+  /* 图例 */
+  #legend{ position:fixed; left:16px; bottom:86px; z-index:20; background:var(--panel);
+    border:1px solid var(--line); border-radius:12px; padding:10px 12px; font-size:11.5px;
+    box-shadow:0 8px 30px rgba(20,40,70,.12); }
+  #legend .row{ display:flex; align-items:center; gap:7px; margin:3px 0; }
+  #legend .sw{ width:14px; height:14px; border-radius:3px; border:1px solid rgba(0,0,0,.15); }
+
+  /* 控制条 */
+  #ctrl{ position:fixed; left:50%; bottom:14px; transform:translateX(-50%); z-index:20; display:flex; flex-wrap:wrap; justify-content:center; gap:8px;
+    width:max-content; max-width:calc(100vw - 32px);
+    background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:8px 10px;
+    box-shadow:0 8px 30px rgba(20,40,70,.12); }
+  #ctrl button{ font:inherit; font-size:12px; color:var(--ink); background:#fff; border:1px solid var(--line);
+    flex:0 0 auto; padding:6px 11px; border-radius:8px; cursor:pointer; transition:.15s; white-space:nowrap; }
+  #ctrl button:hover{ background:#eef4fb; border-color:#9db8d6; }
+  #ctrl button.on{ background:#12507a; color:#fff; border-color:#12507a; }
+  #ctrl button.view{ color:#35566e; background:#f5f8fb; }
+  #ctrl button.view:hover{ background:#eaf2f8; border-color:#8eabc2; }
+  #ctrl button:disabled{ opacity:.55; cursor:wait; }
+
+  /* 标注分类面板 */
+  #labcat{ position:fixed; left:16px; top:60px; z-index:20; background:var(--panel);
+    border:1px solid var(--line); border-radius:12px; padding:9px 11px;
+    box-shadow:0 8px 30px rgba(20,40,70,.12); font-size:11.5px; }
+  #labcat .h{ font-size:12px; font-weight:600; margin-bottom:6px; color:#12507a; }
+  #labcat .chip{ display:flex; align-items:center; gap:7px; margin:3px 0; padding:3px 8px; border-radius:8px;
+    border:1px solid var(--line); background:#fff; cursor:pointer; user-select:none; transition:.15s; }
+  #labcat .chip:hover{ background:#eef4fb; border-color:#9db8d6; }
+  #labcat .chip .dot{ width:11px; height:11px; border-radius:3px; border:1px solid rgba(0,0,0,.18); }
+  #labcat .chip.off{ opacity:.4; }
+  #labcat .chip.off .nm{ text-decoration:line-through; }
+  #labcat .allrow{ display:flex; gap:6px; margin-top:6px; }
+  #labcat .allrow button{ flex:1; font:inherit; font-size:11px; padding:3px 0; border-radius:7px;
+    border:1px solid var(--line); background:#fff; cursor:pointer; }
+  #labcat .allrow button:hover{ background:#eef4fb; }
+
+  /* 3D 标注 */
+  #labels{ position:fixed; inset:0; z-index:15; pointer-events:none; }
+  .lab{ position:absolute; transform:translate(-50%,-50%); font-size:11px; line-height:1.25; white-space:nowrap;
+    padding:1px 6px; border-radius:6px; background:rgba(255,255,255,.86); border:1px solid rgba(120,140,165,.5);
+    color:#24313f; box-shadow:0 1px 4px rgba(20,40,70,.12); }
+  .lab.g{ color:#0d4f7c; border-color:#7db0dd; }         /* 闸门 */
+  .lab.s{ color:#7a3c12; border-color:#d09a63; background:rgba(255,248,240,.9);} /* 倒虹吸 */
+  .lab.node{ font-weight:600; color:#12507a; }
+  .lab.dim{ color:#fff; background:#c75b12; border-color:#a54a0d; font-weight:600; font-size:11.5px; }
+  .lab.valve{ color:#a3271b; border-color:#d88b83; background:rgba(255,246,244,.92); }
+  .lab.hide{ display:none; }
+
+  #loading{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:40;
+    background:#eaf0f7; font-size:14px; color:#3a4a5c; opacity:1; transition:opacity .35s ease; }
+  #loading.hide{ opacity:0; pointer-events:none; }
+  /* 倒虹吸落差工作区：与三维总览解耦，便于核对高程链、构造和测点 */
+  #dropView{ position:fixed; inset:0; z-index:35; display:none; padding:clamp(10px,2.5vw,28px); background:rgba(11,24,38,.78); backdrop-filter:blur(10px); }
+  #dropView.open{ display:flex; align-items:center; justify-content:center; }
+  #dropShell{ width:min(1420px,100%); height:min(900px,100%); overflow:auto; border:1px solid rgba(153,195,221,.45); border-radius:18px; background:linear-gradient(145deg,#f6fbff 0%,#edf4fa 58%,#e7eef5 100%); box-shadow:0 24px 80px rgba(0,0,0,.34); color:#183047; }
+  #dropHead{ position:sticky; top:0; z-index:2; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:18px 22px 14px; border-bottom:1px solid #c9d9e5; background:rgba(246,251,255,.94); backdrop-filter:blur(8px); }
+  #dropHead h2{ margin:0; font-size:clamp(18px,2.2vw,25px); letter-spacing:.2px; color:#123b59; }
+  #dropHead .kicker{ margin:4px 0 0; font-size:11px; color:#60768a; letter-spacing:.08em; text-transform:uppercase; }
+  #dropClose{ border:1px solid #afc5d5; background:#fff; color:#234c67; border-radius:9px; padding:7px 12px; font:inherit; font-size:12px; cursor:pointer; white-space:nowrap; }
+  #dropClose:hover{ background:#eaf3f9; border-color:#6f9ab5; }
+  #dropBody{ display:grid; grid-template-columns:minmax(0,1.65fr) minmax(310px,.95fr); gap:18px; padding:18px 22px 22px; }
+  #dropMain{ min-width:0; }
+  #elevCard{ border:1px solid #c7d9e6; border-radius:14px; background:rgba(255,255,255,.78); padding:13px 14px 11px; box-shadow:0 6px 24px rgba(41,82,111,.08); }
+  #elevCard .cardTop{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin:0 0 8px; }
+  #elevCard .cardTop b{ font-size:13px; color:#174d70; }
+  #elevCard .cardTop span{ font-size:11px; color:#6b8090; }
+  #elevSvg{ display:block; width:100%; height:auto; min-height:260px; border-radius:10px; background:linear-gradient(#fafdff,#f1f7fb); }
+  #elevSvg text{ font-family:"Noto Sans SC","Microsoft YaHei",system-ui,sans-serif; fill:#36566c; font-size:12px; }
+  #elevSvg .axis{ fill:#71889a; font-size:10px; }
+  #elevSvg .chan{ stroke:#2f6d91; stroke-width:6; stroke-linecap:round; }
+  #elevSvg .chan.base{ stroke:#aec5d2; stroke-width:2; stroke-dasharray:5 5; }
+  #elevSvg .drop{ stroke:#d27d27; stroke-width:2.6; marker-start:url(#arr); marker-end:url(#arr); }
+  #elevSvg .drop.s2{ stroke:#9552bf; marker-start:url(#arrPurple); marker-end:url(#arrPurple); }
+  #elevSvg .dropText{ fill:#a45b16; font-weight:600; font-size:12px; }
+  #elevSvg .dropText.s2{ fill:#78419f; }
+  #elevSvg .pipe{ fill:none; stroke:#768995; stroke-width:5; stroke-linecap:round; }
+  #elevSvg .pipe.s2{ stroke:#8f58b1; }
+  #elevSvg .sensor{ fill:#0a8b8f; stroke:#f7ffff; stroke-width:2; }
+  #elevSvg .gatel{ fill:#315b7b; }
+  #elevSvg .datum{ stroke:#9aaebb; stroke-width:1; stroke-dasharray:3 4; }
+  #elevSvg .datumText{ fill:#71889a; font-size:10px; }
+  #elevSvg .selected{ filter:drop-shadow(0 0 5px rgba(210,125,39,.8)); }
+  #dropLegend{ display:flex; flex-wrap:wrap; gap:7px 14px; margin-top:9px; font-size:10.5px; color:#60768a; }
+  #dropLegend span{ display:inline-flex; align-items:center; gap:5px; }
+  #dropLegend i{ display:inline-block; width:18px; height:3px; border-radius:3px; background:#2f6d91; }
+  #dropLegend i.pipe{ background:#768995; }
+  #dropLegend i.drop{ background:#d27d27; height:4px; }
+  #dropLegend i.s2{ background:#9552bf; }
+  #chainBar{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:7px; margin-top:10px; }
+  .chainItem{ padding:8px 9px; border:1px solid #d2e0e9; border-radius:9px; background:#f7fbfd; min-width:0; }
+  .chainItem .label{ font-size:10px; color:#748a9b; white-space:nowrap; }
+  .chainItem .value{ margin-top:3px; font-size:13px; font-weight:600; color:#1e526f; white-space:nowrap; }
+  #dropCards{ display:grid; grid-template-columns:1fr; gap:10px; }
+  .dropCard{ border:1px solid #cadbe7; border-radius:13px; background:rgba(255,255,255,.86); padding:12px 13px; cursor:pointer; transition:.16s; }
+  .dropCard:hover{ border-color:#86aec5; box-shadow:0 6px 20px rgba(33,91,123,.12); }
+  .dropCard.active{ border-color:#d27d27; box-shadow:0 0 0 2px rgba(210,125,39,.16),0 8px 24px rgba(33,91,123,.12); }
+  .dropCard.s2.active{ border-color:#9552bf; box-shadow:0 0 0 2px rgba(149,82,191,.17),0 8px 24px rgba(33,91,123,.12); }
+  .dropCardHead{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .dropCardTitle{ display:flex; align-items:center; gap:8px; min-width:0; }
+  .dropBadge{ width:30px; height:30px; display:grid; place-items:center; border-radius:9px; background:#fff2df; color:#a45b16; font-weight:700; font-size:12px; }
+  .dropCard.s2 .dropBadge{ background:#f1e9f8; color:#78419f; }
+  .dropCard h3{ margin:0; font-size:14px; color:#21465f; }
+  .dropCard .type{ margin-top:2px; font-size:10.5px; color:#748a9b; }
+  .dropValue{ font-size:18px; font-weight:700; color:#a45b16; white-space:nowrap; }
+  .dropCard.s2 .dropValue{ color:#78419f; }
+  .dropMeta{ display:grid; grid-template-columns:1fr 1fr; gap:7px 13px; margin-top:10px; padding-top:9px; border-top:1px solid #e1ebf1; }
+  .dropMeta dt{ font-size:10px; color:#7c91a1; }
+  .dropMeta dd{ margin:2px 0 0; font-size:11.5px; color:#31566e; line-height:1.3; }
+  .dropNote{ margin-top:9px; padding:7px 8px; border-radius:7px; background:#f4f8fb; color:#60768a; font-size:10.5px; line-height:1.4; }
+  .dropCard.s2 .dropNote{ background:#faf5fe; color:#6d4a80; }
+  #dropFoot{ grid-column:1/-1; display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px 18px; margin-top:2px; padding:10px 2px 0; border-top:1px solid #d3e1e9; color:#6d8190; font-size:10.5px; line-height:1.4; }
+  #dropFoot strong{ color:#385c71; }
+  #dropFoot .warn{ color:#8a5c1b; }
+
+  @media (max-width: 980px){
+    #info{ width:min(310px, calc(100vw - 28px)); max-height:calc(100vh - 110px); overflow:auto; }
+    #legend{ max-width:calc(100vw - 28px); max-height:24vh; overflow:auto; }
+    #ctrl{ left:14px; right:14px; width:auto; transform:none; justify-content:center; flex-wrap:wrap; gap:5px; }
+    #ctrl button{ padding:5px 8px; font-size:11px; }
+  }
+  @media (max-width: 620px){
+    #title{ left:10px; top:9px; right:10px; }
+    #title h1{ font-size:14px; }
+    #title .sub{ font-size:10px; max-width:62vw; line-height:1.35; }
+    #labcat{ left:10px; top:58px; transform:scale(.9); transform-origin:top left; }
+    #info{ left:10px; right:10px; top:auto; bottom:calc(118px + 18vh + 10px); width:auto; max-height:30vh; font-size:11px; }
+    #legend{ left:10px; right:10px; bottom:118px; font-size:10px; max-height:18vh; }
+    #ctrl{ bottom:8px; left:8px; right:8px; padding:6px; }
+    #ctrl button{ flex:1 1 18%; min-width:0; padding-left:5px; padding-right:5px; font-size:10.5px; }
+    #btnExportWebTopo{ white-space:normal; line-height:1.15; }
+    .lab{ max-width:82vw; white-space:normal; text-align:center; overflow-wrap:anywhere; }
+  }
+  @media (max-width: 900px){
+    #dropBody{ grid-template-columns:1fr; }
+    #dropCards{ grid-template-columns:repeat(3,minmax(0,1fr)); }
+    #dropFoot{ grid-column:auto; }
+  }
+  @media (max-width: 620px){
+    #dropView{ padding:0; }
+    #dropShell{ width:100%; height:100%; border-radius:0; border:0; }
+    #dropHead{ padding:14px 14px 11px; }
+    #dropBody{ padding:12px 12px 18px; gap:12px; }
+    #elevCard{ padding:10px 9px 9px; }
+    #elevSvg{ min-height:230px; }
+    #chainBar{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+    #chainBar .chainItem:last-child{ grid-column:1/-1; }
+    #dropCards{ grid-template-columns:1fr; }
+    .dropValue{ font-size:16px; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="labels"></div>
+
+<div id="title">
+  <h1>蛇形明满混合实验水槽 · 新两层紧凑方案</h1>
+  <div class="sub">三维交互模型 · 前池→G0→渠①…S2承压折…→量水箱/量水堰→回流集水池 · L3@ODD ｜ 参数基线：设计方案 R3（20260726 安全复核修订版·工程化增补）</div>
+</div>
+
+<div id="labcat">
+  <div class="h">标注分类（点击开关）</div>
+  <div class="chip" id="cat_chan"><span class="dot" style="background:#dbe8f6;border-color:#7db0dd"></span><span class="nm">渠道及编号</span></div>
+  <div class="chip" id="cat_gate"><span class="dot" style="background:#d4e6f7;border-color:#0d4f7c"></span><span class="nm">闸门及编号</span></div>
+  <div class="chip" id="cat_siphon"><span class="dot" style="background:#f6dcc0;border-color:#d09a63"></span><span class="nm">倒虹吸节点</span></div>
+  <div class="chip" id="cat_dim"><span class="dot" style="background:#c75b12;border-color:#a54a0d"></span><span class="nm">尺寸/结构</span></div>
+  <div class="chip" id="cat_pool"><span class="dot" style="background:#c3e6da;border-color:#1f8a70"></span><span class="nm">恒压前池·集水池</span></div>
+  <div class="chip" id="cat_valve"><span class="dot" style="background:#f3d0d0;border-color:#c0392b"></span><span class="nm">分水口/扰动·安全溢流</span></div>
+  <div class="allrow"><button id="cat_all">全显</button><button id="cat_none">全隐</button></div>
+</div>
+
+<div id="info">
+  <h2>方案摘要</h2>
+  <div class="status-strip"><span class="status">R3 参数基线</span><span class="status">拓扑已同步</span><span class="status pending">S2 专项待冻结</span></div>
+  <table>
+    <tr><td class="k">渠道</td><td>6 渠不等长 L=[8.0 3.5 4.5 2.5 5.0 6.0] m</td></tr>
+    <tr><td class="k">断面</td><td>b=0.30 · h₀=0.40 · 壁高 0.55 m</td></tr>
+    <tr><td class="k">流量</td><td>额定 6 L/s；<span class="em">水力包络 4~10</span> · 连续 ODD <span class="em">4.5~8</span> · 8~10 受监护</td></tr>
+    <tr><td class="k">层高</td><td>两层书架（每层前/后两排）+ 底层集水池·泵站；几何示意层距 0.70 m</td></tr>
+    <tr><td class="k">直线闸</td><td>渠②③(G3)、渠④⑤(G5) <span class="em">在一条线上</span></td></tr>
+    <tr><td class="k">同层折</td><td>S1(东)/S3(东) <span class="em">敞口 Δs=0.16 m 基线</span>（0.15 下限 / 0.18 回退；局部沉井）</td></tr>
+    <tr><td class="k">层间折</td><td>S2(西) <span class="em">承压 Δz₂≈0.70 m 示意</span>（待压力包络专项冻结）</td></tr>
+    <tr><td class="k">倒虹吸</td><td>S1/S3 <span class="em">DN125 公称口径</span> UPVC PN6（实际内外径施工复核；DN100 仅泵吸/压水管）</td></tr>
+    <tr><td class="k">进/出口段</td><td>进口 <span class="em">0.40</span> · 出口 <span class="em">0.60</span> · 渐变 <span class="em">0.40</span> m</td></tr>
+    <tr><td class="k">总落差</td><td>ΣΔz = <span class="em">0.32+Δz₂</span> ≈ 1.02 m（0.16+Δz₂+0.16）</td></tr>
+    <tr><td class="k">闸速四值</td><td>能力 <span class="em">≥50</span>（强制）/ 小信号快窗 50（|Δa|≤10 mm）/ 运行限速 10 / 承压缓闭 5 mm/s</td></tr>
+    <tr><td class="k">分水扰动</td><td>常态 α≤10%（0.8 L/s）；15%（1.5）仅受监护，<span class="em">渠④ 全工况禁用 15%</span></td></tr>
+    <tr><td class="k">时序闭合</td><td>τ_loop 死区 P95 0.274 ≤<span class="em">0.31 s</span>；Π_eff ≥4（渠④ 5.9@快窗）</td></tr>
+    <tr><td class="k">尾部计量</td><td>量水箱 <span class="em">B≥0.70 · p=0.200 · 直段≥1.5 m</span>；90°V 堰 Kindsvater–Shen</td></tr>
+    <tr><td class="k">总尺寸</td><td id="envDim">—</td></tr>
+    <tr><td class="k">模型边界</td><td class="hint">几何用于拓扑、构造和检修可达性沟通；S2 Δz₂、压力等级、PT 量程及实际管外廓均不是施工冻结值。观察窗口内应保持单一、可复现测试工况；充水时间另计。</td></tr>
+  </table>
+  <div class="sel" id="sel"><span class="hint">左键拖拽=旋转 · 右键/中键/Shift+左键/✋平移模式=平移 · 滚轮=缩放 · 方向键=平移 · 点击构件看参数</span></div>
+  <div id="live">
+    <div class="live-head"><span>试验工况预览（仅用于模型标注）</span><output id="qLive">6.0 L/s</output></div>
+    <input id="qSlider" type="range" min="2" max="10" step="0.1" value="6">
+    <div class="scale"><span>2–3 充水/排气/标定</span><span>4–10 水力包络</span></div>
+    <div id="qState" class="state">6.0 L/s · 初始连续 ODD · 额定整定点</div>
+    <div id="s2scan">
+      <button data-dz="0.50">S2 0.50 m</button><button data-dz="0.70" class="on">S2 0.70 m</button><button data-dz="0.90">S2 0.90 m</button>
+    </div>
+    <div id="modelNote">S2 档位仅切换参数扫描提示，不重建几何；正式值须经压力包络、瞬变、排气排空和检修可达专项冻结。DN125 为 S1/S3 公称口径，实际内径/外径按施工图复核。</div>
+  </div>
+</div>
+
+<div id="legend">
+  <div class="row"><span class="sw" style="background:#ccd2d8;opacity:.8;border-color:#5a636c"></span>不锈钢渠壁（304，半透）</div>
+  <div class="row"><span class="sw" style="background:#1f74c8"></span>水体（明流自由面）</div>
+  <div class="row"><span class="sw" style="background:#e0a52e"></span>渐变段（喇叭口）</div>
+  <div class="row"><span class="sw" style="background:#808892"></span>UPVC 倒虹吸有压管（S1/S3 DN125）</div>
+  <div class="row"><span class="sw" style="background:#2f5f86"></span>节制闸 / 承压闸（插板）· <span style="color:#7c8894">■</span>2oo3 静水井（33 只液位计）</div>
+  <div class="row"><span class="sw" style="background:#d23c14"></span>承压盒 PT · <span style="color:#ef8a1e">■</span>承压壳（S2）</div>
+  <div class="row"><span class="sw" style="background:#59c8c0"></span>前池 · <span style="color:#4f7ea6">■</span>集水池 · <span style="color:#e6d9bd">■</span>书架</div>
+</div>
+
+<div id="ctrl">
+  <button id="btnDim" class="on">⟺ 尺寸</button>
+  <button id="btnPan">✋ 平移模式</button>
+  <button id="btnSpin">⟳ 自动旋转</button>
+  <button id="btnXray">◫ 透明剖切</button>
+  <button id="btnLabels" class="on">A 标注</button>
+  <button id="btnWater" class="on">≈ 水体</button>
+  <button id="btnOverview" class="view" title="标准总览视角">▣ 总览</button>
+  <button id="btnTop" class="view" title="俯视查看两层拓扑">⌃ 俯视</button>
+  <button id="btnSide" class="view" title="侧视查看层间关系">▥ 侧视</button>
+  <button id="btnDrops" class="view" title="查看三处倒虹吸落差与高程链">⇵ 落差页</button>
+  <button id="btnReset">⌂ 复位视角</button>
+  <button id="btnExportGlb" title="导出当前可见的 R4 三维模型，可直接导入 Blender">导出 GLB</button>
+  <button id="btnExportWebTopo" title="导出保留材质、层级和渲染参数的 WebTopo 原生项目包">导出 WebTopo ZIP</button>
+</div>
+
+<section id="dropView" aria-label="三处倒虹吸落差与高程链" aria-hidden="true">
+  <div id="dropShell">
+    <header id="dropHead">
+      <div>
+        <h2>三处倒虹吸 · 落差与高程链</h2>
+        <div class="kicker">L3@ODD · S1 / S2 / S3 hydraulic transition profile</div>
+      </div>
+      <button id="dropClose" type="button" aria-label="关闭落差页">关闭 ×</button>
+    </header>
+    <div id="dropBody">
+      <div id="dropMain">
+        <div id="elevCard">
+          <div class="cardTop"><b>相对控制水面纵剖（渠⑥水面 = 0.000 m）</b><span id="dropMode">当前：S2 Δz₂ = 0.70 m 示意档</span></div>
+          <svg id="elevSvg" viewBox="0 0 980 360" role="img" aria-labelledby="elevTitle elevDesc">
+            <title id="elevTitle">S1、S2、S3 倒虹吸相对控制水面高程链</title>
+            <desc id="elevDesc">图中显示六条渠道控制水面、三处倒虹吸上下游落差、管道示意和倒虹吸边界液位测点。</desc>
+            <defs>
+              <marker id="arr" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 Z" fill="#d27d27"></path></marker>
+              <marker id="arrPurple" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 Z" fill="#9552bf"></path></marker>
+            </defs>
+            <g id="elevGrid"></g><g id="elevLines"></g><g id="elevLabels"></g><g id="elevPipes"></g>
+          </svg>
+          <div id="dropLegend" aria-label="图例">
+            <span><i></i>渠道控制水面</span><span><i class="drop"></i>同层落差 Δs</span><span><i class="s2"></i>S2 层间落差 Δz₂</span><span><i class="pipe"></i>倒虹吸有压管</span>
+          </div>
+        </div>
+        <div id="chainBar" aria-label="高程链摘要">
+          <div class="chainItem"><div class="label">渠①控制水面</div><div class="value" id="z1v">+1.02 m</div></div>
+          <div class="chainItem"><div class="label">渠② / 渠③</div><div class="value" id="z23v">+0.86 m</div></div>
+          <div class="chainItem"><div class="label">渠④ / 渠⑤</div><div class="value" id="z45v">+0.16 m</div></div>
+          <div class="chainItem"><div class="label">渠⑥基准</div><div class="value">0.00 m</div></div>
+          <div class="chainItem"><div class="label">相对静扬程</div><div class="value" id="hstatv">1.92 m</div></div>
+        </div>
+      </div>
+      <div id="dropCards" role="list" aria-label="倒虹吸参数卡片">
+        <article class="dropCard active" data-drop="S1" role="listitem" tabindex="0">
+          <div class="dropCardHead"><div class="dropCardTitle"><div class="dropBadge">S1</div><div><h3>S1 · 东端同层折返</h3><div class="type">敞口节点 / 局部沉井 / DN125</div></div></div><div class="dropValue">Δs 0.16 m</div></div>
+          <dl class="dropMeta"><div><dt>上下游</dt><dd>渠① → 渠②</dd></div><div><dt>控制水面</dt><dd id="s1levels">+1.02 → +0.86 m</dd></div><div><dt>管顶 / 管底</dt><dd>渠底 +0.075 / −0.050 m</dd></div><div><dt>安全构造</dt><dd>水下喇叭口 + 十字消涡罩</dd></div></dl>
+          <div class="dropNote">S1/S3 同层基线；进口局部下沉 50 mm，阀门兼顾隔离检修与阻力调节。边界液位：LT-S1-U / LT-S1-D。</div>
+        </article>
+        <article class="dropCard s2" data-drop="S2" role="listitem" tabindex="0">
+          <div class="dropCardHead"><div class="dropCardTitle"><div class="dropBadge">S2</div><div><h3>S2 · 西端跨层折返</h3><div class="type">全封闭承压 / 参数化 / G4</div></div></div><div class="dropValue" id="s2dropValue">Δz₂ 0.70 m</div></div>
+          <dl class="dropMeta"><div><dt>上下游</dt><dd>渠③ → 渠④</dd></div><div><dt>控制水面</dt><dd id="s2levels">+0.86 → +0.16 m</dd></div><div><dt>几何状态</dt><dd>水平展开 + 提升竖管</dd></div><div><dt>监测</dt><dd>PT-S2-U/D + PT-HF-S2</dd></div></dl>
+          <div class="dropNote">Δz₂ 仅为参数扫描示意，正式值须经压力包络、瞬变、排气/补气和检修可达专项冻结；不套用 S1/S3 口径。</div>
+        </article>
+        <article class="dropCard" data-drop="S3" role="listitem" tabindex="0">
+          <div class="dropCardHead"><div class="dropCardTitle"><div class="dropBadge">S3</div><div><h3>S3 · 东端同层折返</h3><div class="type">敞口节点 / 局部沉井 / DN125</div></div></div><div class="dropValue">Δs 0.16 m</div></div>
+          <dl class="dropMeta"><div><dt>上下游</dt><dd>渠⑤ → 渠⑥</dd></div><div><dt>控制水面</dt><dd id="s3levels">+0.16 → +0.00 m</dd></div><div><dt>管顶 / 管底</dt><dd>渠底 +0.075 / −0.050 m</dd></div><div><dt>维护</dt><dd>长半径弯头 + DN25 低点排空</dd></div></dl>
+          <div class="dropNote">与 S1 采用同层落差基线；观察侧保留可拆格栅与阀位可见性。边界液位：LT-S3-U / LT-S3-D。</div>
+        </article>
+      </div>
+      <div id="dropFoot"><span><strong>高程关系：</strong>z₁ = 0.32 + Δz₂；z₂ = z₃ = 0.16 + Δz₂；z₄ = z₅ = 0.16；z₆ = 0。</span><span class="warn"><strong>状态：</strong>几何与参数用于方案沟通；S2 Δz₂、压力等级及实际管外廓仍待专项冻结。</span></div>
+    </div>
+  </div>
+</section>
+
+<div id="loading">正在加载三维场景…</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+<script>
+/* ============================================================================
+   单一事实源 —— 新两层方案几何参数 P（单位 m；渲染即以此表为准，勿在几何里写裸数字）
+   拓扑（蛇形，东端设倒虹吸/西端设平折闸）：
+     L1: 前池→G0→渠①(+X,front)→[S1敞口 G1/G2]→渠②(-X,back)→G3→渠③(-X,back)→[S2承压↓ G4]
+     L2: →渠④(+X,front)→G5→渠⑤(+X,front)→[S3敞口 G6/G7]→渠⑥(-X,back)→G8→量水箱→90°V 量水堰
+     L3: →集水池→回流变频泵→前池（闭环）
+   ========================================================================= */
+const P = {
+  b: 0.30, h0: 0.40, wall: 0.55, wt: 0.02,      // 渠宽/设计水深/壁高/壁厚（超高 0.15）
+  // ── 流量三层定义（R3 §2.3）：水力计算包络 / 初始连续 ODD / 受监护高端 ──
+  Q: { envLo:4.0, envHi:10.0, oddLo:4.5, oddHi:8.0, rated:6.0, supLo:8.0, supHi:10.0 },
+  // ── 闸速四值（R3 §4.7、§4.3.2）：能力/小信号快窗/运行限速/承压缓闭，单位 mm/s ──
+  vGate: { cap:50, fast:50, fastBand:10, run:10, slowClose:5 },
+  // ── 分水扰动（R3 §4.5、表 4-9）：常态 α≤10%，15% 仅受监护且渠④ 禁用 ──
+  alpha: { normal:0.10, sup:0.15, qNormal:0.8, qSup:1.5, portMax:1.5, ftRange:2.0 },
+  // ── 回路时延与时序裕度（R3 §4.3.1/§4.3.2）──
+  tau: { deadP95:0.274, spec:0.31, fastTask:0.05, poolTask:0.30, fieldTask:0.10 },
+  rowGap: 0.55,                                   // 行距（Z 向，front/back）
+  layerH: 0.70,                                   // 层距（Y 向）= S2 层间落差 Δz₂（示意值，待 S2 专项冻结：0.5/0.7/0.9 三档扫描）
+  dsSame: 0.16,                                   // 同层折返落差 Δs 基线（R3：0.15 下限 / 0.18 回退）——本模型按层平铺，同层落差不按比例渲染
+  slope: 0.004,                                   // 渠道纵坡（示意）
+  x0: 0.0,                                         // 场景西端基准
+  // 三层楼板高程（渠底所在 Y）
+  Y: { L1: 1.40, L2: 0.70, L3: 0.00 },
+  // 两行 Z 坐标（每层前/后两排）
+  Z: { front: 0.00, back: 0.55 },
+  // 渠道定义：名/长/层/排/流向(+1东 / -1西)/西端基准 x0（同排相邻渠道端对端＝在一条线上）
+  // 布局：X_E=8.0 为东参照。第1层 前排渠①(+X) / 后排 渠②+渠③(-X,同线,G3中缝)；
+  //       第2层 后排 渠④+渠⑤(+X,同线,G6中缝) / 前排渠⑥(-X)。倒虹吸端交替：S1东、S2西、S3东。
+  chans: [
+    { id:'渠①', L:8.0, layer:'L1', row:'front', dir:+1, x0:0.0 },
+    { id:'渠②', L:3.5, layer:'L1', row:'back',  dir:-1, x0:4.5 },  // [4.5,8.0]
+    { id:'渠③', L:4.5, layer:'L1', row:'back',  dir:-1, x0:0.0 },  // [0.0,4.5]，与渠②同一条线，G3 相接
+    { id:'渠④', L:2.5, layer:'L2', row:'front', dir:+1, x0:0.0 },  // [0.0,2.5]（横向对调：前排）
+    { id:'渠⑤', L:5.0, layer:'L2', row:'front', dir:+1, x0:2.5 },  // [2.5,7.5]，与渠④同一条线，G6 相接
+    { id:'渠⑥', L:6.0, layer:'L2', row:'back',  dir:-1, x0:1.5 },  // [1.5,7.5]（横向对调：后排）
+  ],
+  // 节点：uOpen 同层敞口U / uPress 层间承压U / inline 直线节制闸(同排同向,在一条线上)
+  // 闸门重编 G0~G8：S2 承压折仅出口一道承压闸 G4（去进口闸，进口为封闭集水腔）
+  nodes: [
+    { name:'S1', type:'uOpen',  from:0, to:1, end:'E', gates:['G1','G2'], ds:0.16, tag:'同层敞口折 · Δs=0.16 m 基线 · 局部沉井' },
+    { name:'G3', type:'inline', from:1, to:2,          gates:['G3'],       ds:0.05, tag:'直线节制闸·渠②③在一条线上' },
+    { name:'S2', type:'uPress', from:2, to:3, end:'W', gates:['G4'],       ds:0.70, tag:'跨层全封闭承压折 · Δz₂=0.70 m 示意 · 待专项冻结' },
+    { name:'G5', type:'inline', from:3, to:4,          gates:['G5'],       ds:0.05, tag:'直线节制闸·渠④⑤在一条线上' },
+    { name:'S3', type:'uOpen',  from:4, to:5, end:'E', gates:['G6','G7'], ds:0.16, tag:'同层敞口折 · Δs=0.16 m 基线 · 局部沉井' },
+  ],
+  siphonD: 0.125,     // S1/S3 DN125 公称口径；实际内径/外径按施工图复核
+  siphonDipPress: 0.60, // S2 竖向承压折的示意下探，待压力包络专项冻结
+  sink:   { pipeTop:+0.075, pipeBot:-0.050, well:0.050 },  // 局部沉井：管顶 +0.075 / 管底 −0.050 / 沉井深 50 mm（R3 §4.2.3）
+  weirBox:{ B:0.70, p:0.200, straight:1.60, crest:0.200 }, // 尾部量水箱：B≥0.70、p=0.200、直段≥1.5m（≥10H_max）、堰顶=渠⑥底+0.200（R3 §9.5）
+  // 进口段/出口段/渐变段核算长度（m）：进口≥2D=0.25 抑吸气涡+容沉井；出口≥3D=0.375 射流消能；渐变≈(b−D)/2÷tan12.5°=0.40
+  ioLen: { inlet: 0.40, outlet: 0.60, trans: 0.40 },   // 渐变段 ≈(b−D)/2÷tan12.5° =(0.30−0.125)/2÷0.2217≈0.40
+  colors: {   // 高对比配色：按构件类别拉开色相
+    pmma:0xd6e4ea, water:0x1f74c8, upvc:0x808892, box:0xd23c14,
+    gate:0x2f5f86, shelf:0xe6d9bd, forebay:0x59c8c0, weir:0xcf9b5b, sump:0x4f7ea6
+  }
+};
+
+/* ---------- 场景基础 ---------- */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xeaf1f8);
+scene.fog = new THREE.Fog(0xeaf1f8, 16, 34);
+
+const camera = new THREE.PerspectiveCamera(42, innerWidth/innerHeight, 0.1, 200);
+const CAM0 = { r: 14.5, theta: 0.70, phi: 1.02, tx: 3.7, ty: 0.75, tz: 0.28 };
+const CAM_PRESETS = {
+  overview: { ...CAM0 },
+  top:      { r: 15.8, theta: 0.74, phi: 0.38, tx: 3.7, ty: 0.55, tz: 0.28 },
+  side:     { r: 13.2, theta: Math.PI/2, phi: 0.92, tx: 3.7, ty: 0.78, tz: 0.28 }
+};
+let cam = { ...CAM0 };
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.getElementById('app').appendChild(renderer.domElement);
+
+/* ---------- 灯光 ---------- */
+scene.add(new THREE.HemisphereLight(0xffffff, 0x9fb0c2, 0.85));
+const sun = new THREE.DirectionalLight(0xfff4e6, 1.05);
+sun.position.set(6, 12, 8);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.near = 1; sun.shadow.camera.far = 40;
+sun.shadow.camera.left=-12; sun.shadow.camera.right=12;
+sun.shadow.camera.top=12; sun.shadow.camera.bottom=-12;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xdfeaff, 0.35); fill.position.set(-8,5,-6); scene.add(fill);
+
+/* ---------- 地面 ---------- */
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(60,60),
+  new THREE.MeshStandardMaterial({ color:0xdfe7ef, roughness:0.95, metalness:0.0 })
+);
+ground.rotation.x = -Math.PI/2; ground.position.y = -0.9; ground.receiveShadow = true;
+scene.add(ground);
+const grid = new THREE.GridHelper(60, 60, 0xbcc8d6, 0xd0d9e4);
+grid.position.y = -0.895; scene.add(grid);
+
+/* ---------- 材质 ---------- */
+const M = {
+  pmma:  new THREE.MeshStandardMaterial({ color:0xccd2d8, roughness:0.4, metalness:0.45, transparent:true, opacity:0.60, depthWrite:false, side:THREE.DoubleSide }), // 渠壁 304 · 不透明度0.60（透明度减半，壁更实、仍可透视水体）
+  water: new THREE.MeshStandardMaterial({ color:P.colors.water, roughness:0.10, metalness:0.0, transparent:true, opacity:0.88 }),                      // 纯蓝、更实
+  waterSurface: new THREE.MeshStandardMaterial({ color:0x7bd7f2, roughness:0.06, metalness:0.12, transparent:true, opacity:0.58, side:THREE.DoubleSide }), // 自由面高光层
+  upvc:  new THREE.MeshStandardMaterial({ color:P.colors.upvc, roughness:0.5, metalness:0.05 }),                                                       // 中灰
+  box:   new THREE.MeshStandardMaterial({ color:P.colors.box, roughness:0.45, metalness:0.05 }),                                                       // 橙红（承压盒）
+  gate:  new THREE.MeshStandardMaterial({ color:P.colors.gate, roughness:0.3, metalness:0.55, transparent:true, opacity:0.98 }),                       // 蓝灰钢（闸门）
+  gateFr:new THREE.MeshStandardMaterial({ color:0x183f60, roughness:0.38, metalness:0.58 }),                                                             // 深蓝钢（闸墩）
+  io:    new THREE.MeshStandardMaterial({ color:0x2ea36b, roughness:0.35, metalness:0.1, transparent:true, opacity:0.92, side:THREE.DoubleSide }),     // 绿（进/出口段）
+  trans: new THREE.MeshStandardMaterial({ color:0xe0a52e, roughness:0.5, metalness:0.05 }),                                                            // 金（渐变段）
+  seal:  new THREE.MeshStandardMaterial({ color:0xef8a1e, roughness:0.35, metalness:0.1, transparent:true, opacity:0.34, side:THREE.DoubleSide, depthWrite:false }),     // 琥珀（承压封闭壳）
+  shelf: new THREE.MeshStandardMaterial({ color:P.colors.shelf, roughness:0.85, metalness:0.0, transparent:true, opacity:0.42, side:THREE.DoubleSide, depthWrite:false }), // 米（书架，不写深度→可透视下层）
+  forebay:new THREE.MeshStandardMaterial({ color:P.colors.forebay, roughness:0.25, metalness:0.05, transparent:true, opacity:0.55, side:THREE.DoubleSide, depthWrite:false }), // 青（前池）
+  weir:  new THREE.MeshStandardMaterial({ color:P.colors.weir, roughness:0.6, metalness:0.05 }),                                                       // 棕（堰）
+  sump:  new THREE.MeshStandardMaterial({ color:P.colors.sump, roughness:0.3, metalness:0.05, transparent:true, opacity:0.6, side:THREE.DoubleSide, depthWrite:false }), // 钢蓝（集水池）
+  steel: new THREE.MeshStandardMaterial({ color:0x7c8894, roughness:0.35, metalness:0.65 }),
+  valve: new THREE.MeshStandardMaterial({ color:0xc0392b, roughness:0.4, metalness:0.3 }),   // 分水口/蝶阀（红）
+  ret:   new THREE.MeshStandardMaterial({ color:0x2f6f8f, roughness:0.4, metalness:0.2 }),    // 回流/溢流管（钢蓝）
+  jack:  new THREE.MeshStandardMaterial({ color:0x9aa2ad, roughness:0.5, metalness:0.55 }),   // 丝杠千斤顶
+};
+
+/* ---------- 全局容器 ---------- */
+const world = new THREE.Group(); scene.add(world);
+const waterGroup = new THREE.Group(); world.add(waterGroup);
+const pickables = []; // 可点击构件
+const labelDefs = []; // {pos:THREE.Vector3, text, cls}
+
+// flow: 世界 X 流向符号(+1/−1)。设置后，标签箭头随视角动态朝向真实流向
+function addLabel(x,y,z,text,cls,flow){ labelDefs.push({ pos:new THREE.Vector3(x,y,z), text, cls:cls||'', flow:flow||0 }); }
+function reg(mesh, name, info){ mesh.userData = { name, info }; pickables.push(mesh); return mesh; }
+
+/* ---------- 基础构件 ---------- */
+const arrowMat = new THREE.MeshStandardMaterial({ color:0x0d4f7c, roughness:0.4 });
+const pmmaEdgeMat = new THREE.LineBasicMaterial({ color:0x5a636c, transparent:true, opacity:0.55 }); // 不锈钢壁棱边
+function glassPanel(geo, x, y, z){   // 不锈钢板 + 淡棱边
+  const m = new THREE.Mesh(geo, M.pmma);
+  m.position.set(x,y,z); m.castShadow=m.receiveShadow=true; world.add(m);
+  const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo), pmmaEdgeMat);
+  e.position.set(x,y,z); world.add(e);
+  return m;
+}
+// 一小段明渠断面（U 形底板+两侧壁+两端封壁 + 水体），断面与主渠道一致；axis='x'沿X / 'z'沿Z
+function channelSeg(xc, len, Yf, z, axis){
+  const bo = P.b + 2*P.wt;
+  if(axis==='z'){
+    var fl = glassPanel(new THREE.BoxGeometry(bo, P.wt, len), xc, Yf+P.wt/2, z);
+    for(const s of [-1,1]) glassPanel(new THREE.BoxGeometry(P.wt, P.wall, len), xc + s*(P.b/2+P.wt/2), Yf+P.wall/2, z);
+    for(const e of [-1,1]) glassPanel(new THREE.BoxGeometry(bo, P.wall, P.wt), xc, Yf+P.wall/2, z+e*(len/2));
+    const wat = new THREE.Mesh(new THREE.BoxGeometry(P.b, P.h0, len-2*P.wt), M.water);
+    wat.position.set(xc, Yf+P.wt+P.h0/2, z); wat.renderOrder=2; waterGroup.add(wat);
+    const surface = new THREE.Mesh(new THREE.BoxGeometry(P.b-0.015, 0.006, len-2*P.wt-0.02), M.waterSurface);
+    surface.position.set(xc, Yf+P.wt+P.h0+0.004, z); surface.renderOrder=3; waterGroup.add(surface);
+    return fl;
+  }
+  var fl = glassPanel(new THREE.BoxGeometry(len, P.wt, bo), xc, Yf+P.wt/2, z);
+  for(const s of [-1,1]) glassPanel(new THREE.BoxGeometry(len, P.wall, P.wt), xc, Yf+P.wall/2, z + s*(P.b/2+P.wt/2)); // 侧壁
+  for(const e of [-1,1]) glassPanel(new THREE.BoxGeometry(P.wt, P.wall, bo), xc+e*(len/2), Yf+P.wall/2, z);          // 两端封壁
+  const wat = new THREE.Mesh(new THREE.BoxGeometry(len-2*P.wt, P.h0, P.b), M.water);
+  wat.position.set(xc, Yf+P.wt+P.h0/2, z); wat.renderOrder=2; waterGroup.add(wat);
+  const surface = new THREE.Mesh(new THREE.BoxGeometry(len-0.04, 0.006, P.b-0.015), M.waterSurface);
+  surface.position.set(xc, Yf+P.wt+P.h0+0.004, z); surface.renderOrder=3; waterGroup.add(surface);
+  return fl;
+}
+// 一段明渠：U 形截面（底板+两侧壁）+ 水体 + 流向箭头
+function buildChannel(c){
+  const Yf = P.Y[c.layer], Zc = P.Z[c.row];
+  const len = c.L, bo = P.b + 2*P.wt, x0 = c.x0;
+  // 底板
+  const floor = glassPanel(new THREE.BoxGeometry(len, P.wt, bo), x0+len/2, Yf+P.wt/2, Zc);
+  // 两侧壁
+  for(const s of [-1,1]){
+    glassPanel(new THREE.BoxGeometry(len, P.wall, P.wt), x0+len/2, Yf+P.wall/2, Zc + s*(P.b/2+P.wt/2));
+  }
+  // 水体
+  const wat = new THREE.Mesh(new THREE.BoxGeometry(len-0.02, P.h0, P.b), M.water);
+  wat.position.set(x0+len/2, Yf+P.wt+P.h0/2, Zc); wat.renderOrder=2; waterGroup.add(wat);
+  const surface = new THREE.Mesh(new THREE.BoxGeometry(len-0.04, 0.006, P.b-0.015), M.waterSurface);
+  surface.position.set(x0+len/2, Yf+P.wt+P.h0+0.004, Zc); surface.renderOrder=3; waterGroup.add(surface);
+  reg(floor, c.id, `明渠 · L=${c.L} m · b=${P.b} · h₀=${P.h0} · 壁高${P.wall} · 流向${c.dir>0?'→(西→东)':'←(东→西)'}`);
+  // 流向箭头：沿渠面每 ~1.5 m 一枚，指向流向
+  const n = Math.max(2, Math.round(len/1.6));
+  for(let i=0;i<n;i++){
+    const px = x0 + len*(i+0.5)/n;
+    const ar = new THREE.Mesh(new THREE.ConeGeometry(0.055,0.15,14), arrowMat);
+    ar.rotation.z = c.dir>0 ? -Math.PI/2 : Math.PI/2;
+    ar.position.set(px, Yf+P.wt+P.h0+0.09, Zc); world.add(ar);
+  }
+  // 标注：渠号 + 动态流向箭头（随视角判断真实流向在屏幕上的朝向）
+  addLabel(x0+len/2, Yf+P.wall+0.15, Zc, c.id, 'node', c.dir);
+  return floor;
+}
+
+// 插板闸：闸墩框 + 半透插板；sealed=true 为承压密封框插板闸（背板封闭）
+function buildGate(x, y, z, name, info, sealed){
+  const g = new THREE.Group();
+  const bo = P.b + 2*P.wt, hh = P.wall+0.06;
+  for(const s of [-1,1]){                       // 两侧墩
+    const pier = new THREE.Mesh(new THREE.BoxGeometry(0.06, hh, 0.05), M.gateFr);
+    pier.position.set(x, y+hh/2, z + s*(P.b/2+0.03)); pier.castShadow=true; g.add(pier);
+  }
+  const top = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, bo+0.08), M.gateFr); // 顶梁
+  top.position.set(x, y+hh, z); g.add(top);
+  if(sealed){                                    // 密封框：底梁 + 四周封框，示意“承压密封框插板闸 V15”
+    const bot = new THREE.Mesh(new THREE.BoxGeometry(0.06,0.05,bo+0.08), M.gateFr);
+    bot.position.set(x, y+0.03, z); g.add(bot);
+  }
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.03, sealed?P.wall*0.92:P.wall*0.72, P.b), M.gate);
+  plate.position.set(x, y+(sealed?P.wall*0.92:P.wall*0.72)/2+(sealed?0.02:0.10), z); plate.castShadow=true; g.add(plate);
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.012,0.22,10), M.steel);
+  stem.position.set(x, y+hh+0.11, z); g.add(stem);
+  const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.05,0.012,8,20), M.steel);
+  wheel.position.set(x, y+hh+0.22, z); wheel.rotation.x=Math.PI/2; g.add(wheel);
+  const SPEC = `密封框插板闸 V15 · 孔宽300 · 行程0~450 · 伺服+滚珠丝杠 SFU1605 · 分辨率 ≤0.01 mm / 重复定位 ≤±0.05 mm / 率定后绝对定位 ≤±0.1 mm`
+    + ` · 编码器 + 拉绳位移双通道交叉核对（偏差 >0.10 mm 报警锁闸）`
+    + ` · 【闸速四值】能力 ≥${P.vGate.cap} mm/s（强制采购指标）｜小信号快窗 ${P.vGate.fast} mm/s（|Δa| ≤${P.vGate.fastBand} mm）｜运行限速 ${P.vGate.run} mm/s（持续大行程）｜承压链缓闭 ≤${P.vGate.slowClose} mm/s`
+    + ` · 快窗为何是强制项：常态扰动 0.8 L/s 需 Δa≈4.5 mm（dQ/da≈0.178 L/s·mm⁻¹ @ΔH=0.05 m），若全程按 10 mm/s，渠④ 的 Π_eff 只有 3.8，不达 k=4；放到 50 mm/s 才升到 5.9`
+    + ` · 有效回路时延 τ_loop,eff = τ_死区(P95 0.274, 采购限值 ≤0.31 s) + Δa/(2·v_gate)`
+    + ` · 失电动作（附 B 表 B-2）：${sealed?'G4 由 UPS 驱动按 ≤5 mm/s 缓闭至全关 ≤90 s；UPS 失效则保位':'丝杠自锁 + 断电抱闸【保位】，60 s 内闸位漂移 ≤0.05 mm'}`;
+  reg(plate, name, (info? info+' · ' : '') + SPEC);
+  world.add(g);
+  addLabel(x, y+hh+0.30, z, name, 'g');
+  return g;
+}
+
+// 进口段/出口段（矩形段，按核算长度）+ 渐变段（矩形→圆喇叭口）
+// ext=±1 为构件伸出方向（东端 +1 / 西端 −1）；isInlet 决定长度/沉设/文字。返回管口 x。
+function buildIO(xGate, y, z, ext, isInlet, gateName, gateInfo, sealed){
+  const yc = y + P.wt + P.h0*0.5;               // 段中心≈水位
+  const sink = isInlet ? P.sink.well : 0.0;     // 进口局部沉井 50 mm（仅作节点示意）
+  const kind = isInlet ? '进口段' : '出口段';
+  const Lseg = isInlet ? P.ioLen.inlet : P.ioLen.outlet;
+  const Ltr = P.ioLen.trans, gap = 0.03;
+  buildGate(xGate, y, z, gateName, gateInfo, sealed);          // 闸
+  const segX = xGate + ext*(gap + Lseg/2);                      // 进/出口段：与主渠道同断面(U形+水体)、同不锈钢色
+  const seg = channelSeg(segX, Lseg, y, z);
+  reg(seg, kind, `${kind} · L=${Lseg.toFixed(2)} m（${isInlet?'≥2D=0.25':'≥3D=0.375'}）· 不锈钢渠壁·同断面0.30×0.55 · `
+      +(isInlet
+        ? `闸后·倒虹吸前 · 局部沉井 ${P.sink.well*1000} mm：管顶 ${P.sink.pipeTop>0?'+':''}${P.sink.pipeTop} / 管底 ${P.sink.pipeBot} m · 水下喇叭口+十字消涡罩 · 后置调节/隔离阀自锁保位 · 低液位阈值 h_U,min(Q)=0.075+S_c(Q)+0.050`
+        : `倒虹吸后·闸前 · 射流消能后入闸`));
+  addLabel(segX, y+P.wall+0.10, z, `${kind}·${Lseg.toFixed(2)}m`, '');
+  const frX = xGate + ext*(gap + Lseg + Ltr/2);                 // 渐变段（截锥：大端接矩形、小端接管口）
+  const fr = new THREE.Mesh(new THREE.CylinderGeometry(P.siphonD/2, 0.15, Ltr, 20), M.trans);
+  fr.rotation.z = Math.PI/2; fr.scale.x = ext; fr.position.set(frX, yc, z); fr.castShadow=true;
+  reg(fr, '渐变段', `渐变段 · L=${Ltr.toFixed(2)} m · 矩形(b0.30)↔圆(DN125)喇叭口 · 半角12.5° · L≈(b−D)/2÷tan12.5°`);
+  world.add(fr);
+  return xGate + ext*(gap + Lseg + Ltr);                        // 管口 x
+}
+
+// 倒虹吸有压 U 管；uOpen 同层敞口 / uPress 层间承压下折。node.end='E'东端 / 'W'西端
+function buildSiphon(node){
+  const cA = P.chans[node.from], cB = P.chans[node.to];
+  const YA = P.Y[cA.layer], YB = P.Y[cB.layer];
+  const zA = P.Z[cA.row], zB = P.Z[cB.row];
+  const sgn = node.end==='E' ? +1 : -1;                         // 伸出方向
+  const xBend = node.end==='E' ? (cA.x0+cA.L) : cA.x0;          // 折返端 x
+  const yTopA = YA + P.wt + P.h0*0.5, yTopB = YB + P.wt + P.h0*0.5;
+  const press = (node.type==='uPress');
+  const dip = press
+    ? Math.min(YA, YB) - P.siphonDipPress
+    : Math.min(YA, YB) + P.sink.pipeBot + P.siphonD/2;            // S1/S3 局部最低点：管底约低于渠底 50 mm
+  let mIn, mOut;
+  if(press){
+    // ── D4b 承压构造：进口封闭集水腔(无进口闸/无开敞进口段)；出口封闭渐变+承压盒+单道密封框承压闸 ──
+    const cbx = xBend + sgn*0.16;
+    const cbox = new THREE.Mesh(new THREE.BoxGeometry(0.36, P.wall*0.72, 0.42), M.pmma);
+    cbox.position.set(cbx, YA+P.wall*0.36-0.06, zA); cbox.castShadow=true;
+    const cbe = new THREE.LineSegments(new THREE.EdgesGeometry(cbox.geometry), pmmaEdgeMat); cbe.position.copy(cbox.position); world.add(cbe);
+    reg(cbox,'S2 封闭进口集水腔（示意）','封闭水下喇叭口/集水腔 · 顶盖板与检修短节 · 无进口闸（水直接入承压段） · 需校核 Gordon 淹没、负压、气堵与再起动'
+        +' · S2 管径、入口尺寸、淹没深、压力等级和排气/补气构造由压力包络专项冻结，不套用 S1/S3 的 DN125 与 50 mm 沉井');
+    world.add(cbox);
+    addLabel(cbx, YA+P.wall+0.12, zA, 'S2封闭进口腔·无进口闸', '');
+    // 进口渐变段（金·封闭喇叭口）：进口腔 → S2 有压U管
+    const frI = new THREE.Mesh(new THREE.CylinderGeometry(P.siphonD/2, 0.15, 0.16, 20), M.trans);
+    frI.rotation.z = Math.PI/2; frI.scale.x = sgn; frI.position.set(xBend+sgn*0.26, YA+P.wt+P.h0*0.5, zA); frI.castShadow=true;
+    reg(frI,'S2 封闭渐变段（进口）','矩形↔圆喇叭口 · 半角9.5° · 封闭进口腔↔S2 有压U管（管径由压力包络专项冻结，不套用 DN125）');
+    world.add(frI);
+    addLabel(xBend+sgn*0.26, YA+P.wt+P.h0*0.5-0.14, zA, '渐变段', '');
+    mIn = xBend + sgn*0.36;
+    // 出口：封闭渐变段(金) + G4 密封框承压闸(单道)
+    const frP = new THREE.Mesh(new THREE.CylinderGeometry(P.siphonD/2,0.15,P.ioLen.trans,20), M.trans);
+    frP.rotation.z=Math.PI/2; frP.scale.x=sgn; frP.position.set(xBend+sgn*0.22, YB+P.wt+P.h0*0.5, zB); frP.castShadow=true;
+    reg(frP,'封闭渐变段','S2 管径→矩形0.30×0.30 · L≈0.30 · 半角9.5° · 封闭承压 · 管径待专项冻结');
+    world.add(frP);
+    mOut = xBend + sgn*0.34;
+    buildGate(xBend+sgn*0.05, YB, zB, node.gates[0],
+      `${node.gates[0]} · 出口承压节制闸(密封框插板闸V15) · 淹没孔口·全折仅此一道 · 承压链缓闭 ≤5 mm/s`
+      +` · 失电：UPS 驱动缓闭至全关 ≤90 s（唯一需外部储能的执行器，须进采购规格与概算）`, true);
+  } else {
+    const gx = xBend + sgn*0.05;
+    mIn  = buildIO(gx, YA, zA, sgn, true,  node.gates[0], `${node.gates[0]} · 进口节制闸`, false);
+    mOut = buildIO(gx, YB, zB, sgn, false, node.gates[1], `${node.gates[1]} · 出口节制闸`, false);
+  }
+  // U 管：进口管口 → 下探折返 → 出口管口
+  const reachMax = Math.max(Math.abs(mIn-xBend), Math.abs(mOut-xBend));
+  // 承压折竖直下探(不向西外伸，避免探入前池)；敞口折略外伸拐点
+  const ext2 = press ? 0.02 : 0.10, ext3 = press ? 0.05 : 0.16;
+  const xa = xBend + sgn*(reachMax + ext2), xt = xBend + sgn*(reachMax + ext3);
+  const pts = [
+    new THREE.Vector3(mIn,  yTopA, zA),
+    new THREE.Vector3(xa,   yTopA-0.14, zA),
+    new THREE.Vector3(xt,   dip,  zA),
+    new THREE.Vector3(xt,   dip,  zB),
+    new THREE.Vector3(xa,   yTopB-0.14, zB),
+    new THREE.Vector3(mOut, yTopB, zB),
+  ];
+  const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.5);
+  const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 100, P.siphonD/2, 20, false), M.upvc);
+  tube.castShadow=true; world.add(tube);
+  reg(tube, `倒虹吸 ${node.name}${press?'（承压）':''}`,
+      (press
+       ? `S2 承压折：管径/Δz₂/G4 工作区/PT 量程由压力包络专项独立冻结，不套用 S1/S3 的 DN125 与 0.16 m · ${node.tag}`
+       : `S1/S3 DN125 UPVC PN6 · 有压满管 · ΣK≈2.7 · 固定损失 h_f=0.015/0.033/0.058/0.091 m @4/6/8/10 L/s`
+         +` · v=0.326/0.489/0.652/0.815 m/s（低端输气筛查线 0.335 → 4 L/s 仅作边界工况，连续 ODD 自 4.5 起）`
+         +` · 0.16 m 落差余量 0.145/0.127/0.102/0.069 m · ${node.tag}`));
+  [pts[2],pts[3]].forEach(p=>{                                  // 弯头点缀
+    const el = new THREE.Mesh(new THREE.SphereGeometry(P.siphonD/2*1.12,14,12), M.upvc);
+    el.position.copy(p); world.add(el);
+  });
+  if(press){
+    // D4b 承压构造：封闭承压壳只包裹出口承压盒/G4(L2)，不再横跨 U 管、不侵入 L1/前池区
+    const shell = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.78, P.b+0.30), M.seal);
+    shell.position.set(xBend+sgn*0.16, YB+0.26, zB);
+    reg(shell,'承压封闭壳（S2）','全程封闭无自由面 · 倒虹吸+承压闸串联耦合 · G4 缓闭≤5mm/s'
+        +' · 失电动作（附 B 表 B-2）：由 UPS（≥10 min）驱动伺服按 ≤5 mm/s 缓闭至全关，最长 90 s（行程 450÷5）；UPS 失效则保位'
+        +' · 排气/补气阀失电常开（≤1 s），S2 最高点负压不得低于 −20 kPa');
+    world.add(shell);
+    const bx = xBend + sgn*0.22;                                    // 承压盒 PT（紧接封闭渐变/G4）
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.30,0.30,0.30), M.box);
+    box.position.set(bx, YB+0.28, zB); box.castShadow=true;
+    reg(box,'承压盒 PT-S2-U/D（V15）','内净0.30×0.30×0.55 · 顶封闭加强筋 · 淹没孔口出流'
+        +' · 稳态静压 PT-S2-U/D：双向压力/负压量程由压力包络专项冻结（不得用单向正压 PT 承担负压检测）· 精度0.2%FS · 带宽≥10Hz · 试压时隔离'
+        +' · 承压/试压等级、Δz₂、管径与 G4 工作区由 S2 压力包络专项一并冻结');
+    world.add(box);
+    const riser = new THREE.Mesh(new THREE.CylinderGeometry(0.028,0.028,0.62,14), M.upvc); // 敞顶提升竖管(直读液柱)
+    riser.position.set(bx, YB+0.74, zB); world.add(riser);
+    const vv = new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,0.10,12), M.steel);      // 排气/补气阀DN25
+    vv.position.set(bx-sgn*0.12, YB+0.44, zB); world.add(vv);
+    // 高频涌压变送器 PT-HF-S2（R3 表 7-1 单列采购项）：直接安装、不经引压管
+    for(const k of [0,1]){
+      const hf=new THREE.Mesh(new THREE.CylinderGeometry(0.022,0.022,0.09,12), M.box);
+      hf.rotation.z=Math.PI/2; hf.position.set(bx+sgn*(0.17+k*0.0), YB+0.16+k*0.20, zB+(k?0.16:-0.16)); world.add(hf);
+      if(k===0) reg(hf,'高频涌压变送器 PT-HF-S2（2 只）','E22 缓闭涌压专用 · 双向压力/负压能力按压力包络专项冻结 · 精度0.25%FS · 带宽 ≥1 kHz · 高频 DAQ 采样周期 ≤0.5 ms'
+        +' · 【直接螺纹安装于承压段进/出口，不经引压管】——引压管水柱惯性会把 kHz 级波前滤成百 Hz 级'
+        +' · 与高频 DAQ 同一时基、同一硬触发 · 与稳态 PT 分开取压口、分别校准');
+    }
+    addLabel(bx+sgn*0.17, YB+0.02, zB-0.16, 'PT-HF ×2（双向量程待冻结·≥1kHz·采样≤0.5ms）', 'valve');
+    addLabel(bx, YB+1.14, zB, 'S2承压PT（双向量程待冻结）·提升竖管·排气/补气DN25', 's');
+    addLabel(xt+sgn*0.05, YA+0.20, (zA+zB)/2, 'S2承压封闭·Δz₂=0.70m示意·单闸G4', 's');
+  } else {
+    addLabel(xt+sgn*0.05, dip-0.10, (zA+zB)/2, node.name+' 同层敞口U · 局部最低点/排空坡 · Δs=0.16m基线', 's');
+  }
+  return tube;
+}
+
+// 直线节制闸（同排同向、两渠在一条线上，中缝一道闸）
+function buildInline(node){
+  const cA = P.chans[node.from];
+  const Y = P.Y[cA.layer], z = P.Z[cA.row];
+  const jointX = (cA.dir>0) ? (cA.x0+cA.L) : cA.x0;   // 下游端＝相接缝
+  buildGate(jointX, Y, z, node.gates[0], `${node.gates[0]} · 直线节制闸（同层同底直连，用于"整段合并 / 分两段"重构对照实验 E9）· ${node.tag}`
+    + ` · 分段留量 δ：G3 在 10 L/s 时可用过闸落差仅约 40 mm，须在实验脚本中在线监视 δ，越限自动回合并拓扑`
+    + ` · 调度液位带上限 0.45 m 即为分段重构预留的 50 mm 抬升裕度`);
+  return jointX;
+}
+
+/* ---------- 设备总包络（据实测包围盒收拢的书架框范围） ---------- */
+const SPAN = 8.0, zMid = (P.Z.front+P.Z.back)/2;
+const ENV = { x0:-1.84, x1:9.24, y0:-0.42, y1:2.25, z0:-0.45, z1:1.16 };  // 含放大前池与尾部量水箱(B0.70×1.6m，外让 0.11)：L11.1×W1.61×H2.67
+const ENV_L = ENV.x1-ENV.x0, ENV_W = ENV.z1-ENV.z0, ENV_H = ENV.y1-ENV.y0;   // 总长/总宽/总高
+document.getElementById('envDim').innerHTML =
+  `L×W×H ≈ <span class="em">${ENV_L.toFixed(1)}×${ENV_W.toFixed(2)}×${ENV_H.toFixed(2)}</span> m（含集水池/启闭机/尾部量水箱，不含福马轮）`;
+
+/* ---------- 书架层板（每层两排：front/back，收拢到总包络） ---------- */
+function buildShelf(Yf, label){
+  const w = ENV_L, cx=(ENV.x0+ENV.x1)/2, d=ENV_W, cz=(ENV.z0+ENV.z1)/2;
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(w, 0.06, d), M.shelf);
+  slab.position.set(cx, Yf-0.05, cz); slab.receiveShadow=true; world.add(slab);
+  // 柱距按 R3 §6.2：≤2.7 m（方管 120×80×4，跨中挠度 1.74 mm 简支上界 / 0.92 mm 多跨连续，控制线 ≤2 mm）
+  const nBay = Math.ceil((ENV.x1-ENV.x0-0.2)/2.7), colStep=(ENV.x1-ENV.x0-0.2)/nBay;
+  for(let i=0;i<=nBay;i++) for(const sz of [ENV.z0+0.1, ENV.z1-0.06]){
+    const sx = ENV.x0+0.1 + i*colStep;
+    const col = new THREE.Mesh(new THREE.BoxGeometry(0.08,P.layerH,0.06), M.steel);
+    col.position.set(sx, Yf+P.layerH/2-0.05, sz); world.add(col);
+    if(i===0) reg(col,'层板立柱 / 纵梁支承',
+      `柱距 ${colStep.toFixed(2)} m（≤2.7 m）· 纵梁方管 120×80×4 · 荷载按 GB 50009 分组合：挠度用标准组合 q_k=1.765 kN/m、强度用设计组合 q_d=2.354 kN/m`
+     +` · 跨中挠度 1.74 mm（简支上界）/ 0.92 mm（多跨连续），控制线 ≤2 mm（不是 L/500——渠底沉降直接进高程链，与 ±2 mm 守带同量级）`
+     +` · σ=37.8 MPa，Q235 利用率 17.6% → 由变形控制而非强度控制`
+     +` · 一阶竖向自振 f₁≈13~20 Hz，与泵激励 24~48 Hz 仅差约 1.2 倍（低于常用 1.25），须设柔性接头+隔振垫并把共振转速带写入 HMI 禁用区`);
+  }
+  addLabel(ENV.x0+0.1, Yf+0.18, ENV.z0+0.1, label, '');
+}
+buildShelf(P.Y.L1, '第1层');
+buildShelf(P.Y.L2, '第2层');
+
+/* ---------- 建渠 + 节点 ---------- */
+P.chans.forEach(buildChannel);
+P.nodes.forEach(n=>{ if(n.type==='inline') buildInline(n); else buildSiphon(n); });
+
+/* ---------- 33 只液位计：6×2oo3 控制断面 + 前池 2oo3 + 倒虹吸边界 6 + 沿程 6 ---------- */
+function stillingWell(x,y,z,h,name,info,labText,labCls){
+  const w=new THREE.Mesh(new THREE.CylinderGeometry(0.026,0.026,h,12), M.steel);
+  w.position.set(x,y+h/2,z); w.castShadow=true; world.add(w);
+  const cap=new THREE.Mesh(new THREE.CylinderGeometry(0.032,0.032,0.02,12), M.gateFr);
+  cap.position.set(x,y+h+0.01,z); world.add(cap);
+  if(info) reg(w,name,info);
+  if(labText) addLabel(x, y+h+0.10, z, labText, labCls||'g');
+  return w;
+}
+const LT2oo3_INFO =
+  '2oo3 表决（取中值）· 单台综合误差 ≤0.5 mm(1σ)、阶跃响应 T90 ≤0.03 s · 静水井 Φ50 + 阻尼孔 Φ30（S3 采购目标；出厂 Φ20 可更换孔板，E21 后冻结）'
+ +' · 【消除共因失效】三只不得共用静水井或引压通道：各自独立取压口，沿流向错开 ≥0.15 m、高程错开 ≥0.05 m，各配防堵滤网/排气旋塞/反冲接口，独立供电与 I/O'
+ +' · 诊断：两两偏差 >1.0 mm 持续 30 s 报警；连续 60 s 变化 <0.05 mm 判"冻结"失效 · 单支故障后为 2oo2 退化校验，降级运行限时 30 min'
+ +' · 采样走液位快通道 Ts ≤0.05 s（φ 与 Π 一律以快通道时戳为准）';
+(function(){
+  // 六个控制断面（各渠下游闸前）：ci, 闸前基准 x, 沿流向偏移符号, 布置侧
+  const CS=[
+    { ci:0, x0:8.00, dx:-1, side:+1, g:'G1' }, { ci:1, x0:4.50, dx:+1, side:-1, g:'G3' },
+    { ci:2, x0:0.00, dx:+1, side:-1, g:'S2封闭进口集水腔' }, { ci:3, x0:2.50, dx:-1, side:+1, g:'G5' },
+    { ci:4, x0:7.50, dx:-1, side:+1, g:'G6' }, { ci:5, x0:1.50, dx:+1, side:-1, g:'G8' },
+  ];
+  CS.forEach((c,k)=>{
+    const ch=P.chans[c.ci], Yf=P.Y[ch.layer], Zc=P.Z[ch.row];
+    const zw=Zc + c.side*(P.b/2+P.wt+0.07);
+    for(let m=0;m<3;m++){
+      const x=c.x0 + c.dx*(0.22 + m*0.16);            // 沿流向错开 0.16 m ≥0.15
+      stillingWell(x, Yf+0.02+m*0.05, zw, 0.34-m*0.03,  // 高程错开 0.05 m
+        `LT-C${c.ci+1}-${m+1}（${ch.id} 闸前 2oo3 · ${c.g}）`, LT2oo3_INFO,
+        m===1 ? `LT-C${c.ci+1} 2oo3（3 只独立静水井 Φ50+Φ30）` : '', 'g');
+    }
+  });
+  // 倒虹吸边界 LT-S1/2/3-U/D（6 只单点）
+  const SB=[ {n:'S1-U',ci:0,x:7.55,s:-1},{n:'S1-D',ci:1,x:7.55,s:+1},
+             {n:'S2-U',ci:2,x:0.45,s:+1},{n:'S2-D',ci:3,x:0.45,s:-1},
+             {n:'S3-U',ci:4,x:7.05,s:-1},{n:'S3-D',ci:5,x:7.05,s:+1} ];
+  SB.forEach(b=>{
+    const ch=P.chans[b.ci], Yf=P.Y[ch.layer], Zc=P.Z[ch.row];
+    stillingWell(b.x, Yf+0.02, Zc + b.s*(P.b/2+P.wt+0.06), 0.30, 'LT-'+b.n,
+      '倒虹吸前后稳定段单点液位 · 用于固定损失 h_f 直测、壅高与失满管诊断 · 与低液位联锁 h_U,min(Q)=0.075+S_c(Q)+0.050 配合'
+     +' · 单表异常只报警并与本渠 2oo3 交叉验证，不以单表直接触发全线停机', '', 'g');
+  });
+  addLabel(7.55, P.Y.L1+0.44, P.Z.front-0.30, 'LT-S1/2/3-U/D ×6（倒虹吸边界）', 'g');
+  // 沿程中点 LT-M1…M6（6 只单点）
+  P.chans.forEach((ch,i)=>{
+    const Yf=P.Y[ch.layer], Zc=P.Z[ch.row];
+    stillingWell(ch.x0+ch.L/2+0.30, Yf+0.02, Zc - (P.b/2+P.wt+0.06), 0.28,
+      `LT-M${i+1}（${ch.id} 沿程中点）`, '沿程单点液位 · 波传播、晃荡固有频率 f_n 与模型率定（E21 扫频/自由衰减）· 不参与控制表决', '', 'g');
+  });
+  addLabel(P.chans[0].x0+P.chans[0].L/2+0.30, P.Y.L1+0.42, P.Z.front-0.28, 'LT-M1…M6 ×6（沿程）', 'g');
+})();
+
+/* ---------- 分水口 ×6（各渠最下游闸前·渠③在末端）+ 末端安全溢流→回流母管（item1+4）---------- */
+const DIV = [
+  { ci:0, x:7.65, side:-1, at:'闸前(G1)' },        // 渠① 前排 L1·东端
+  { ci:1, x:4.85, side:+1, at:'闸前(G3)' },        // 渠② 后排 L1·西端
+  { ci:2, x:0.15, side:+1, at:'渠③末端·近S2封闭进口集水腔(无下游闸)' },  // 渠③ 后排 L1·末端
+  { ci:3, x:2.15, side:-1, at:'闸前(G5)' },        // 渠④ 前排 L2·东端
+  { ci:4, x:7.15, side:-1, at:'闸前(G6)' },        // 渠⑤ 前排 L2·东端
+  { ci:5, x:1.85, side:+1, at:'闸前(G8)' },        // 渠⑥ 后排 L2·西端
+];
+function buildDiversion(d){
+  const c=P.chans[d.ci], Yf=P.Y[c.layer], Zc=P.Z[c.row];
+  const zWall=Zc + d.side*(P.b/2+P.wt), yPort=Yf+P.wt+P.h0*0.42;
+  const stub=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.20,14), M.valve);   // DN50 短管
+  stub.rotation.x=Math.PI/2; stub.position.set(d.x, yPort, zWall+d.side*0.10); world.add(stub);
+  const bfly=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.03,16), M.gateFr);     // 蝶阀盘
+  bfly.rotation.x=Math.PI/2; bfly.position.set(d.x, yPort, zWall+d.side*0.15); world.add(bfly);
+  const fm=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.08,0.05), M.steel);                 // 电磁计
+  fm.position.set(d.x, yPort, zWall+d.side*0.24); world.add(fm);
+  const isC4 = (d.ci===3);
+  reg(stub,'分水口·'+c.id, `DN50 管体 + 可更换小口径节流件 · 阀位反馈 · 【失电关闭】弹簧复位 ≤3 s（附 B 表 B-2）`
+      +` · 电磁流量计 0~${P.alpha.ftRange} L/s（前5D后3D）· 单口上限约 ${P.alpha.portMax} L/s`
+      +` · 扰动定额：常态 α≤${(P.alpha.normal*100)|0}% → ${P.alpha.qNormal} L/s（8 L/s 工况）；${(P.alpha.sup*100)|0}% → ${P.alpha.qSup} L/s 仅受监护试验`
+      +(isC4 ? ` · ★ 渠④【全工况 α ≤10%，禁用 15%】：15%×10 L/s 时 Π_eff=2.8<3（R3 表 4-9），监督器拒绝执行`
+             : ` · 15% 受监护档允许（渠② Π_eff=3.9 按 k=3 受监护并须 E14 逐点确认）`)
+      +` · 节流口径由 q=CdAo√(2gΔH) 反算并经 E20 实测率定，DN50 管体≠有效分水孔径 · ${d.at}`);
+  addLabel(d.x, Yf+P.wall+0.12, zWall+d.side*0.30,
+    '分水口DN50·'+c.id+(d.ci===2?'(末端)':'')+(d.ci===3?' ★α≤10%':''), 'valve');
+  // 末端安全溢流口（封口墙顶全宽薄堰）+ 溢流回流短立管
+  const lip=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.03,P.b), M.valve);
+  lip.position.set(d.x, Yf+P.wall+0.015, Zc); world.add(lip);
+  const drop=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,0.30,12), M.ret);
+  drop.position.set(d.x, Yf+P.wall-0.12, zWall+d.side*0.05); world.add(drop);
+  reg(lip,'安全溢流口·'+c.id,'封口墙顶全宽薄壁溢流口 · 正常不溢，仅壅高越顶时被动泄放 → 回流母管 → 集水池(闭环·零外排)'
+      +' · 与高水位硬联锁 0.50 m 分工：联锁属独立安全层（不经网络、不共用控制 CPU），溢流口只是最后一道被动纵深防御');
+}
+DIV.forEach(buildDiversion);
+// 回流/溢流母管（收集各渠末端溢流 → 集水池·闭环·零外排）
+(function(){
+  const yH=P.Y.L3+0.55, zH=P.Z.back+0.42;                 // 下移到贴近集水池顶
+  const hdr=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,7.8,14), M.ret);
+  hdr.rotation.z=Math.PI/2; hdr.position.set(3.6,yH,zH); world.add(hdr);
+  reg(hdr,'回流/溢流母管','收集各渠末端安全溢流 → 集水池(闭环·零外排) · 贴集水池顶重力自流 · 正常不溢仅壅高越顶启用 · 前/后排横向接管为示意、细化待定');
+  const dn=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,yH-P.Y.L3-0.1,14), M.ret);   // 落入集水池
+  dn.position.set(0.3,(yH+P.Y.L3)/2,zH); world.add(dn);
+  addLabel(3.6,yH+0.13,zH,'末端溢流→回流母管→集水池(闭环)','valve');
+})();
+
+/* ---------- 前池（L1 西端，渠①前） ---------- */
+(function(){
+  const c1 = P.chans[0]; const Yf=P.Y.L1, z=P.Z.front;
+  // 去掉 S2 开敞进/出口段后西端腾空 → 前池放大铺满该区(更大缓冲容积、恒水头更稳)
+  const FW=1.20, FD=1.00, fx = c1.x0 - (0.54 + FW/2), fz = (z + 0.55)/2;  // 实尺寸1.2×1.0；东缘让开 S2 封闭进口集水腔+进口渐变段+U管，摆入西端空地
+  const grp = new THREE.Group();
+  const shell = new THREE.Mesh(new THREE.BoxGeometry(FW,0.7,FD), M.forebay);
+  shell.position.set(fx, Yf+0.35, fz); grp.add(shell);
+  const w = new THREE.Mesh(new THREE.BoxGeometry(FW-0.04,0.55,FD-0.04), M.water);
+  w.position.set(fx, Yf+0.30, fz); waterGroup.add(w);
+  const fs = new THREE.Mesh(new THREE.BoxGeometry(FW-0.07,0.006,FD-0.07), M.waterSurface);
+  fs.position.set(fx, Yf+0.579, fz); fs.renderOrder=3; waterGroup.add(fs);
+  // 溢流堰（恒水头0.45，近渠①侧）
+  const weir = new THREE.Mesh(new THREE.BoxGeometry(0.04,0.15,FD-0.08), M.weir);
+  weir.position.set(fx+FW/2-0.02, Yf+0.55, fz); grp.add(weir);
+  reg(shell,'恒压前池','1.2×1.0×0.6 有效 · V≈0.72 m³ · 恒水头：前池水面比渠① 控制水面高 0.45 m（相对量，随高程链整体平移）'
+      +' · 双侧薄壁堰总有效长度 1.2 m、Cw≈1.84；堰上水头 0.019 m@6 L/s，4.5~10 L/s 水面变幅 ≤0.012 m'
+      +' · 富余供水 ΔQ_ov ≥0.5 L/s；H_ov<3 mm 报警提频，仍不恢复则退出恒水头模式'
+      +' · LT-F 三只独立静水井 2oo3（不得共用取压腔）');
+  world.add(grp);
+  addLabel(fx, Yf+0.92, fz, '恒压前池 · 恒水头0.45', 'node');
+  // 前池 → G0 短直引水槽（前排，直接接渠①）
+  const feX=fx+FW/2;
+  const feed = channelSeg((feX + (c1.x0-0.16))/2, (c1.x0-0.16)-feX, Yf, z, 'x');
+  reg(feed,'引水槽','前池溢流后经 G0 直接入渠①');
+  // G0
+  buildGate(c1.x0-0.10, Yf, z, 'G0', 'G0 · 前池出口节制闸 · 标称过闸落差 0.45 m（随渠① 设定与流量略变；前池水面是相对量，不是固定绝对高程）');
+  // LT-F1/2/3：前池 2oo3（三只独立静水井，不共用取压腔）
+  for(let m=0;m<3;m++){
+    const wl=new THREE.Mesh(new THREE.CylinderGeometry(0.038,0.038,0.46-m*0.03,14), M.steel);
+    wl.position.set(fx-0.50+m*0.17, Yf+0.02+(0.46-m*0.03)/2+m*0.05, fz-0.32); wl.castShadow=true; world.add(wl);
+    if(m===1) reg(wl,'LT-F1/2/3（前池 2oo3）',
+      '前池恒水头、泵与溢流联锁 · 2oo3 取中值折算堰上水头 H_ov（H_ov<3 mm 报警提频，仍不足则退出恒水头模式）'
+     +' · 三只独立取压口/静水腔，沿流向错开 ≥0.15 m、高程错开 ≥0.05 m，独立供电与 I/O · 单台 ≤0.5 mm(1σ)');
+  }
+  addLabel(fx-0.33, Yf+0.72, fz-0.32, 'LT-F1/2/3（前池 2oo3）', 'g');
+})();
+
+/* ---------- G8 + 量水箱 + 90°V 量水堰（L2 后排，渠⑥西端出口）· 按 R3 §9.5 改建 ---------- */
+(function(){
+  const c6 = P.chans[5]; const Yf=P.Y.L2, z=P.Z[c6.row];   // 渠⑥ dir−1，西端 x0 为出口
+  buildGate(c6.x0, Yf, z, 'G8', 'G8 · 渠⑥出口节制闸 · 须预留控制水头 ΔH_G8=0.061(10 L/s)~0.099(4.5 L/s) m · 开度工作区约 18~50 mm');
+  // —— 量水箱：B≥0.70 m、箱底取渠⑥ 底 ±0.000、直段 ≥10·H_max=1.39 m —— //
+  const WB=P.weirBox, xE=c6.x0-0.10, xW=xE-WB.straight, xc=(xE+xW)/2;   // 东端接 G8 后，西端为堰板
+  const zB=z+0.11;   // 量水箱中心相对渠⑥ 轴线外让 0.11 m：0.70 m 箱宽会同时逼近前排渠④ 侧壁(z=0.16)与 G4 闸墩(z=0.18)
+  const wallH=WB.crest+0.139+0.11;                                       // 箱壁高 ≈ p + H_max + 超高
+  const bo=WB.B+2*P.wt;
+  const bfloor=glassPanel(new THREE.BoxGeometry(WB.straight, P.wt, bo), xc, Yf+P.wt/2, zB);
+  for(const sd of [-1,1]) glassPanel(new THREE.BoxGeometry(WB.straight, wallH, P.wt), xc, Yf+wallH/2, zB+sd*(WB.B/2+P.wt/2));
+  glassPanel(new THREE.BoxGeometry(P.wt, wallH, bo), xE, Yf+wallH/2, zB);          // 东端封壁（接 G8 侧）
+  const bw=new THREE.Mesh(new THREE.BoxGeometry(WB.straight-0.04, WB.crest+0.139, WB.B), M.water);
+  bw.position.set(xc, Yf+P.wt+(WB.crest+0.139)/2, zB); bw.renderOrder=2; waterGroup.add(bw);
+  reg(bfloor,'独立量水箱（渠⑥尾部，ISO 1438 接近渠）',
+    `渠⑥本体宽 b=${P.b.toFixed(2)} m；本箱 B=${WB.B.toFixed(2)} m，为尾部独立量水箱，不是渠⑥永久扩宽 · 堰高 p=${WB.p.toFixed(3)} m ≥0.10 · 堰板上游直段 ${(WB.straight-0.15).toFixed(2)} m ≥10·H_max=1.39 m`
+   +` · 箱底取渠⑥ 底 ±0.000（较渠道底再降 0.05 m）· 进口设整流栅 + 浮渣挡板`
+   +` · 【为什么要加这只箱子】原方案把堰板直接装在 0.30 m 宽渠中，h/B=0.139/0.30=0.46 >0.4、B=0.30 <0.61 m，两条 ISO 1438 条件同时不满足；`
+   +`"p/H≥1"并不是 ISO 1438 的判据。改箱后 h/p=0.51~0.70 ≤1.2、h/B=0.14~0.20 ≤0.4，四条全部满足（部分收缩 90° 三角堰）`
+   +` · 接近流速：10 L/s 时 A=0.70×0.339=0.237 m²、v≈0.042 m/s、流速水头 0.09 mm，可忽略`);
+  addLabel(xc, Yf+wallH+0.16, zB, '量水箱 B≥0.70 · p=0.200 · 直段≥1.5m（≥10H_max）', 'node');
+  addLabel(xE-0.05, Yf+wallH+0.34, zB, '渠⑥ b=0.30 → 独立量水箱 B=0.70（非渠道扩宽）', 'dim');
+  // 进口过渡段仅作拓扑/检修可达示意：从渠⑥标准断面过渡到量水箱宽度。
+  const trX0=xE+0.12, trX1=xE-0.08, trY=Yf+P.wt+0.004;
+  const trFloor=glassPanel(new THREE.BoxGeometry(trX0-trX1, P.wt, WB.B), (trX0+trX1)/2, Yf+P.wt/2, zB);
+  reg(trFloor,'渠⑥→量水箱过渡段',`渠⑥标准宽度 b=${P.b.toFixed(2)} m → 量水箱 B=${WB.B.toFixed(2)} m；施工详图需按 G8 后整流与检修空间复核`);
+  [-1,1].forEach(sd=>{
+    const rail=new THREE.Line(new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(trX0,trY,z+sd*P.b/2),
+      new THREE.Vector3(trX1,trY,zB+sd*WB.B/2)
+    ]), pmmaEdgeMat);
+    world.add(rail);
+  });
+  // 进口整流栅
+  const grill=new THREE.Mesh(new THREE.BoxGeometry(0.03, WB.crest+0.12, WB.B*0.92), M.steel);
+  grill.position.set(xE-0.15, Yf+(WB.crest+0.12)/2, zB); world.add(grill);
+  reg(grill,'进口整流栅 + 浮渣挡板','消能整流，保证堰前流速分布均匀（ISO 1438 对接近渠的要求）· 与堰板间保持 ≥10·H_max 的直段');
+  // —— 90° V 形薄壁堰板（堰顶 = 渠⑥ 底 +0.200） —— //
+  const wx=xW, notchH=0.145;                        // 缺口垂直高 ≈ H_max 0.139 + 余量
+  const g=new THREE.Group();
+  const plateBk=new THREE.Mesh(new THREE.BoxGeometry(0.05, WB.p, bo), M.weir);      // 缺口以下实体（p=0.200）
+  plateBk.position.set(0, WB.p/2, 0); g.add(plateBk);
+  for(const sd of [-1,1]){                                                            // 缺口以上两侧实体
+    const wgt=(WB.B-2*notchH)/2 + P.wt;
+    const sideP=new THREE.Mesh(new THREE.BoxGeometry(0.05, notchH+0.10, wgt), M.weir);
+    sideP.position.set(0, WB.p+(notchH+0.10)/2, sd*(WB.B/2+P.wt-wgt/2)); g.add(sideP);
+  }
+  for(const sd of [-1,1]){                                                            // 90° 缺口斜边（半角 45°）
+    const tri=new THREE.Mesh(new THREE.BoxGeometry(0.05, notchH*1.42, 0.02), M.weir);
+    tri.position.set(0, WB.p+notchH/2, sd*notchH/2); tri.rotation.x=sd*Math.PI/4; g.add(tri);
+  }
+  g.position.set(wx, Yf+P.wt, zB); g.traverse(o=>{ if(o.isMesh) o.castShadow=true; });
+  reg(plateBk,'量水堰（90° V-notch 薄壁堰 · ISO 1438 部分收缩）',
+    `堰顶 = 渠⑥ 底 +${WB.crest.toFixed(3)} m（冻结式 z_crest ≤ z6,SP − ΔH_G8,min − H_w(Qmax) = 0.400−0.050−0.139 = 0.211）`
+   +` · 计量式按 ISO 1438 Kindsvater–Shen：Q=(8/15)·C_e·√(2g)·tan(θ/2)·h_e^2.5，h_e=h+k_h（90° 时 k_h≈0.00085 m），C_e 按 h/p 与 p/B 查表`
+   +` · Q=1.38·H^2.5（对应 C_e≈0.584）【仅作初算与量级校核，不作计量式】`
+   +` · 堰上水头 H = 0.101 / 0.114 / 0.127 / 0.139 m @ 4.5 / 6 / 8 / 10 L/s；h/p=0.51/0.57/0.64/0.70；h/B=0.14/0.16/0.18/0.20`
+   +` · C_e 与 k_h 由 E19b 以 FT-0（0.5 级电磁流量计）为参照在四点实测率定并给出扩展不确定度`
+   +` · 堰顶以上空气间隙 0.250 m、下游通风自由跌落（集水池控制水面在渠⑥ 底 −0.050 m）`
+   +` · 若尾部占地无法容纳 0.70×1.5 m 量水箱，则退【路线 B】：保留窄渠堰板但删除全部"符合 ISO 1438"表述，改为以 FT-0 为参照的现场率定二级量水装置`);
+  world.add(g);
+  addLabel(wx, Yf+WB.p+notchH+0.26, zB, '90°V 量水堰 · 堰顶+0.200 · H=101~139mm', 'node');
+  // 读数静水井 WT-L（堰上游 ≥4H_max 处侧壁取压）
+  const stw=new THREE.Mesh(new THREE.CylinderGeometry(0.045,0.045,0.5,14), M.steel);
+  stw.position.set(wx+0.60, Yf+0.25, zB+WB.B/2+0.10); world.add(stw);
+  reg(stw,'读数静水井 WT-L','量程 0~0.30 m · 堰上游 ≥4·H_max 处侧壁阻尼孔取压 · 测堰上水头 h · 滤面波 · E19b 率定用测针比对');
+  addLabel(wx+0.60, Yf+0.62, zB+WB.B/2+0.10, 'WT-L 读数静水井 0~0.30m', 'g');
+  // 堰后自由跌落水舌 → 集水池（通风·不淹没）
+  const chute=new THREE.Mesh(new THREE.BoxGeometry(0.26, Yf-P.Y.L3, WB.B*0.45), M.water);
+  chute.position.set(wx-0.22,(Yf+P.Y.L3)/2, zB); chute.renderOrder=2; waterGroup.add(chute);
+  // 占地告警：0.70 m 箱宽与前排渠④ 仅余约 30 mm 净距
+  addLabel(xc, Yf-0.20, zB-WB.B/2-0.12,
+    '⚠ 占地代价：0.70 m 箱宽须外让 0.11 m 才能避开渠④ 侧壁(0.16)与 G4 闸墩(0.18)，总宽由 1.45 → 1.61 m；层板荷载与柱位须复算', 'dim');
+})();
+
+/* ---------- 集水池（L3）+ 回流泵（闭环回前池） ---------- */
+(function(){
+  const Yf=P.Y.L3, cx=1.0;                               // 西置：贴量水堰跌水正下方、离前池/泵最近
+  const sump = new THREE.Mesh(new THREE.BoxGeometry(3.0,0.9,1.4), M.sump);   // 3.0×1.4×深0.9(加深)
+  sump.position.set(cx, Yf+0.05, zMid); world.add(sump);
+  const w = new THREE.Mesh(new THREE.BoxGeometry(2.9,0.6,1.3), M.water);
+  w.position.set(cx, Yf-0.05, zMid); waterGroup.add(w);
+  const ss = new THREE.Mesh(new THREE.BoxGeometry(2.84,0.006,1.24), M.waterSurface);
+  ss.position.set(cx, Yf+0.254, zMid); ss.renderOrder=3; waterGroup.add(ss);
+  reg(sump,'集水池','3.0×1.4×深0.9 · 工作水深0.6→V_work≈2.5m³ · 滞留τ≈250s@10/417s@6L/s · 死水0.2m防吸空 · 最低水位联锁停泵'
+      +' · 汇量水堰跌水 + 各渠末端安全溢流 · 【口径提示】R3 高程链中集水池控制水面 = 渠⑥ 控制水面 −0.45 m（即渠⑥ 底 −0.050 m）；'
+      +'本模型第 3 层为示意高度，未按该高程渲染');
+  addLabel(cx, Yf+0.66, zMid, '集水池 3.0×1.4×0.9 · V_work≈2.5m³', 'node');
+  // 吸水喇叭 + 十字消涡板（防吸气涡）
+  const bell=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.18,0.12,18), M.steel);
+  bell.position.set(cx-1.15, Yf-0.14, zMid); world.add(bell);
+  const avp=new THREE.Mesh(new THREE.BoxGeometry(0.32,0.02,0.32), M.steel);
+  avp.position.set(cx-1.15, Yf-0.23, zMid); world.add(avp);
+  reg(bell,'吸水喇叭+十字消涡板','淹没深≥0.3m抑吸气涡 · 十字消涡板 · 保泵吸水平稳');
+  // ===== 泵站（西端·L3）：变频泵 + 吸水管DN100 + 压水管DN100（统一DN100·与倒虹吸备件通用）=====
+  const pumpX=-1.05, py=Yf+0.13;
+  const pbody=new THREE.Mesh(new THREE.CylinderGeometry(0.095,0.095,0.24,22), M.steel);  // 泵体(蜗壳·0.55kW级缩形)
+  pbody.rotation.z=Math.PI/2; pbody.position.set(pumpX,py,zMid); pbody.castShadow=true; world.add(pbody);
+  const motor=new THREE.Mesh(new THREE.CylinderGeometry(0.075,0.075,0.20,18), M.gateFr);  // 电机(0.55kW)
+  motor.rotation.z=Math.PI/2; motor.position.set(pumpX-0.26,py,zMid); world.add(motor);
+  const base=new THREE.Mesh(new THREE.BoxGeometry(0.7,0.05,0.34), M.steel);               // 泵座
+  base.position.set(pumpX-0.12,Yf-0.02,zMid); world.add(base);
+  reg(pbody,'变频泵','~0.55 kW 级变频离心泵（询价等级，非选型结论）· 流量随测试域 4~10 L/s 变频连续可调'
+      +' · 静扬程 H_stat = 1.22 + Δz₂（Δz₂=0.70 时 1.92 m）· 系统曲线 H_sys(Q) = 1.22 + Δz₂ + 3760·Q²（Q 以 m³/s 计）'
+      +' · Δz₂ 三档扫描 H_sys(10.5 L/s)=2.135/2.335/2.535 m、轴功率 0.338/0.370/0.402 kW'
+      +' · 恒水头前提：Q_pump ≥ Q_test + 0.5 L/s 富余供水（保证前池溢流可检测，堰上水头 ≥3 mm）'
+      +' · 失电即停（≤2 s 惰转），不设自动再起动 · NPSHa 初算 ≈10.2 m 且不随 Δz₂ 变 · 最终须以实管路与厂家 Q–H–η–NPSHr 曲线冻结');
+  addLabel(pumpX-0.15, py+0.42, zMid, '变频泵~0.55kW级(询价)·H_sys=1.22+Δz₂+3760Q²', 'g');
+  // 吸水管 DN100：集水池吸水喇叭 → 泵进口(东面)
+  const sPath=[ new THREE.Vector3(cx-1.15,Yf-0.08,zMid), new THREE.Vector3(cx-1.15,py-0.01,zMid),
+                new THREE.Vector3(pumpX+0.45,py,zMid), new THREE.Vector3(pumpX+0.15,py,zMid) ];
+  const sTube=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(sPath,false,'catmullrom',0.4),44,0.05,16,false), M.upvc);
+  sTube.castShadow=true; world.add(sTube);
+  reg(sTube,'吸水管 DN100','集水池吸水喇叭 → 泵进口 · v≈1.27m/s@10L/s · 淹没(倒灌)吸水利NPSH · 带闸阀+柔性接头 · 短直、少弯'
+      +' · 注意：DN100 仅是泵吸/压水管的询价候选口径，与 S1/S3 倒虹吸的 DN125 不通用、不得混入损失表'
+      +' · 泵进出口须设柔性接头、机脚隔振垫（结构 f₁ 13~20 Hz 与泵激励 24~48 Hz 仅差 1.2 倍，见 R3 §6.3）');
+  addLabel((cx-1.15+pumpX)/2, py+0.15, zMid, '吸水管DN100', 'valve');
+  // 压水管 DN100：泵出口(顶) → 立管 → 恒压前池顶
+  const dPath=[ new THREE.Vector3(pumpX,py+0.13,zMid), new THREE.Vector3(pumpX-0.02,py+0.35,zMid),
+                new THREE.Vector3(-1.14,1.50,zMid), new THREE.Vector3(-1.14,1.66,zMid+0.02) ];
+  const dTube=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(dPath,false,'catmullrom',0.4),56,0.05,16,false), M.ret);
+  dTube.castShadow=true; world.add(dTube);
+  // 止回阀 + 闸阀（压水侧·示意）
+  const ckv=new THREE.Mesh(new THREE.SphereGeometry(0.05,14,12), M.ret); ckv.position.set(pumpX-0.02,py+0.5,zMid); world.add(ckv);
+  reg(dTube,'压水管 DN100','泵出口→立管→恒压前池 · 提升 H_stat=1.22+Δz₂ · 止回阀+闸阀 · v≈1.27m/s@10L/s · 闭环零外排');
+  reg(ckv,'止回阀+闸阀','压水侧止回阀(防倒流/水锤)+闸阀(检修隔离)');
+  addLabel(-1.14,1.15,zMid,'压水管DN100→前池', 'valve');
+})();
+
+/* ---------- 坡度调节：一端丝杠千斤顶（经典 tilting flume·按层可调底坡 0~0.5%·备用）item5 ---------- */
+(function(){
+  [P.Y.L1,P.Y.L2].forEach(Yf=>{
+    for(const sz of [ENV.z0+0.1, ENV.z1-0.1]){
+      const jk=new THREE.Mesh(new THREE.CylinderGeometry(0.032,0.05,0.16,12), M.jack);
+      jk.position.set(ENV.x1-0.1, Yf-0.13, sz); world.add(jk);
+      const sc2=new THREE.Mesh(new THREE.CylinderGeometry(0.013,0.013,0.12,10), M.steel);
+      sc2.position.set(ENV.x1-0.1, Yf-0.02, sz); world.add(sc2);
+    }
+  });
+  addLabel(ENV.x1-0.1, P.Y.L1-0.30, ENV.z1-0.1, '丝杠千斤顶·一端可调底坡0~0.5%(经典tilting·备用)', 'dim');
+})();
+
+/* ============================================================================
+   尺寸标注：总长/总宽/总高 + 包络框 + 关键分尺寸
+   ========================================================================= */
+const dimGroup = new THREE.Group(); world.add(dimGroup);
+const dimMat = new THREE.LineBasicMaterial({ color:0xc75b12 });
+const envMat = new THREE.LineBasicMaterial({ color:0xb0752f, transparent:true, opacity:0.55 });
+const V = (x,y,z)=>new THREE.Vector3(x,y,z);
+// 尺寸线：主线 + 两端引出小刻度（tick 沿 tickAxis 方向）+ 中点数值标签
+function dimLine(a, b, tickAxis, text){
+  dimGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([a,b]), dimMat));
+  const t = tickAxis.clone().multiplyScalar(0.07);
+  [a,b].forEach(p=>{
+    dimGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([p.clone().sub(t), p.clone().add(t)]), dimMat));
+  });
+  const m = a.clone().add(b).multiplyScalar(0.5);
+  addLabel(m.x, m.y, m.z, text, 'dim');
+}
+// 包络线框
+(function(){
+  const g = new THREE.BoxGeometry(ENV_L, ENV_H, ENV_W);
+  const edges = new THREE.LineSegments(new THREE.EdgesGeometry(g), envMat);
+  edges.position.set((ENV.x0+ENV.x1)/2, (ENV.y0+ENV.y1)/2, (ENV.z0+ENV.z1)/2);
+  dimGroup.add(edges);
+})();
+// —— 三个总尺寸 ——
+dimLine(V(ENV.x0, ENV.y0-0.12, ENV.z0-0.18), V(ENV.x1, ENV.y0-0.12, ENV.z0-0.18),
+        V(0,1,0), `总长 L ≈ ${ENV_L.toFixed(1)} m`);
+dimLine(V(ENV.x1+0.18, ENV.y0-0.12, ENV.z0), V(ENV.x1+0.18, ENV.y0-0.12, ENV.z1),
+        V(0,1,0), `总宽 W ≈ ${ENV_W.toFixed(2)} m`);
+dimLine(V(ENV.x0-0.18, ENV.y0, ENV.z0-0.18), V(ENV.x0-0.18, ENV.y1, ENV.z0-0.18),
+        V(1,0,0), `总高 H ≈ ${ENV_H.toFixed(2)} m`);
+// —— 关键分尺寸 ——
+// 层距 0.70（东侧竖向，L1↔L2 渠底）
+dimLine(V(ENV.x1+0.18, P.Y.L2+P.wt, ENV.z1), V(ENV.x1+0.18, P.Y.L1+P.wt, ENV.z1),
+        V(1,0,0), `层距 0.70`);
+// 渠①跨度 8.00（第1层前排沿程）
+dimLine(V(0.0, P.Y.L1-0.06, ENV.z0-0.06), V(8.0, P.Y.L1-0.06, ENV.z0-0.06),
+        V(0,1,0), `渠①跨度 8.00`);
+// 断面尺寸文字（渠②后排一处）
+addLabel(3.0, P.Y.L1+P.wall+0.30, P.Z.back, 'b0.30×h₀0.40 · 壁0.55统一(超高0.15) · S1/S3 倒虹吸 DN125', 'dim');
+
+/* ============================================================================
+   交互：自写球面轨道控制
+   ========================================================================= */
+const dom = renderer.domElement;
+let drag=null;
+function updateCamera(){
+  const {r,theta,phi,tx,ty,tz}=cam;
+  camera.position.set(
+    tx + r*Math.sin(phi)*Math.cos(theta),
+    ty + r*Math.cos(phi),
+    tz + r*Math.sin(phi)*Math.sin(theta)
+  );
+  camera.lookAt(tx,ty,tz);
+}
+let panMode=false, moved=0;
+function doPan(dx,dy){
+  const s=cam.r*0.0016;
+  cam.tx -= dx*s*Math.sin(cam.theta); cam.tz += dx*s*Math.cos(cam.theta);
+  cam.ty += dy*s;
+}
+function doRotate(dx,dy){
+  cam.theta -= dx*0.006;
+  cam.phi = Math.max(0.12, Math.min(1.52, cam.phi - dy*0.006));
+}
+dom.addEventListener('mousedown', e=>{ drag={x:e.clientX,y:e.clientY,b:e.button,shift:e.shiftKey}; moved=0; });
+addEventListener('mouseup', ()=> drag=null);
+addEventListener('mousemove', e=>{
+  if(!drag) return;
+  const dx=e.clientX-drag.x, dy=e.clientY-drag.y; drag.x=e.clientX; drag.y=e.clientY;
+  moved += Math.abs(dx)+Math.abs(dy);
+  // 平移：右键 / 中键 / Shift+左键 / 平移模式；否则旋转
+  const wantPan = (drag.b===2)||(drag.b===1)||drag.shift||panMode;
+  if(wantPan) doPan(dx,dy); else doRotate(dx,dy);
+  updateCamera();
+});
+dom.addEventListener('contextmenu', e=>e.preventDefault());
+dom.addEventListener('wheel', e=>{ e.preventDefault();
+  cam.r = Math.max(3.5, Math.min(32, cam.r*(1+ (e.deltaY>0?0.1:-0.1)) )); updateCamera();
+}, {passive:false});
+// 键盘方向键平移 / +- 缩放
+addEventListener('keydown', e=>{
+  const k=e.key; let h=false;
+  if(k==='ArrowLeft'){ doPan(-30,0); h=true; } else if(k==='ArrowRight'){ doPan(30,0); h=true; }
+  else if(k==='ArrowUp'){ doPan(0,-30); h=true; } else if(k==='ArrowDown'){ doPan(0,30); h=true; }
+  else if(k==='='||k==='+'){ cam.r=Math.max(3.5,cam.r*0.9); h=true; } else if(k==='-'){ cam.r=Math.min(32,cam.r*1.1); h=true; }
+  if(h){ e.preventDefault(); updateCamera(); }
+});
+
+/* ---------- 点击拾取 ---------- */
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+dom.addEventListener('click', e=>{
+  if(moved>4) return;   // 拖拽后不触发拾取
+  mouse.x=(e.clientX/innerWidth)*2-1; mouse.y=-(e.clientY/innerHeight)*2+1;
+  ray.setFromCamera(mouse,camera);
+  const hit = ray.intersectObjects(pickables,false);
+  const sel=document.getElementById('sel');
+  if(hit.length){
+    const u=hit[0].object.userData;
+    sel.innerHTML=`<b>${u.name}</b><br>${u.info}`;
+  }
+});
+
+/* ---------- 标注投影 ---------- */
+const labWrap = document.getElementById('labels');
+// 标注归类：渠道/闸门/倒虹吸节点/尺寸结构/前池集水池
+function catOf(cls,text){
+  if(cls==='valve' || /分水口|DN50|溢流|回流|回水|扰动/.test(text)) return 'valve';
+  if(cls==='dim' || /^第\d层/.test(text) || /丝杠千斤顶/.test(text)) return 'dim';
+  if(/^G\d/.test(text)) return 'gate';
+  if(/前池|集水池|量水堰|变频泵|LT-0|读数静水井|静水井/.test(text)) return 'pool';
+  if(/^渠[①②③④⑤⑥]/.test(text)) return 'chan';
+  if(cls==='s' || /^进口段|^出口段|局部沉井|S2封闭进口集水腔|渐变段|承压盒|敞口U|承压封闭/.test(text)) return 'siphon';
+  return 'chan';
+}
+const labEls = labelDefs.map(d=>{
+  d.cat = catOf(d.cls, d.text);
+  const el=document.createElement('div'); el.className='lab '+(d.cls||'')+' cat-'+d.cat; el.textContent=d.text;
+  labWrap.appendChild(el); return el;
+});
+let showLabels=true;
+const _v=new THREE.Vector3(), _v2=new THREE.Vector3();
+function projectLabels(){
+  if(!showLabels){ labEls.forEach(el=>el.classList.add('hide')); return; }
+  const visible=[];
+  labelDefs.forEach((d,i)=>{
+    _v.copy(d.pos).project(camera);
+    const el=labEls[i];
+    if(_v.z>1){ el.classList.add('hide'); return; }
+    if(!catVis[d.cat]){ el.classList.add('hide'); return; }
+    el.classList.remove('hide');
+    el.style.left=((_v.x*0.5+0.5)*innerWidth)+'px';
+    el.style.top=((-_v.y*0.5+0.5)*innerHeight)+'px';
+    if(d.flow){
+      // 投影 流向端点，判断真实流向在屏幕上朝右(→)还是朝左(←)
+      _v2.copy(d.pos); _v2.x += d.flow*0.6; _v2.project(camera);
+      el.textContent = d.text + (_v2.x > _v.x ? ' →' : ' ←');
+    }
+    visible.push({d,el});
+  });
+  // 轻量避让：优先保留节点/闸门/倒虹吸标题，尺寸和辅助信息在重叠时自动隐藏。
+  const rank=d=>d.cls==='node'?0:(d.cls==='g'?1:(d.cls==='s'?2:(d.cls==='valve'?3:4)));
+  visible.sort((a,b)=>rank(a.d)-rank(b.d));
+  const kept=[];
+  visible.forEach(({d,el})=>{
+    const r=el.getBoundingClientRect();
+    const hit=kept.some(k=>!(r.right+3<k.left || r.left-3>k.right || r.bottom+3<k.top || r.top-3>k.bottom));
+    if(hit && d.cls!=='node' && d.cls!=='g') el.classList.add('hide');
+    else kept.push(r);
+  });
+}
+
+/* ---------- 控制按钮 ---------- */
+let spin=false, xray=false, showWater=true;
+const $=id=>document.getElementById(id);
+
+// 运行工况预览：只改变页面中的状态提示，不改变几何或替代正式控制器。
+let selectedS2=0.70;
+function updateQState(){
+  const q=Number($('qSlider').value);
+  const v=q/1000/(Math.PI*Math.pow(P.siphonD,2)/4);
+  const sc=1.503*(v/Math.sqrt(9.81*P.siphonD))*P.siphonD;
+  const out=$('qLive'), box=$('qState');
+  out.textContent=q.toFixed(1)+' L/s';
+  box.classList.remove('warn','danger');
+  if(q<=3.0){
+    box.textContent=`${q.toFixed(1)} L/s · 仅允许短时充水/排气/排空/标定 · 不进入观察窗口`;
+    box.classList.add('danger');
+  } else if(q<4.5){
+    box.textContent=`${q.toFixed(1)} L/s · 水力边界/起动筛查 · v≈${v.toFixed(3)} m/s < DN125 输气筛查线 0.335 m/s · 不声明连续 ODD`;
+    box.classList.add('warn');
+  } else if(q<=8){
+    box.textContent=`${q.toFixed(1)} L/s · 初始连续 ODD · v≈${v.toFixed(3)} m/s · Gordon 临界淹没 S_c≈${(sc*1000).toFixed(0)} mm`;
+  } else {
+    box.textContent=`${q.toFixed(1)} L/s · 高端受监护验证 · 需 E5/E14 逐点放行 · v≈${v.toFixed(3)} m/s · S_c≈${(sc*1000).toFixed(0)} mm`;
+    box.classList.add('warn');
+  }
+}
+if($('qSlider')){ $('qSlider').addEventListener('input',updateQState); updateQState(); }
+document.querySelectorAll('#s2scan button').forEach(btn=>btn.addEventListener('click',()=>{
+  selectedS2=Number(btn.dataset.dz);
+  document.querySelectorAll('#s2scan button').forEach(b=>b.classList.toggle('on',b===btn));
+  $('modelNote').textContent=`当前 S2 参数扫描档：Δz₂=${selectedS2.toFixed(2)} m（仅状态提示，几何不重建）。该档位仍须经压力包络、瞬变、排气/补气、排空、检修可达与观察空间专项冻结；S1/S3 DN125 为公称口径，实际内径/外径按施工图复核。`;
+  if(typeof renderElevation==='function') renderElevation();
+}));
+
+// 标注分类可见性（尺寸/结构同时联动 3D 尺寸标注组 dimGroup）
+const catVis={ chan:true, gate:true, siphon:true, dim:false, pool:false, valve:false };
+function applyCat(){
+  if(typeof dimGroup!=='undefined' && dimGroup) dimGroup.visible=catVis.dim;
+  for(const k in catVis){ const c=$('cat_'+k); if(c) c.classList.toggle('off',!catVis[k]); }
+  $('btnDim').classList.toggle('on',catVis.dim);
+}
+function toggleCat(k){ catVis[k]=!catVis[k]; applyCat(); }
+['chan','gate','siphon','dim','pool','valve'].forEach(k=>{ const c=$('cat_'+k); if(c) c.onclick=()=>toggleCat(k); });
+$('cat_all').onclick=()=>{ for(const k in catVis) catVis[k]=true; applyCat(); };
+$('cat_none').onclick=()=>{ for(const k in catVis) catVis[k]=false; applyCat(); };
+applyCat();
+
+$('btnDim').onclick=()=>toggleCat('dim');
+$('btnPan').onclick=e=>{ panMode=!panMode; e.target.classList.toggle('on',panMode); };
+$('btnSpin').onclick=e=>{ spin=!spin; e.target.classList.toggle('on',spin); };
+$('btnLabels').onclick=e=>{ showLabels=!showLabels; e.target.classList.toggle('on',showLabels); };
+$('btnWater').onclick=e=>{ showWater=!showWater; waterGroup.visible=showWater; e.target.classList.toggle('on',showWater); };
+$('btnReset').onclick=()=>{ cam={...CAM0}; panMode=false; $('btnPan').classList.remove('on'); updateCamera(); };
+$('btnOverview').onclick=()=>{ cam={...CAM_PRESETS.overview}; updateCamera(); };
+$('btnTop').onclick=()=>{ cam={...CAM_PRESETS.top}; updateCamera(); };
+$('btnSide').onclick=()=>{ cam={...CAM_PRESETS.side}; updateCamera(); };
+$('btnXray').onclick=e=>{ xray=!xray; e.target.classList.toggle('on',xray);
+  M.pmma.opacity = xray?0.10:0.60;
+  M.io.opacity   = xray?0.30:0.92;
+  M.forebay.opacity = xray?0.15:0.55;
+  M.sump.opacity = xray?0.15:0.6;
+  M.shelf.opacity = xray?0.12:0.42;
+};
+
+/* ---------- GLB 2.0 导出 ---------- */
+const EXPORT_GLB_FILE = 'D3_two_layer_R4_high_fidelity.glb';
+function downloadGlb(data){
+  const url=URL.createObjectURL(new Blob([data],{type:'model/gltf-binary'}));
+  const link=document.createElement('a');
+  link.href=url;
+  link.download=EXPORT_GLB_FILE;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function makeExportRoot(){
+  world.updateMatrixWorld(true);
+  const root=world.clone(true);
+  root.name='D3_two_layer_R4_high_fidelity';
+  let index=1;
+  root.traverse(obj=>{
+    if(!obj.name) obj.name=`part_${String(index++).padStart(3,'0')}`;
+    if(obj.userData && obj.userData.name && !obj.userData.label) obj.userData.label=obj.userData.name;
+  });
+  return root;
+}
+function exportCurrentGlb(){
+  const btn=$('btnExportGlb');
+  if(!THREE.GLTFExporter){
+    alert('GLB 导出器加载失败，请检查网络连接后重试。');
+    return;
+  }
+  const label=btn.textContent;
+  btn.disabled=true;
+  btn.textContent='正在导出...';
+  try{
+    new THREE.GLTFExporter().parse(makeExportRoot(),result=>{
+      downloadGlb(result);
+      btn.disabled=false;
+      btn.textContent='导出完成';
+      setTimeout(()=>{ btn.textContent=label; },1600);
+    },{binary:true,onlyVisible:true,truncateDrawRange:true});
+  }catch(err){
+    console.error(err);
+    btn.disabled=false;
+    btn.textContent=label;
+    alert('导出 GLB 失败，请查看浏览器控制台。');
+  }
+}
+$('btnExportGlb').onclick=exportCurrentGlb;
+
+/* ---------- WebTopo 原生项目 ZIP 导出 ---------- */
+const EXPORT_WEBTOPO_FILE = 'D3_two_layer_R4_high_fidelity-webtopo.zip';
+function bytesToBase64(bytes){
+  let binary='';
+  const chunkSize=0x8000;
+  for(let offset=0;offset<bytes.length;offset+=chunkSize){
+    binary+=String.fromCharCode.apply(null,bytes.subarray(offset,offset+chunkSize));
+  }
+  return btoa(binary);
+}
+function gzipGeometryArray(value){
+  if(!Array.isArray(value)) return value;
+  return bytesToBase64(pako.gzip(JSON.stringify(value)));
+}
+function makeWebTopoEditorJson(){
+  scene.updateMatrixWorld(true);
+  camera.updateMatrixWorld(true);
+  const exportScene=scene.clone(true);
+  exportScene.name='D3_two_layer_R4_high_fidelity';
+  let index=1;
+  const convertedGeometries=new Map();
+  exportScene.traverse(obj=>{
+    if(!obj.name) obj.name=`part_${String(index++).padStart(3,'0')}`;
+    if(obj.userData && obj.userData.name && !obj.userData.label) obj.userData.label=obj.userData.name;
+    // r128 的 EdgesGeometry.toJSON() 不含顶点数据，转为等价的标准 BufferGeometry。
+    if(obj.geometry && /^(Edges|Wireframe)Geometry$/.test(obj.geometry.type)){
+      if(!convertedGeometries.has(obj.geometry)){
+        const geometry=new THREE.BufferGeometry().copy(obj.geometry);
+        geometry.name=obj.geometry.name;
+        convertedGeometries.set(obj.geometry,geometry);
+      }
+      obj.geometry=convertedGeometries.get(obj.geometry);
+    }
+  });
+  const sceneJson=exportScene.toJSON();
+  (sceneJson.geometries||[]).forEach(geometry=>{
+    // WebTopo 使用新版 Three.js，旧版 *BufferGeometry 名称需迁移。
+    if(geometry.type!=='BufferGeometry' && /BufferGeometry$/.test(geometry.type)){
+      geometry.type=geometry.type.replace(/BufferGeometry$/,'Geometry');
+    }
+  });
+  return {
+    metadata:{},
+    project:{
+      antialias:true,
+      shadows:true,
+      shadowType:THREE.PCFSoftShadowMap,
+      xr:false,
+      toneMapping:THREE.ACESFilmicToneMapping,
+      toneMappingExposure:1.05
+    },
+    camera:camera.toJSON(),
+    scene:sceneJson,
+    scripts:{}
+  };
+}
+async function packWebTopoProject(editorJson){
+  const archive=new JSZip();
+  const geometryFolder=archive.folder('Geometries');
+  archive.folder('Textures');
+  archive.folder('Drawing');
+  const geometries=editorJson.scene.geometries||[];
+  editorJson.scene.geometries=[];
+  const geometryFiles=[];
+  for(let offset=0;offset<geometries.length;offset+=10){
+    const batch=geometries.slice(offset,offset+10).map(geometry=>{
+      if(geometry.data){
+        Object.values(geometry.data.attributes||{}).forEach(attribute=>{
+          attribute.array=gzipGeometryArray(attribute.array);
+        });
+        if(geometry.data.index) geometry.data.index.array=gzipGeometryArray(geometry.data.index.array);
+      }
+      return geometry;
+    });
+    geometryFiles.push({name:`geometries_${offset/10}.json`,content:JSON.stringify(batch)});
+  }
+  for(let offset=0;offset<geometryFiles.length;offset+=10){
+    const geometryArchive=new JSZip();
+    geometryFiles.slice(offset,offset+10).forEach(file=>{
+      geometryArchive.file(file.name,file.content,{compression:'DEFLATE',compressionOptions:{level:9}});
+    });
+    const content=await geometryArchive.generateAsync({type:'blob'});
+    geometryFolder.file(`geometries_${offset/10}.zip`,content,{compression:'DEFLATE',compressionOptions:{level:9}});
+  }
+  archive.file('scene.json',JSON.stringify(editorJson),{compression:'DEFLATE',compressionOptions:{level:9}});
+  return archive.generateAsync({type:'blob'});
+}
+function downloadWebTopoZip(blob){
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement('a');
+  link.href=url;
+  link.download=EXPORT_WEBTOPO_FILE;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+async function exportCurrentWebTopoZip(){
+  const btn=$('btnExportWebTopo');
+  if(!window.JSZip || !window.pako){
+    alert('WebTopo ZIP 导出依赖加载失败，请检查网络连接后重试。');
+    return;
+  }
+  const label=btn.textContent;
+  btn.disabled=true;
+  btn.textContent='正在打包...';
+  try{
+    const zip=await packWebTopoProject(makeWebTopoEditorJson());
+    downloadWebTopoZip(zip);
+    btn.textContent='导出完成';
+    setTimeout(()=>{ btn.textContent=label; },1600);
+  }catch(err){
+    console.error(err);
+    btn.textContent=label;
+    alert('WebTopo ZIP 导出失败，请查看浏览器控制台。');
+  }finally{
+    btn.disabled=false;
+  }
+}
+$('btnExportWebTopo').onclick=exportCurrentWebTopoZip;
+
+/* ---------- 三处倒虹吸落差页 ---------- */
+const dropView=$('dropView');
+const elevGrid=$('elevGrid'), elevLines=$('elevLines'), elevLabels=$('elevLabels'), elevPipes=$('elevPipes');
+const channelXs=[82,220,362,510,658,816];
+const channelNames=['渠①','渠②','渠③','渠④','渠⑤','渠⑥'];
+const fmtM=v=>(v>=0?'+':'')+v.toFixed(2)+' m';
+function renderElevation(){
+  const dz=selectedS2;
+  const levels=[0.32+dz,0.16+dz,0.16+dz,0.16,0.16,0];
+  const maxZ=Math.max(1.15,0.42+dz), baseY=292, scale=194/maxZ;
+  const y=z=>baseY-z*scale;
+  const x0=42, x1=874;
+  elevGrid.innerHTML=''; elevLines.innerHTML=''; elevLabels.innerHTML=''; elevPipes.innerHTML='';
+  for(let i=0;i<=4;i++){
+    const z=maxZ*i/4, yy=y(z);
+    elevGrid.insertAdjacentHTML('beforeend',`<line x1="${x0}" x2="${x1}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}" class="datum"></line><text x="${x1+7}" y="${(yy+3).toFixed(1)}" class="datumText">${z.toFixed(2)} m</text>`);
+  }
+  elevGrid.insertAdjacentHTML('beforeend',`<line x1="${x0}" x2="${x1}" y1="${baseY}" y2="${baseY}" class="datum"></line><text x="${x1+7}" y="${baseY+3}" class="datumText">0.00 m 基准</text>`);
+  levels.forEach((z,i)=>{
+    const xx=channelXs[i], yy=y(z);
+    elevLines.insertAdjacentHTML('beforeend',`<line x1="${xx-50}" x2="${xx+50}" y1="${yy}" y2="${yy}" class="chan"></line><text x="${xx}" y="${yy-11}" text-anchor="middle">${channelNames[i]}</text><text x="${xx}" y="${yy+24}" text-anchor="middle" class="axis">${fmtM(z)}</text>`);
+    if(i<5) elevLines.insertAdjacentHTML('beforeend',`<line x1="${xx+50}" x2="${channelXs[i+1]-50}" y1="${yy}" y2="${y(levels[i+1])}" class="chan base"></line>`);
+  });
+  const drops=[{id:'S1',a:0,b:1,cls:'',label:'Δs 0.16 m',color:'#d27d27'},{id:'S2',a:2,b:3,cls:'s2',label:`Δz₂ ${dz.toFixed(2)} m`,color:'#9552bf'},{id:'S3',a:4,b:5,cls:'',label:'Δs 0.16 m',color:'#d27d27'}];
+  drops.forEach(d=>{
+    const xa=channelXs[d.a]+58, xb=channelXs[d.b]-58, xm=(xa+xb)/2;
+    const ya=y(levels[d.a]), yb=y(levels[d.b]);
+    const active=document.querySelector(`.dropCard[data-drop="${d.id}"]`)?.classList.contains('active');
+    const cls=`drop ${d.cls}${active?' selected':''}`;
+    elevLines.insertAdjacentHTML('beforeend',`<line x1="${xm}" x2="${xm}" y1="${ya+4}" y2="${yb-4}" class="${cls}"></line><text x="${xm+9}" y="${(ya+yb)/2+4}" class="dropText ${d.cls}">${d.label}</text>`);
+    const pipeY=Math.max(ya,yb)+25;
+    const dPath=d.id==='S2'?`M${xa},${ya+5} C${xa+18},${ya+34} ${xb-18},${yb+34} ${xb},${yb-5}`:`M${xa},${ya+5} C${xa+15},${pipeY} ${xb-15},${pipeY} ${xb},${yb-5}`;
+    elevPipes.insertAdjacentHTML('beforeend',`<path d="${dPath}" class="pipe ${d.cls}"></path><circle cx="${xa}" cy="${ya}" r="5" class="sensor"></circle><circle cx="${xb}" cy="${yb}" r="5" class="sensor"></circle><text x="${xa}" y="${ya+42}" text-anchor="middle" class="axis">LT-${d.id}-U</text><text x="${xb}" y="${yb+42}" text-anchor="middle" class="axis">LT-${d.id}-D</text>`);
+  });
+  elevLabels.insertAdjacentHTML('beforeend',`<text x="${x0}" y="22" class="axis">控制水面高程（相对渠⑥，m）</text><text x="${x1-4}" y="347" text-anchor="end" class="axis">流向 →　水面链与倒虹吸节点（示意，不代表施工比例）</text>`);
+  $('dropMode').textContent=`当前：S2 Δz₂ = ${dz.toFixed(2)} m 示意档`;
+  $('s2dropValue').textContent=`Δz₂ ${dz.toFixed(2)} m`;
+  $('z1v').textContent=fmtM(levels[0]); $('z23v').textContent=fmtM(levels[1]); $('z45v').textContent=fmtM(levels[3]);
+  $('hstatv').textContent=(1.22+dz).toFixed(2)+' m';
+  $('s1levels').textContent=`${fmtM(levels[0])} → ${fmtM(levels[1])}`;
+  $('s2levels').textContent=`${fmtM(levels[2])} → ${fmtM(levels[3])}`;
+  $('s3levels').textContent=`${fmtM(levels[4])} → ${fmtM(levels[5])}`;
+}
+function setDropSelection(id){
+  document.querySelectorAll('.dropCard').forEach(card=>card.classList.toggle('active',card.dataset.drop===id));
+  renderElevation();
+}
+document.querySelectorAll('.dropCard').forEach(card=>{
+  card.addEventListener('click',()=>setDropSelection(card.dataset.drop));
+  card.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); setDropSelection(card.dataset.drop); } });
+});
+if($('btnDrops')) $('btnDrops').onclick=()=>{ dropView.classList.add('open'); dropView.setAttribute('aria-hidden','false'); renderElevation(); };
+if($('dropClose')) $('dropClose').onclick=()=>{ dropView.classList.remove('open'); dropView.setAttribute('aria-hidden','true'); };
+dropView.addEventListener('click',e=>{ if(e.target===dropView) $('dropClose').click(); });
+addEventListener('keydown',e=>{ if(e.key==='Escape' && dropView.classList.contains('open')) $('dropClose').click(); });
+renderElevation();
+
+/* ---------- 渲染循环 ---------- */
+addEventListener('resize', ()=>{
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+updateCamera();
+const loading = document.getElementById('loading');
+loading.classList.add('hide');
+setTimeout(()=>{ loading.style.display='none'; }, 380);
+function animate(){
+  requestAnimationFrame(animate);
+  if(spin){ cam.theta+=0.0025; updateCamera(); }
+  projectLabels();
+  renderer.render(scene,camera);
+}
+animate();
+</script>
+</body>
+</html>
