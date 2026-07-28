@@ -78,6 +78,15 @@ test('applies arrow label data and projects its world direction to a CSS angle',
   const value = createElement('labelValue');
   const unit = createElement('labelUnit');
   const arrow = createElement('directionArrow');
+  const childOrder = [arrow, prefix, value, unit];
+  dataLabel.prepend = (child) => {
+    childOrder.splice(childOrder.indexOf(child), 1);
+    childOrder.unshift(child);
+  };
+  dataLabel.append = (child) => {
+    childOrder.splice(childOrder.indexOf(child), 1);
+    childOrder.push(child);
+  };
   const labelChildren = new Map([
     ['#labelPrefix', prefix],
     ['#labelValue', value],
@@ -93,6 +102,7 @@ test('applies arrow label data and projects its world direction to a CSS angle',
       value: '东向',
       unit: '',
       showArrow: true,
+      arrowPosition: 'end',
       directionX: 1,
       directionY: 0,
       directionZ: 0,
@@ -108,8 +118,13 @@ test('applies arrow label data and projects its world direction to a CSS angle',
   assert.equal(arrow.style.display, 'inline-block');
   assert.equal(arrow.style.color, '#fff');
   assert.equal(arrow.style.fontSize, '20px');
+  assert.equal(childOrder.at(-1), arrow);
   assert.equal(dataLabel.style.borderRadius, '6px');
   assert.equal(dataLabel.style.borderWidth, '2px');
+
+  sprite.userData.arrowPosition = 'start';
+  applyHtmlSpriteUserData(root, sprite);
+  assert.equal(childOrder[0], arrow);
 
   const camera = new THREE.PerspectiveCamera(50, 2, 0.1, 100);
   camera.position.set(0, 0, 10);

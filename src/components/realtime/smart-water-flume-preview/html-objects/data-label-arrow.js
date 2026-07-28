@@ -13,8 +13,11 @@ const projectedTarget = new THREE.Vector3();
 function applyDataLabelArrowUserData(element, userData) {
   if (!applyDataLabelUserData(element, userData, '#dataLabelArrow')) return false;
 
+  const dataLabel = element.querySelector('#dataLabelArrow');
   const arrow = element.querySelector('#directionArrow');
-  if (!arrow) return true;
+  if (!dataLabel || !arrow) return true;
+  if (userData.arrowPosition === 'end') dataLabel.append(arrow);
+  else dataLabel.prepend(arrow);
   arrow.style.display = userData.showArrow === false ? 'none' : 'inline-block';
   if (userData.arrowColor !== undefined) arrow.style.color = userData.arrowColor;
   setPixelStyle(arrow, 'fontSize', userData.arrowSize);
