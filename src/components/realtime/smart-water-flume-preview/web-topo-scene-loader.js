@@ -150,9 +150,20 @@ function extractHtmlSprites(object, parentMatrix = new THREE.Matrix4(), sprites 
     worldMatrix.clone().multiply(localMatrixFromJson(child)).decompose(position, quaternion, scale);
     sprites.push({
       uuid: child.uuid,
+      name: child.name || '',
       html: child.options?.htmlContent || '',
       position: position.toArray(),
       scale: Math.max(Math.abs(scale.x), Math.abs(scale.y)),
+      userData: {
+        ...(child.options?.userData || {}),
+        ...(child.userData || {}),
+      },
+      options: {
+        key: child.options?.key || child.options?.cardConfig?.key || '',
+        paramName: child.options?.paramName || '',
+        paramField: child.options?.paramField || '',
+        paramUnit: child.options?.paramUnit || '',
+      },
     });
     return false;
   });

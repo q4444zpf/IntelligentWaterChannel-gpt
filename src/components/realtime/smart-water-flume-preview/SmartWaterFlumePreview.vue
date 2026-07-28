@@ -21,7 +21,19 @@
       <button type="button" @click="loadScene">重试</button>
     </div>
 
-    <span v-if="autoRotating" class="roaming-state">自动漫游</span>
+    <label v-if="autoRotating" class="roaming-control">
+      <span>漫游速度</span>
+      <strong>{{ roamingSpeed.toFixed(1) }}x</strong>
+      <input
+        v-model.number="roamingSpeed"
+        type="range"
+        min="0.2"
+        max="5"
+        step="0.1"
+        aria-label="自动漫游速度"
+        @input="updateRoamingSpeed"
+      >
+    </label>
   </div>
 </template>
 
@@ -29,9 +41,15 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { getWebTopoScene, resolveWebTopoAssetUrl } from '../../api/webTopo.js';
-import { WEB_TOPO_CONFIG } from '../../config/webTopoConfig.js';
-import { loadWebTopoScenePackage } from '../../utils/web-topo-scene-loader.js';
+import { getWebTopoScene, resolveWebTopoAssetUrl } from './webTopo.js';
+import { WEB_TOPO_CONFIG } from './webTopoConfig.js';
+import {
+  applyHtmlSpriteUserData,
+  updateHtmlSpriteData,
+  updateHtmlSpriteDirectionArrow,
+} from './web-topo-html-runtime.js';
+import { connectWebTopoMqtt, disconnectWebTopoMqtt } from './web-topo-mqtt.js';
+import { loadWebTopoScenePackage } from './web-topo-scene-loader.js';
 
 const props = defineProps({
   webTopoId: {
@@ -46,6 +64,7 @@ const loadProgress = ref(0);
 const loadError = ref('');
 const sceneName = ref('');
 const autoRotating = ref(false);
+const roamingSpeed = ref(0.8);
 const htmlSprites = ref([]);
 const labelElements = [];
 const loadingText = computed(() => sceneName.value ? `正在加载${sceneName.value}` : '正在获取三维场景');
@@ -56,6 +75,7 @@ let renderer;
 let controls;
 let resizeObserver;
 let abortController;
+let mqttClient;
 let modelCenter = new THREE.Vector3();
 let modelSize = new THREE.Vector3(10, 5, 2);
 let defaultCameraState;
@@ -63,6 +83,34 @@ let disposed = false;
 
 function setLabelRef(element, index) {
   if (element) labelElements[index] = element;
+}
+
+function applyLabelUserData() {
+  htmlSprites.value.forEach((sprite, index) => {
+    applyHtmlSpriteUserData(labelElements[index], sprite);
+  });
+}
+
+function triggerDataUpdate(field, value) {
+  htmlSprites.value.forEach((sprite, index) => {
+    updateHtmlSpriteData(labelElements[index], sprite, field, value);
+  });
+}
+
+function handleMqttData(payload) {
+  Object.entries(payload).forEach(([field, value]) => triggerDataUpdate(field, value));
+}
+
+function stopMqtt() {
+  disconnectWebTopoMqtt(mqttClient);
+  mqttClient = null;
+}
+
+function startMqtt(config) {
+  stopMqtt();
+  mqttClient = connectWebTopoMqtt(config, handleMqttData, (error) => {
+    console.warn('三维组态 MQTT 连接异常:', error);
+  });
 }
 
 function createRenderer() {
@@ -93,9 +141,16 @@ function createControls(target) {
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.07;
-  controls.autoRotateSpeed = 0.8;
+  controls.autoRotateSpeed = roamingSpeed.value;
   controls.target.copy(target);
   controls.update();
+}
+
+function updateRoamingSpeed(event) {
+  const speed = Number(event.currentTarget.value);
+  if (!Number.isFinite(speed)) return;
+  roamingSpeed.value = speed;
+  if (controls) controls.autoRotateSpeed = speed;
 }
 
 function applyRendererConfig(config) {
@@ -120,6 +175,7 @@ function applyControlsState(state) {
 
 async function loadScene() {
   abortController?.abort();
+  stopMqtt();
   abortController = new AbortController();
   loading.value = true;
   loadError.value = '';
@@ -164,6 +220,8 @@ async function loadScene() {
     loading.value = false;
     loadProgress.value = 100;
     await nextTick();
+    applyLabelUserData();
+    startMqtt(loaded.config?.mqtt);
     resizeScene();
   } catch (error) {
     if (error?.name === 'AbortError' || disposed) return;
@@ -182,16 +240,16 @@ function resizeScene() {
   renderer.setSize(width, height, false);
 }
 
-function distanceForView(horizontalSize, verticalSize) {
+function distanceForView(horizontalSize, verticalSize, depthSize) {
   const verticalFov = THREE.MathUtils.degToRad(camera.fov);
   const verticalDistance = verticalSize / (2 * Math.tan(verticalFov / 2));
   const horizontalDistance = horizontalSize / (2 * Math.tan(verticalFov / 2) * camera.aspect);
-  return Math.max(verticalDistance, horizontalDistance) * 1.12;
+  return depthSize / 2 + Math.max(verticalDistance, horizontalDistance) * 1.12;
 }
 
-function applyView(direction, horizontalSize, verticalSize, up = new THREE.Vector3(0, 1, 0)) {
+function applyView(direction, horizontalSize, verticalSize, depthSize, up = new THREE.Vector3(0, 1, 0)) {
   if (!camera || !controls || !defaultCameraState) return;
-  const distance = distanceForView(horizontalSize, verticalSize);
+  const distance = distanceForView(horizontalSize, verticalSize, depthSize);
   camera.up.copy(up);
   camera.position.copy(modelCenter).add(direction.clone().normalize().multiplyScalar(distance));
   camera.near = Math.max(distance / 1000, 0.01);
@@ -211,16 +269,17 @@ function setView(action) {
 
   switch (action) {
     case '俯视图':
-      applyView(new THREE.Vector3(0, 1, 0.001), modelSize.x, modelSize.z, new THREE.Vector3(0, 0, -1));
+      // Keep Y as the orbit axis and avoid the exact overhead singularity.
+      applyView(new THREE.Vector3(0, 1, 0.2), modelSize.x, modelSize.z, modelSize.y);
       break;
     case '正视图':
-      applyView(new THREE.Vector3(0, 0, 1), modelSize.x, modelSize.y);
+      applyView(new THREE.Vector3(0, 0, 1), modelSize.x, modelSize.y, modelSize.z);
       break;
     case '左视图':
-      applyView(new THREE.Vector3(-1, 0, 0), modelSize.z, modelSize.y);
+      applyView(new THREE.Vector3(-1, 0, 0), modelSize.z, modelSize.y, modelSize.x);
       break;
     case '右视图':
-      applyView(new THREE.Vector3(1, 0, 0), modelSize.z, modelSize.y);
+      applyView(new THREE.Vector3(1, 0, 0), modelSize.z, modelSize.y, modelSize.x);
       break;
     case '自动漫游':
       autoRotating.value = !autoRotating.value;
@@ -243,6 +302,7 @@ function updateLabels() {
   const width = canvasHostRef.value.clientWidth;
   const height = canvasHostRef.value.clientHeight;
   const cameraDirection = new THREE.Vector3();
+  camera.updateMatrixWorld();
   camera.getWorldDirection(cameraDirection);
 
   htmlSprites.value.forEach((sprite, index) => {
@@ -257,6 +317,7 @@ function updateLabels() {
     const scale = THREE.MathUtils.clamp(sprite.scale * pixelsPerUnit, 0.35, 1.5);
     element.style.opacity = visible ? '1' : '0';
     element.style.transform = `translate(-50%, -50%) translate(${(projected.x * 0.5 + 0.5) * width}px, ${(-projected.y * 0.5 + 0.5) * height}px) scale(${scale})`;
+    updateHtmlSpriteDirectionArrow(element, sprite, camera, width, height);
   });
 }
 
@@ -300,6 +361,7 @@ onBeforeUnmount(() => {
   abortController?.abort();
   resizeObserver?.disconnect();
   controls?.dispose();
+  stopMqtt();
   renderer?.setAnimationLoop(null);
   disposeObject(scene);
   renderer?.dispose();
@@ -307,7 +369,7 @@ onBeforeUnmount(() => {
   renderer?.domElement.remove();
 });
 
-defineExpose({ handleAction: setView, reload: loadScene });
+defineExpose({ handleAction: setView, reload: loadScene, triggerDataUpdate });
 </script>
 
 <style scoped>
@@ -346,7 +408,7 @@ defineExpose({ handleAction: setView, reload: loadScene });
   left: 0;
   transform-origin: center;
   transition: opacity 0.16s ease;
-  will-change: transform;
+  //will-change: transform;
 }
 
 .scene-state {
@@ -384,17 +446,37 @@ defineExpose({ handleAction: setView, reload: loadScene });
   padding: 5px 12px;
 }
 
-.roaming-state {
+.roaming-control {
   position: absolute;
   z-index: 3;
   right: 10px;
   bottom: 10px;
-  padding: 4px 8px;
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 5px 8px;
+  align-items: center;
+  width: min(190px, calc(100% - 20px));
+  padding: 6px 8px;
   border: 1px solid rgba(47, 165, 255, 0.65);
   border-radius: 4px;
   background: rgba(3, 30, 52, 0.88);
   color: #9fd8ff;
   font-size: 11px;
+}
+
+.roaming-control strong {
+  justify-self: end;
+  color: #dff5ff;
+  font-size: 11px;
+}
+
+.roaming-control input {
+  grid-column: 1 / -1;
+  width: 100%;
+  height: 14px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: #2fa5ff;
 }
 
 @keyframes cube-loading {

@@ -38,7 +38,7 @@
 <script setup>
 import { ref } from 'vue';
 import StatusText from '../components/common/StatusText.vue';
-import SmartWaterFlumePreview from '../components/realtime/SmartWaterFlumePreview.vue';
+import SmartWaterFlumePreview from '../components/realtime/smart-water-flume-preview/SmartWaterFlumePreview.vue';
 import TrendAnalysis from '../components/realtime/trend/TrendAnalysis.vue';
 import { ALARMS, GATES, SENSOR_GROUPS, VIEW_ACTIONS } from '../data/monitoring-data.js';
 
