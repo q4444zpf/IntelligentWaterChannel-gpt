@@ -16,6 +16,7 @@ export function applyDataLabelUserData(element, userData, selector = '#dataLabel
   setPixelStyle(dataLabel, 'borderWidth', userData.borderWidth);
   if (userData.bold !== undefined) dataLabel.style.fontWeight = userData.bold ? 'bold' : 'normal';
   setPixelStyle(dataLabel, 'fontSize', userData.fontSize);
+  setPixelStyle(dataLabel, 'gap', userData.gap);
   if (userData.paddingTopBottom !== undefined && userData.paddingLeftRight !== undefined) {
     dataLabel.style.padding = `${Number(userData.paddingTopBottom)}px ${Number(userData.paddingLeftRight)}px`;
   }

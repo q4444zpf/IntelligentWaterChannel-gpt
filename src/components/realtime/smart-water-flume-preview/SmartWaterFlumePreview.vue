@@ -21,7 +21,19 @@
       <button type="button" @click="loadScene">重试</button>
     </div>
 
-    <span v-if="autoRotating" class="roaming-state">自动漫游</span>
+    <label v-if="autoRotating" class="roaming-control">
+      <span>漫游速度</span>
+      <strong>{{ roamingSpeed.toFixed(1) }}x</strong>
+      <input
+        v-model.number="roamingSpeed"
+        type="range"
+        min="0.2"
+        max="5"
+        step="0.1"
+        aria-label="自动漫游速度"
+        @input="updateRoamingSpeed"
+      >
+    </label>
   </div>
 </template>
 
@@ -52,6 +64,7 @@ const loadProgress = ref(0);
 const loadError = ref('');
 const sceneName = ref('');
 const autoRotating = ref(false);
+const roamingSpeed = ref(0.8);
 const htmlSprites = ref([]);
 const labelElements = [];
 const loadingText = computed(() => sceneName.value ? `正在加载${sceneName.value}` : '正在获取三维场景');
@@ -128,9 +141,16 @@ function createControls(target) {
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.07;
-  controls.autoRotateSpeed = 0.8;
+  controls.autoRotateSpeed = roamingSpeed.value;
   controls.target.copy(target);
   controls.update();
+}
+
+function updateRoamingSpeed(event) {
+  const speed = Number(event.currentTarget.value);
+  if (!Number.isFinite(speed)) return;
+  roamingSpeed.value = speed;
+  if (controls) controls.autoRotateSpeed = speed;
 }
 
 function applyRendererConfig(config) {
@@ -249,7 +269,8 @@ function setView(action) {
 
   switch (action) {
     case '俯视图':
-      applyView(new THREE.Vector3(0, 1, 0.001), modelSize.x, modelSize.z, modelSize.y, new THREE.Vector3(0, 0, -1));
+      // Keep Y as the orbit axis and avoid the exact overhead singularity.
+      applyView(new THREE.Vector3(0, 1, 0.2), modelSize.x, modelSize.z, modelSize.y);
       break;
     case '正视图':
       applyView(new THREE.Vector3(0, 0, 1), modelSize.x, modelSize.y, modelSize.z);
@@ -425,17 +446,37 @@ defineExpose({ handleAction: setView, reload: loadScene, triggerDataUpdate });
   padding: 5px 12px;
 }
 
-.roaming-state {
+.roaming-control {
   position: absolute;
   z-index: 3;
   right: 10px;
   bottom: 10px;
-  padding: 4px 8px;
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 5px 8px;
+  align-items: center;
+  width: min(190px, calc(100% - 20px));
+  padding: 6px 8px;
   border: 1px solid rgba(47, 165, 255, 0.65);
   border-radius: 4px;
   background: rgba(3, 30, 52, 0.88);
   color: #9fd8ff;
   font-size: 11px;
+}
+
+.roaming-control strong {
+  justify-self: end;
+  color: #dff5ff;
+  font-size: 11px;
+}
+
+.roaming-control input {
+  grid-column: 1 / -1;
+  width: 100%;
+  height: 14px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: #2fa5ff;
 }
 
 @keyframes cube-loading {

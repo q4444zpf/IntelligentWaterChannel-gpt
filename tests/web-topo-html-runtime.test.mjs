@@ -52,6 +52,7 @@ test('applies serialized custom data to a data label', () => {
       borderWidth: 3,
       bold: true,
       fontSize: 14,
+      gap: 5,
       paddingTopBottom: 0,
       paddingLeftRight: 10,
     },
@@ -68,6 +69,7 @@ test('applies serialized custom data to a data label', () => {
     borderWidth: '3px',
     fontWeight: 'bold',
     fontSize: '14px',
+    gap: '5px',
     padding: '0px 10px',
   });
 });
@@ -108,6 +110,7 @@ test('applies arrow label data and projects its world direction to a CSS angle',
       directionZ: 0,
       arrowColor: '#fff',
       arrowSize: 20,
+      gap: 6,
       borderRadius: 6,
       borderWidth: 2,
     },
@@ -118,6 +121,7 @@ test('applies arrow label data and projects its world direction to a CSS angle',
   assert.equal(arrow.style.display, 'inline-block');
   assert.equal(arrow.style.color, '#fff');
   assert.equal(arrow.style.fontSize, '20px');
+  assert.equal(dataLabel.style.gap, '6px');
   assert.equal(childOrder.at(-1), arrow);
   assert.equal(dataLabel.style.borderRadius, '6px');
   assert.equal(dataLabel.style.borderWidth, '2px');
