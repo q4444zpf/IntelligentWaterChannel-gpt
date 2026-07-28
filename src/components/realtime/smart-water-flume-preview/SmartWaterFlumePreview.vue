@@ -220,16 +220,16 @@ function resizeScene() {
   renderer.setSize(width, height, false);
 }
 
-function distanceForView(horizontalSize, verticalSize) {
+function distanceForView(horizontalSize, verticalSize, depthSize) {
   const verticalFov = THREE.MathUtils.degToRad(camera.fov);
   const verticalDistance = verticalSize / (2 * Math.tan(verticalFov / 2));
   const horizontalDistance = horizontalSize / (2 * Math.tan(verticalFov / 2) * camera.aspect);
-  return Math.max(verticalDistance, horizontalDistance) * 1.12;
+  return depthSize / 2 + Math.max(verticalDistance, horizontalDistance) * 1.12;
 }
 
-function applyView(direction, horizontalSize, verticalSize, up = new THREE.Vector3(0, 1, 0)) {
+function applyView(direction, horizontalSize, verticalSize, depthSize, up = new THREE.Vector3(0, 1, 0)) {
   if (!camera || !controls || !defaultCameraState) return;
-  const distance = distanceForView(horizontalSize, verticalSize);
+  const distance = distanceForView(horizontalSize, verticalSize, depthSize);
   camera.up.copy(up);
   camera.position.copy(modelCenter).add(direction.clone().normalize().multiplyScalar(distance));
   camera.near = Math.max(distance / 1000, 0.01);
@@ -249,16 +249,16 @@ function setView(action) {
 
   switch (action) {
     case '俯视图':
-      applyView(new THREE.Vector3(0, 1, 0.001), modelSize.x, modelSize.z, new THREE.Vector3(0, 0, -1));
+      applyView(new THREE.Vector3(0, 1, 0.001), modelSize.x, modelSize.z, modelSize.y, new THREE.Vector3(0, 0, -1));
       break;
     case '正视图':
-      applyView(new THREE.Vector3(0, 0, 1), modelSize.x, modelSize.y);
+      applyView(new THREE.Vector3(0, 0, 1), modelSize.x, modelSize.y, modelSize.z);
       break;
     case '左视图':
-      applyView(new THREE.Vector3(-1, 0, 0), modelSize.z, modelSize.y);
+      applyView(new THREE.Vector3(-1, 0, 0), modelSize.z, modelSize.y, modelSize.x);
       break;
     case '右视图':
-      applyView(new THREE.Vector3(1, 0, 0), modelSize.z, modelSize.y);
+      applyView(new THREE.Vector3(1, 0, 0), modelSize.z, modelSize.y, modelSize.x);
       break;
     case '自动漫游':
       autoRotating.value = !autoRotating.value;
