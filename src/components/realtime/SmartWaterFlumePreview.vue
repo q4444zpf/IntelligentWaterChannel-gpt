@@ -31,6 +31,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { getWebTopoScene, resolveWebTopoAssetUrl } from '../../api/webTopo.js';
 import { WEB_TOPO_CONFIG } from '../../config/webTopoConfig.js';
+import { applyHtmlSpriteUserData, updateHtmlSpriteData } from '../../utils/web-topo-html-runtime.js';
+import { connectWebTopoMqtt, disconnectWebTopoMqtt } from '../../utils/web-topo-mqtt.js';
 import { loadWebTopoScenePackage } from '../../utils/web-topo-scene-loader.js';
 
 const props = defineProps({
@@ -56,6 +58,7 @@ let renderer;
 let controls;
 let resizeObserver;
 let abortController;
+let mqttClient;
 let modelCenter = new THREE.Vector3();
 let modelSize = new THREE.Vector3(10, 5, 2);
 let defaultCameraState;
@@ -63,6 +66,34 @@ let disposed = false;
 
 function setLabelRef(element, index) {
   if (element) labelElements[index] = element;
+}
+
+function applyLabelUserData() {
+  htmlSprites.value.forEach((sprite, index) => {
+    applyHtmlSpriteUserData(labelElements[index], sprite);
+  });
+}
+
+function triggerDataUpdate(field, value) {
+  htmlSprites.value.forEach((sprite, index) => {
+    updateHtmlSpriteData(labelElements[index], sprite, field, value);
+  });
+}
+
+function handleMqttData(payload) {
+  Object.entries(payload).forEach(([field, value]) => triggerDataUpdate(field, value));
+}
+
+function stopMqtt() {
+  disconnectWebTopoMqtt(mqttClient);
+  mqttClient = null;
+}
+
+function startMqtt(config) {
+  stopMqtt();
+  mqttClient = connectWebTopoMqtt(config, handleMqttData, (error) => {
+    console.warn('三维组态 MQTT 连接异常:', error);
+  });
 }
 
 function createRenderer() {
@@ -120,6 +151,7 @@ function applyControlsState(state) {
 
 async function loadScene() {
   abortController?.abort();
+  stopMqtt();
   abortController = new AbortController();
   loading.value = true;
   loadError.value = '';
@@ -164,6 +196,8 @@ async function loadScene() {
     loading.value = false;
     loadProgress.value = 100;
     await nextTick();
+    applyLabelUserData();
+    startMqtt(loaded.config?.mqtt);
     resizeScene();
   } catch (error) {
     if (error?.name === 'AbortError' || disposed) return;
@@ -300,6 +334,7 @@ onBeforeUnmount(() => {
   abortController?.abort();
   resizeObserver?.disconnect();
   controls?.dispose();
+  stopMqtt();
   renderer?.setAnimationLoop(null);
   disposeObject(scene);
   renderer?.dispose();
@@ -307,7 +342,7 @@ onBeforeUnmount(() => {
   renderer?.domElement.remove();
 });
 
-defineExpose({ handleAction: setView, reload: loadScene });
+defineExpose({ handleAction: setView, reload: loadScene, triggerDataUpdate });
 </script>
 
 <style scoped>
@@ -346,7 +381,7 @@ defineExpose({ handleAction: setView, reload: loadScene });
   left: 0;
   transform-origin: center;
   transition: opacity 0.16s ease;
-  will-change: transform;
+  //will-change: transform;
 }
 
 .scene-state {
