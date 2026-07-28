@@ -1,4 +1,4 @@
-import { ApiError, baseURL, http } from '../utils/request.js';
+import { ApiError, baseURL, http } from '../../../utils/request.js';
 
 export async function getWebTopoScene(webTopoId) {
   const response = await http.get(`/ghxx/bWebTopo3d/getTopo3dData/${encodeURIComponent(webTopoId)}`);

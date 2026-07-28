@@ -29,11 +29,15 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { getWebTopoScene, resolveWebTopoAssetUrl } from '../../api/webTopo.js';
-import { WEB_TOPO_CONFIG } from '../../config/webTopoConfig.js';
-import { applyHtmlSpriteUserData, updateHtmlSpriteData } from '../../utils/web-topo-html-runtime.js';
-import { connectWebTopoMqtt, disconnectWebTopoMqtt } from '../../utils/web-topo-mqtt.js';
-import { loadWebTopoScenePackage } from '../../utils/web-topo-scene-loader.js';
+import { getWebTopoScene, resolveWebTopoAssetUrl } from './webTopo.js';
+import { WEB_TOPO_CONFIG } from './webTopoConfig.js';
+import {
+  applyHtmlSpriteUserData,
+  updateHtmlSpriteData,
+  updateHtmlSpriteDirectionArrow,
+} from './web-topo-html-runtime.js';
+import { connectWebTopoMqtt, disconnectWebTopoMqtt } from './web-topo-mqtt.js';
+import { loadWebTopoScenePackage } from './web-topo-scene-loader.js';
 
 const props = defineProps({
   webTopoId: {
@@ -277,6 +281,7 @@ function updateLabels() {
   const width = canvasHostRef.value.clientWidth;
   const height = canvasHostRef.value.clientHeight;
   const cameraDirection = new THREE.Vector3();
+  camera.updateMatrixWorld();
   camera.getWorldDirection(cameraDirection);
 
   htmlSprites.value.forEach((sprite, index) => {
@@ -291,6 +296,7 @@ function updateLabels() {
     const scale = THREE.MathUtils.clamp(sprite.scale * pixelsPerUnit, 0.35, 1.5);
     element.style.opacity = visible ? '1' : '0';
     element.style.transform = `translate(-50%, -50%) translate(${(projected.x * 0.5 + 0.5) * width}px, ${(-projected.y * 0.5 + 0.5) * height}px) scale(${scale})`;
+    updateHtmlSpriteDirectionArrow(element, sprite, camera, width, height);
   });
 }
 
