@@ -95,7 +95,12 @@ onMounted(loadRealtimeDevices);
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  scrollbar-gutter: stable;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.sensor-list::-webkit-scrollbar {
+  display: none;
 }
 
 .realtime-empty {
