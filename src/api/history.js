@@ -53,10 +53,11 @@ export async function getBigWaterChannelHistoryReplay({
   start,
   end,
   intervalSeconds,
-  channel,
+  channels,
 } = {}) {
   const response = await http.get('/iot/device/bigWaterChannel/history/replay', {
-    params: buildHistoryReplayParams({ groupId, start, end, intervalSeconds, channel }),
+    params: buildHistoryReplayParams({ groupId, start, end, intervalSeconds, channels }),
+    paramsSerializer: { indexes: null },
   });
 
   if (response?.code !== 200

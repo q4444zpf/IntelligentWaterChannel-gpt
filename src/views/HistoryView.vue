@@ -108,8 +108,14 @@
                 </a-select>
               </a-form-item>
               <a-form-item label="渠道范围">
-                <a-select v-model:value="replayDraft.channel">
-                  <a-select-option v-for="channel in replayChannelOptions" :key="channel" :value="channel">{{ channel }}</a-select-option>
+                <a-select
+                  v-model:value="replayDraft.channels"
+                  mode="multiple"
+                  allow-clear
+                  :max-tag-count="2"
+                  placeholder="全部渠道"
+                >
+                  <a-select-option v-for="channel in replayChannels" :key="channel" :value="channel">{{ channel }}</a-select-option>
                 </a-select>
               </a-form-item>
             </a-form>
@@ -226,7 +232,6 @@ const {
   selectRow: selectReplayRow,
   setActiveIndex: setReplayActiveIndex,
 } = useHistoryReplay();
-const replayChannelOptions = computed(() => ['全部', ...replayChannels.value]);
 const replayColumns = computed(() => [
   { title: '时间', dataIndex: 'timestamp', key: 'timestamp', width: 180, fixed: 'left' },
   ...replayNodes.value.map((node) => ({

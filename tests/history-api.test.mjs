@@ -65,13 +65,13 @@ test('builds aligned replay query parameters', () => {
     start: '2026-07-30T09:00:00',
     end: '2026-07-30T10:00:00',
     intervalSeconds: 5,
-    channel: '渠③',
+    channels: ['渠②', '渠③'],
   }), {
     groupId: 69,
     startTime: '2026-07-30 09:00:00',
     endTime: '2026-07-30 10:00:00',
     intervalSeconds: 5,
-    channel: '渠③',
+    channels: ['渠②', '渠③'],
   });
 });
 

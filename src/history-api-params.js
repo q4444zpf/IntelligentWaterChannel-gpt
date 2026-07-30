@@ -22,13 +22,13 @@ export function buildHistoryFilterParams({ groupId, start, end, intervalSeconds,
   };
 }
 
-export function buildHistoryReplayParams({ groupId, start, end, intervalSeconds, channel }) {
+export function buildHistoryReplayParams({ groupId, start, end, intervalSeconds, channels }) {
   return {
     groupId,
     startTime: formatDateTime(start),
     endTime: formatDateTime(end),
     intervalSeconds,
-    channel,
+    channels,
   };
 }
 

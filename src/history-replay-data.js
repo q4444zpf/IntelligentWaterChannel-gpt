@@ -10,17 +10,6 @@ export function parseReplayValue(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-export function calculateReplayAxisMax(values) {
-  const maximum = Math.max(
-    0,
-    ...values.filter((value) => Number.isFinite(value)),
-  );
-
-  if (maximum <= 0.6) return 0.6;
-  if (maximum <= 1) return Math.ceil(maximum * 11) / 10;
-  return Math.ceil(maximum * 1.1);
-}
-
 export function normalizeHistoryReplay(payload) {
   const nodes = [];
   const nodeKeys = new Set();

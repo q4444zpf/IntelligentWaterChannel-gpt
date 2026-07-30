@@ -6,7 +6,7 @@ import { normalizeHistoryReplay } from '../history-replay-data.js';
 const createDefaultQuery = () => ({
   ...createTodayHistoryRange(),
   intervalSeconds: 5,
-  channel: '全部',
+  channels: [],
 });
 
 function validateReplayQuery(query) {

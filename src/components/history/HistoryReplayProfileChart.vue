@@ -26,10 +26,7 @@ import {
 } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
-import {
-  calculateReplayAxisMax,
-  parseReplayValue,
-} from '../../history-replay-data.js';
+import { parseReplayValue } from '../../history-replay-data.js';
 
 echarts.use([
   LineChart,
@@ -56,14 +53,10 @@ const currentValues = computed(() => props.nodes
   .map((node) => parseReplayValue(props.currentRow?.[node.key])));
 const previousValues = computed(() => props.nodes
   .map((node) => parseReplayValue(props.previousRow?.[node.key])));
-const yAxisMax = computed(() => calculateReplayAxisMax([
-  ...currentValues.value,
-  ...previousValues.value,
-]));
 
 function chartOption() {
   return {
-    animationDuration: 300,
+
     textStyle: { color: '#a9bdd5', fontFamily: 'Microsoft YaHei, sans-serif' },
     legend: {
       top: 8,
@@ -95,15 +88,19 @@ function chartOption() {
       type: 'value',
       name: '水位 (m)',
       min: 0,
-      max: yAxisMax.value,
       axisLine: { show: true, lineStyle: { color: '#47627e' } },
       axisLabel: { color: '#8da8c8', formatter: (value) => Number(value).toFixed(2) },
       splitLine: { lineStyle: { color: 'rgba(93, 139, 181, .16)' } },
     },
     series: [
       {
+        id: 'previous-frame',
         name: '上一时刻',
         type: 'line',
+        smooth: true,
+        animation: true,
+        animationDurationUpdate: 650,
+        animationEasingUpdate: 'cubicInOut',
         data: previousValues.value,
         connectNulls: false,
         showSymbol: true,
@@ -112,8 +109,13 @@ function chartOption() {
         itemStyle: { color: '#7d9ab8' },
       },
       {
+        id: 'current-frame',
         name: '当前时刻',
         type: 'line',
+        smooth: true,
+        animation: true,
+        animationDurationUpdate: 650,
+        animationEasingUpdate: 'cubicInOut',
         data: currentValues.value,
         connectNulls: false,
         showSymbol: true,
@@ -152,8 +154,17 @@ function renderChart() {
     disposeChart();
     return;
   }
-  if (!chart) chart = echarts.init(chartElement.value, null, { renderer: 'canvas' });
-  chart.setOption(chartOption(), true);
+  if (!chart) {
+    chart = echarts.init(chartElement.value, null, { renderer: 'canvas' });
+    chart.setOption(chartOption(), true);
+    return;
+  }
+  chart.setOption({
+    series: [
+      { id: 'previous-frame', data: previousValues.value, },
+      { id: 'current-frame', data: currentValues.value },
+    ],
+  });
 }
 
 function observeChartElement() {

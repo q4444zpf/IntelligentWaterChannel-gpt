@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  calculateReplayAxisMax,
   normalizeHistoryReplay,
   parseReplayValue,
 } from '../src/history-replay-data.js';
@@ -33,10 +32,4 @@ test('parses numeric replay values and rejects missing values', () => {
   assert.equal(parseReplayValue('0.384'), 0.384);
   assert.equal(parseReplayValue(null), null);
   assert.equal(parseReplayValue('invalid'), null);
-});
-
-test('expands the replay axis to include all visible values', () => {
-  assert.equal(calculateReplayAxisMax([0.38, 0.42]), 0.6);
-  assert.equal(calculateReplayAxisMax([33, 84]), 93);
-  assert.equal(calculateReplayAxisMax([null, Number.NaN]), 0.6);
 });
