@@ -6,8 +6,9 @@ import {
   DEVICES,
   buildHistoryResults,
   buildHistoryRows,
+  createTodayHistoryRange,
+  filterHistoryDevices,
   sortDeviceIds,
-  toHistoryCsv,
   validateHistoryQuery
 } from '../src/history-data.js';
 
@@ -44,6 +45,23 @@ test('requires at least one selected device', () => {
     '请至少选择一台设备'
   );
 });
+test('creates a full-day default range using the local calendar date', () => {
+  assert.deepEqual(createTodayHistoryRange(new Date(2026, 6, 30, 15, 20, 10)), {
+    start: '2026-07-30T00:00:00',
+    end: '2026-07-30T23:59:59',
+  });
+});
+
+test('filters history devices by type, channel, and keyword', () => {
+  assert.deepEqual(
+    filterHistoryDevices({ deviceType: '闸门', channel: '渠②' }).map((item) => item.id),
+    ['G2']
+  );
+  assert.deepEqual(
+    filterHistoryDevices({ channel: '前池', keyword: 'wl' }).map((item) => item.id),
+    ['WL-01']
+  );
+});
 
 test('builds deterministic results in physical process order', () => {
   const query = {
@@ -71,21 +89,4 @@ test('builds table rows by descending time then physical process order', () => {
 
   assert.ok(rows[0].timestamp >= rows.at(-1).timestamp);
   assert.deepEqual(rows.slice(0, 2).map((row) => row.name), ['WL-01', 'G2']);
-});
-
-test('serializes UTF-8 CSV with headers and escaped values', () => {
-  const csv = toHistoryCsv([{
-    timestamp: '2026-07-08 09:00:00',
-    type: '水位计',
-    name: 'WL-01',
-    location: '渠①,"前段"',
-    metric: '水位',
-    value: '0.400',
-    unit: 'm',
-    state: '正常'
-  }]);
-
-  assert.ok(csv.startsWith('\uFEFF时间,设备类型,设备名称,所属渠道,数据项,数值,单位,状态'));
-  assert.match(csv, /"渠①,""前段"""/);
-  assert.equal(csv.trim().split('\n').length, 2);
 });

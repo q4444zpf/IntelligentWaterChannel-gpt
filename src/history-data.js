@@ -34,6 +34,12 @@ export const DEVICES = Object.freeze([
 
 export const DEFAULT_DEVICE_IDS = Object.freeze(['WL-01', 'WL-02', 'WL-03', 'G2', 'P1']);
 
+export const HISTORY_DEVICE_TYPES = Object.freeze(['全部', '水位计', '流量计', '压力计', '闸门', '水泵']);
+
+export const HISTORY_CHANNELS = Object.freeze([
+  '全部', '前池', '渠①', '渠②', '渠③', '渠④', '渠⑤', '渠⑥', '集水池', '倒虹吸①-②', '倒虹吸③-④'
+]);
+
 const DEVICE_BY_ID = new Map(DEVICES.map((item) => [item.id, item]));
 const formatter = new Intl.DateTimeFormat('zh-CN', {
   year: 'numeric',
@@ -57,6 +63,27 @@ export function sortDeviceIds(ids) {
       const right = DEVICE_BY_ID.get(rightId);
       return left.order - right.order || naturalCompare(left.id, right.id);
     });
+}
+export function filterHistoryDevices({ deviceType = '全部', channel = '全部', keyword = '' } = {}) {
+  const normalizedKeyword = keyword.trim().toLocaleLowerCase('zh-CN');
+  return DEVICES.filter((item) => {
+    const matchesType = deviceType === '全部' || item.type === deviceType;
+    const matchesChannel = channel === '全部' || item.location.includes(channel);
+    const matchesKeyword = !normalizedKeyword
+      || `${item.id} ${item.type} ${item.location}`.toLocaleLowerCase('zh-CN').includes(normalizedKeyword);
+    return matchesType && matchesChannel && matchesKeyword;
+  });
+}
+
+export function createTodayHistoryRange(current = new Date()) {
+  const year = current.getFullYear();
+  const month = String(current.getMonth() + 1).padStart(2, '0');
+  const day = String(current.getDate()).padStart(2, '0');
+  const date = `${year}-${month}-${day}`;
+  return {
+    start: `${date}T00:00:00`,
+    end: `${date}T23:59:59`,
+  };
 }
 
 export function validateHistoryQuery({ start, end, deviceIds }) {
@@ -130,24 +157,4 @@ export function buildHistoryRows(results) {
     .sort((left, right) => right.timestampValue - left.timestampValue
       || left.processOrder - right.processOrder
       || naturalCompare(left.name, right.name));
-}
-
-function escapeCsv(value) {
-  const text = String(value ?? '');
-  return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
-}
-
-export function toHistoryCsv(rows) {
-  const header = ['时间', '设备类型', '设备名称', '所属渠道', '数据项', '数值', '单位', '状态'];
-  const lines = rows.map((row) => [
-    row.timestamp,
-    row.type,
-    row.name,
-    row.location,
-    row.metric,
-    row.value,
-    row.unit,
-    row.state
-  ].map(escapeCsv).join(','));
-  return `\uFEFF${[header.join(','), ...lines].join('\r\n')}`;
 }

@@ -42,7 +42,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { getWebTopoScene, resolveWebTopoAssetUrl } from './webTopo.js';
-import { WEB_TOPO_CONFIG } from './webTopoConfig.js';
+import { WEB_TOPO_CONFIG } from '../../../config/webTopoConfig.js';
 import {
   applyHtmlSpriteUserData,
   updateHtmlSpriteData,
