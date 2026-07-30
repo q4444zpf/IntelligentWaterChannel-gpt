@@ -2,13 +2,19 @@
   <section class="page page-realtime active">
     <aside class="left-stack">
       <section class="panel gate-panel"><h2>闸门实时状态</h2><table class="data-table compact">
-        <thead><tr><th>设备</th><th>开度</th><th>闸前(m)</th><th>闸后(m)</th><th>状态</th></tr></thead>
-        <tbody><tr v-for="gate in GATES" :key="gate.id"><td><span class="device-chip" :class="`chip-${gate.color}`">{{ gate.id }}</span></td><td>{{ gate.open }}</td><td>{{ gate.before }}</td><td>{{ gate.after }}</td><td><StatusText :value="gate.state" /></td></tr></tbody>
+        <thead><tr><th>设备</th><th>开度(%)</th><th>闸前(mm)</th><th>闸后(mm)</th><th>状态</th></tr></thead>
+        <tbody>
+          <tr v-for="gate in gates" :key="gate.id"><td><span class="device-chip" :class="`chip-${gate.color}`">{{ gate.id }}</span></td><td>{{ gate.open }}</td><td>{{ gate.before }}</td><td>{{ gate.after }}</td><td><StatusText :value="gate.state" /></td></tr>
+          <tr v-if="!gates.length"><td colspan="5" class="realtime-empty">{{ deviceMessage }}</td></tr>
+        </tbody>
       </table></section>
       <section class="panel sensor-panel"><h2>传感器实时状态</h2>
-        <div v-for="group in SENSOR_GROUPS" :key="group.name" class="sensor-section"><div class="sensor-title">{{ group.name }}</div><table class="data-table compact"><tbody>
-          <tr v-for="row in group.rows" :key="row.name"><td>{{ row.name }}</td><td>{{ row.location }}</td><td>{{ row.value }}</td><td>{{ row.unit }}</td><td><StatusText :value="row.state" /></td></tr>
-        </tbody></table></div>
+        <div class="sensor-list">
+          <div v-for="group in sensorGroups" :key="group.name" class="sensor-section"><div class="sensor-title">{{ group.name }}</div><table class="data-table compact"><tbody>
+            <tr v-for="row in group.rows" :key="row.tag || row.name"><td>{{ row.name }}</td><td>{{ row.location }}</td><td>{{ row.value }}</td><td>{{ row.unit }}</td><td><StatusText :value="row.state" /></td></tr>
+          </tbody></table></div>
+          <div v-if="!sensorGroups.length" class="realtime-empty">{{ deviceMessage }}</div>
+        </div>
       </section>
     </aside>
 
@@ -16,7 +22,7 @@
       <section class="panel twin-panel">
         <div class="panel-head"><h2>三维水槽工艺监控</h2><div class="mini-actions"><button v-for="action in VIEW_ACTIONS" :key="action" type="button" @click="previewRef?.handleAction(action)">{{ action }}</button></div></div>
         <div class="twin-stage">
-          <SmartWaterFlumePreview ref="previewRef" />
+          <SmartWaterFlumePreview ref="previewRef" @mqtt-data="handleMqttData" />
         </div>
       </section>
       <TrendAnalysis />
@@ -36,13 +42,70 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
+import { getRealtimeGroupDevices } from '../api/realtime.js';
 import StatusText from '../components/common/StatusText.vue';
 import SmartWaterFlumePreview from '../components/realtime/smart-water-flume-preview/SmartWaterFlumePreview.vue';
 import TrendAnalysis from '../components/realtime/trend/TrendAnalysis.vue';
-import { ALARMS, GATES, SENSOR_GROUPS, VIEW_ACTIONS } from '../data/monitoring-data.js';
+import { ALARMS, VIEW_ACTIONS } from '../data/monitoring-data.js';
+import { buildRealtimeTableData, mergeRealtimeValues } from '../realtime-device-data.js';
 
 defineEmits(['navigate']);
 
 const previewRef = ref(null);
+const deviceGroups = ref([]);
+const deviceLoading = ref(true);
+const deviceError = ref('');
+const realtimeValues = reactive({});
+const tableData = computed(() => buildRealtimeTableData(deviceGroups.value, realtimeValues));
+const gates = computed(() => tableData.value.gates);
+const sensorGroups = computed(() => tableData.value.sensorGroups);
+const deviceMessage = computed(() => {
+  if (deviceLoading.value) return '正在加载设备配置...';
+  return deviceError.value || '暂无设备配置';
+});
+
+function handleMqttData(payload) {
+  mergeRealtimeValues(realtimeValues, payload);
+}
+
+async function loadRealtimeDevices() {
+  deviceLoading.value = true;
+  deviceError.value = '';
+
+  try {
+    deviceGroups.value = await getRealtimeGroupDevices();
+  } catch (error) {
+    deviceError.value = error?.message || '获取实时设备配置失败';
+  } finally {
+    deviceLoading.value = false;
+  }
+}
+
+onMounted(loadRealtimeDevices);
 </script>
+
+<style scoped>
+.sensor-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.sensor-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.sensor-list::-webkit-scrollbar {
+  display: none;
+}
+
+.realtime-empty {
+  padding: 14px 8px;
+  color: #7f9db3;
+  text-align: center;
+}
+</style>

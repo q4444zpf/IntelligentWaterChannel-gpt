@@ -42,7 +42,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { getWebTopoScene, resolveWebTopoAssetUrl } from './webTopo.js';
-import { WEB_TOPO_CONFIG } from './webTopoConfig.js';
+import { WEB_TOPO_CONFIG } from '../../../config/webTopoConfig.js';
 import {
   applyHtmlSpriteUserData,
   updateHtmlSpriteData,
@@ -57,6 +57,7 @@ const props = defineProps({
     default: WEB_TOPO_CONFIG.webTopoId,
   },
 });
+const emit = defineEmits(['mqtt-data']);
 
 const canvasHostRef = ref(null);
 const loading = ref(true);
@@ -99,6 +100,7 @@ function triggerDataUpdate(field, value) {
 
 function handleMqttData(payload) {
   Object.entries(payload).forEach(([field, value]) => triggerDataUpdate(field, value));
+  emit('mqtt-data', payload);
 }
 
 function stopMqtt() {
@@ -408,7 +410,7 @@ defineExpose({ handleAction: setView, reload: loadScene, triggerDataUpdate });
   left: 0;
   transform-origin: center;
   transition: opacity 0.16s ease;
-  //will-change: transform;
+  /* will-change: transform; */
 }
 
 .scene-state {

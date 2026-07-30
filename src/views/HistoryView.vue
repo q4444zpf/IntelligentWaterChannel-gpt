@@ -6,59 +6,62 @@
     </div>
 
     <section v-show="activeTab === 'analysis'" class="history-tab active">
-      <section class="panel history-query">
-        <div class="history-query-fields">
-          <label class="query-field">开始时间<input v-model="draft.start" type="datetime-local"></label>
-          <label class="query-field">结束时间<input v-model="draft.end" type="datetime-local"></label>
-          <div ref="devicePicker" class="query-field device-picker-field">
-            <span>设备选择</span>
-            <button type="button" class="device-picker-trigger" aria-controls="history-device-options" :aria-expanded="pickerOpen" @click="pickerOpen = !pickerOpen">
-              <span>已选 {{ draft.deviceIds.length }} 台设备</span><b>{{ pickerOpen ? '收起' : '展开' }}</b>
-            </button>
-            <div v-if="pickerOpen" id="history-device-options" class="device-picker-menu">
-              <div class="device-picker-tools">
-                <input v-model.trim="deviceSearch" type="search" placeholder="搜索编号、类型或位置" aria-label="搜索设备">
-                <button type="button" @click="selectAllDevices">全选</button><button type="button" @click="clearDevices">清空</button>
-              </div>
-              <div class="device-option-list">
-                <label v-for="device in filteredDevices" :key="device.id" class="device-option">
-                  <input type="checkbox" :checked="draft.deviceIds.includes(device.id)" @change="toggleDevice(device.id)">
-                  <strong>{{ device.id }}</strong><span>{{ device.type }}</span><span>{{ device.location }}</span>
-                </label>
-              </div>
-            </div>
+      <section class="panel query-panel history-query">
+        <a-config-provider :locale="zhCN" :theme="historyTheme">
+          <div class="form-fields history-form-fields">
+            <a-form :model="draft" layout="vertical">
+              <a-form-item label="开始时间">
+                <a-date-picker v-model:value="startTimeValue" show-time format="YYYY-MM-DD HH:mm:ss" :allow-clear="false" />
+              </a-form-item>
+              <a-form-item label="结束时间">
+                <a-date-picker v-model:value="endTimeValue" show-time format="YYYY-MM-DD HH:mm:ss" :allow-clear="false" />
+              </a-form-item>
+              <a-form-item label="设备类型">
+                <a-select v-model:value="draft.deviceType" @change="applyDeviceFilters">
+                  <a-select-option v-for="type in historyDeviceTypes" :key="type" :value="type">{{ type }}</a-select-option>
+                </a-select>
+              </a-form-item>
+              <a-form-item label="设备名称">
+                <a-select v-model:value="draft.deviceIds" mode="multiple" show-search option-label-prop="label" :filter-option="filterDeviceOption" :max-tag-count="1" :loading="devicesLoading" :disabled="devicesLoading || !historyDevices.length" placeholder="请选择设备" not-found-content="当前分组下没有设备">
+                  <a-select-option v-for="device in selectableDevices" :key="device.id" :value="device.id" :label="device.name">
+                    <span class="history-device-option"><strong>{{ device.name }}</strong><span>{{ device.type }}</span><span>{{ device.location }}</span></span>
+                  </a-select-option>
+                </a-select>
+              </a-form-item>
+              <a-form-item label="所属渠道">
+                <a-select v-model:value="draft.channel" @change="applyDeviceFilters">
+                  <a-select-option v-for="channel in historyChannels" :key="channel" :value="channel">{{ channel }}</a-select-option>
+                </a-select>
+              </a-form-item>
+              <a-form-item label="数据粒度">
+                <a-select v-model:value="draft.intervalSeconds">
+                  <a-select-option :value="5">5秒</a-select-option><a-select-option :value="10">10秒</a-select-option><a-select-option :value="30">30秒</a-select-option><a-select-option :value="60">1分钟</a-select-option><a-select-option :value="300">5分钟</a-select-option>
+                </a-select>
+              </a-form-item>
+              <a-form-item label="数据状态">
+                <a-select v-model:value="draft.status">
+                  <a-select-option value="全部">全部</a-select-option><a-select-option value="在线">正常</a-select-option><a-select-option value="异常">异常</a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-form>
           </div>
-          <label class="query-field">数据粒度
-            <select v-model.number="draft.intervalSeconds"><option :value="5">5 秒</option><option :value="60">1 分钟</option><option :value="300">5 分钟</option><option :value="900">15 分钟</option></select>
-          </label>
-          <label class="query-field">数据状态
-            <select v-model="draft.status"><option>全部</option><option>在线</option><option>异常</option><option>离线</option></select>
-          </label>
-        </div>
-        <div class="selected-device-row" aria-live="polite">
-          <span class="selected-device-label">已选设备</span>
-          <button v-for="device in selectedDevices" :key="device.id" type="button" class="selected-device-tag" :title="`移除 ${device.id}`" @click="toggleDevice(device.id)">
-            {{ device.id }}<span>{{ device.type }} · {{ device.location }}</span><b aria-hidden="true">x</b>
-          </button>
-          <span v-if="!selectedDevices.length" class="selection-empty">尚未选择设备</span>
-        </div>
-        <div class="history-query-actions">
-          <p v-if="error" class="query-error" role="alert">{{ error }}</p>
-          <p v-else class="query-summary">支持综合趋势对比与分设备独立曲线，设备按水槽前后位置排列。</p>
-          <button class="primary" :disabled="loading || !draft.deviceIds.length" @click="queryAndClose">{{ loading ? '正在查询...' : '查询' }}</button>
-          <button :disabled="loading" @click="resetAndClose">重置</button><button :disabled="loading" @click="queryAndClose">刷新</button>
-          <button class="success" :disabled="!canExport" @click="exportCsv">导出CSV</button>
-        </div>
+          <div class="form-actions history-query-actions">
+            <a-button type="primary" :loading="loading" :disabled="!draft.deviceIds.length" @click="queryAndClose">查询</a-button>
+            <a-button :disabled="loading" @click="resetAndClose">重置</a-button><a-button :disabled="loading" @click="queryAndClose">刷新</a-button>
+            <a-button class="success" :loading="exporting" :disabled="!canExport" @click="exportCsv">导出CSV</a-button>
+          </div>
+          <p v-if="error" class="query-error query-feedback" role="alert">{{ error }}</p>
+        </a-config-provider>
       </section>
 
       <section class="panel history-results-panel">
         <div class="history-results-head">
           <div class="history-result-tabs" role="tablist" aria-label="历史结果视图">
             <button v-for="tab in resultTabs" :key="tab.key" type="button" role="tab" :aria-selected="resultTab === tab.key" :class="{ active: resultTab === tab.key }" @click="resultTab = tab.key">
-              {{ tab.label }} <span>{{ tab.key === 'table' ? rows.length : results.length }}</span>
+              {{ tab.label }} <span>{{ tab.key === 'table' ? historyTotal : results.length }}</span>
             </button>
           </div>
-          <div class="history-result-summary">{{ rangeLabel }} · {{ results.length }} 台设备 · {{ rows.length }} 条记录</div>
+          <div class="history-result-summary">{{ rangeLabel }} · {{ results.length }} 台设备 · {{ resultTab === 'table' ? historyTotal : chartRowCount }} 条记录</div>
         </div>
         <CombinedHistoryChart v-if="resultTab === 'combined'" :results="results" :range-label="rangeLabel" />
         <div v-else-if="resultTab === 'devices' && results.length" class="history-chart-grid">
@@ -66,58 +69,249 @@
         </div>
         <div v-else-if="resultTab === 'devices'" class="history-empty">当前条件下没有历史数据</div>
         <div v-else class="history-table-view" role="tabpanel" aria-label="历史数据表格">
-          <div class="history-table-scroll"><table class="data-table">
-            <thead><tr><th>时间</th><th>设备类型</th><th>设备名称</th><th>所属渠道</th><th>数据项</th><th>数值</th><th>单位</th><th>状态</th></tr></thead>
-            <tbody>
-              <tr v-for="row in visibleRows" :key="`${row.timestampValue}-${row.name}`"><td>{{ row.timestamp }}</td><td>{{ row.type }}</td><td>{{ row.name }}</td><td>{{ row.location }}</td><td>{{ row.metric }}</td><td>{{ row.value }}</td><td>{{ row.unit }}</td><td><StatusText :value="row.state" /></td></tr>
-              <tr v-if="!rows.length"><td colspan="8" class="table-empty">当前条件下没有历史数据</td></tr>
-            </tbody>
-          </table></div>
-          <div class="pager">共 {{ rows.length }} 条 <span>当前展示前 {{ visibleRows.length }} 条</span></div>
+          <a-config-provider :locale="zhCN" :theme="historyTheme">
+            <a-table
+              class="history-ant-table"
+              size="small"
+              :columns="historyColumns"
+              :data-source="rows"
+              :loading="loading"
+              :locale="historyTableLocale"
+              :pagination="historyPagination"
+              :scroll="{ x: 960 }"
+              row-key="key"
+              @change="handleHistoryTableChange"
+            >
+              <template #bodyCell="{ column, record }">
+                <StatusText v-if="column.key === 'state'" :value="record.state" />
+              </template>
+            </a-table>
+          </a-config-provider>
         </div>
       </section>
     </section>
 
     <section v-show="activeTab === 'replay'" class="history-tab active">
-      <section class="panel query-panel replay-query"><QueryField v-for="field in REPLAY_QUERY" :key="field.label" :field="field" /><button class="primary">查询</button><button>重置</button><button>播放</button><button>暂停</button><button class="success">导出CSV</button></section>
-      <section class="panel chart-panel large replay-card">
-        <div class="panel-head"><h2>节点水位空间剖面（按渠道 / 闸门位置）</h2><div class="legend"><span>当前时刻（2026-07-08 09:30:20）</span><span>上一时刻（09:30:15）</span><span class="limit-red">上限 0.50 m</span><span class="limit-yellow">下限 0.20 m</span></div></div>
-        <canvas ref="profileChart" height="330"></canvas>
-      </section>
-      <section class="timeline panel"><button class="primary">播放</button><button>暂停</button><button>停止</button><button class="active">1x</button><button>2x</button><button>4x</button><input type="range" value="50"><strong>当前时间：2026-07-08 09:30:20</strong></section>
-      <section class="panel"><h2>传感器时序总览表</h2><table class="data-table">
-        <thead><tr><th>时间</th><th>WL-01（渠① / 水位 / m）</th><th>WL-02（渠② / 水位 / m）</th><th>WL-03（渠③ / 水位 / m）</th><th>FM-01（分水口 / 流量 / L/s）</th><th>PT-01（泵出口 / 压力 / MPa）</th><th>G2（渠③ / 开度 / %）</th><th>P1（前池 / 频率 / Hz）</th></tr></thead>
-        <tbody><tr v-for="(row, index) in REPLAY_ROWS" :key="row.time" :class="{ selected: index === REPLAY_ROWS.length - 1 }"><td>{{ row.time }}</td><td>{{ row.wl01 }}</td><td>{{ row.wl02 }}</td><td>{{ row.wl03 }}</td><td>{{ row.fm01 }}</td><td>{{ row.pt01 }}</td><td>{{ row.g2 }}</td><td>{{ row.p1 }}</td></tr></tbody>
-      </table><div class="pager">共 12,480 条 <button>1</button><button>2</button><button>3</button><span>...</span><button>208</button><span>每页显示 50</span></div></section>
+      <a-config-provider :locale="zhCN" :theme="historyTheme">
+        <section class="panel query-panel history-query replay-history-query">
+          <div class="form-fields history-form-fields replay-history-form-fields">
+            <a-form :model="replayDraft" layout="vertical">
+              <a-form-item label="开始时间">
+                <a-date-picker v-model:value="replayStartTimeValue" show-time format="YYYY-MM-DD HH:mm:ss" :allow-clear="false" />
+              </a-form-item>
+              <a-form-item label="结束时间">
+                <a-date-picker v-model:value="replayEndTimeValue" show-time format="YYYY-MM-DD HH:mm:ss" :allow-clear="false" />
+              </a-form-item>
+              <a-form-item label="数据粒度">
+                <a-select v-model:value="replayDraft.intervalSeconds">
+                  <a-select-option :value="5">5秒</a-select-option><a-select-option :value="10">10秒</a-select-option><a-select-option :value="30">30秒</a-select-option><a-select-option :value="60">1分钟</a-select-option><a-select-option :value="300">5分钟</a-select-option>
+                </a-select>
+              </a-form-item>
+              <a-form-item label="渠道范围">
+                <a-select
+                  v-model:value="replayDraft.channels"
+                  mode="multiple"
+                  allow-clear
+                  :max-tag-count="2"
+                  placeholder="全部渠道"
+                >
+                  <a-select-option v-for="channel in replayChannels" :key="channel" :value="channel">{{ channel }}</a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-form>
+          </div>
+          <div class="form-actions history-query-actions">
+            <a-button type="primary" :loading="replayLoading" @click="runReplayQuery">查询</a-button>
+            <a-button :disabled="replayLoading" @click="resetReplayQuery">重置</a-button>
+            <a-button :disabled="replayLoading" @click="runReplayQuery">刷新</a-button>
+            <a-button class="success" :disabled="!replayCanExport" @click="exportReplayCsv">导出CSV</a-button>
+          </div>
+          <p v-if="replayError" class="query-error query-feedback" role="alert">{{ replayError }}</p>
+        </section>
+
+        <HistoryReplayProfileChart
+          :nodes="replayNodes"
+          :current-row="replayCurrentRow"
+          :previous-row="replayPreviousRow"
+          :loading="replayLoading"
+        />
+
+        <section class="timeline panel replay-timeline">
+          <a-button type="primary" :disabled="replayRows.length < 2 || replayPlaying" @click="replayPlay">播放</a-button>
+          <a-button :disabled="!replayPlaying" @click="replayPause">暂停</a-button>
+          <a-button :disabled="!replayRows.length" @click="stopReplay">停止</a-button>
+          <input type="range" min="0" :max="Math.max(0, replayRows.length - 1)" :value="Math.max(0, replayActiveIndex)" :disabled="!replayRows.length" @input="setReplayIndex($event.target.value)">
+          <span>{{ replayRows.length ? replayActiveIndex + 1 : 0 }} / {{ replayRows.length }}</span>
+          <strong>当前时间：{{ replayCurrentRow?.timestamp || '--' }}</strong>
+        </section>
+
+        <section class="panel replay-table-panel">
+          <div class="panel-head">
+            <h2>传感器时序总览表</h2>
+            <span>{{ replayRangeLabel }} · {{ replayRows.length }} 个时间点</span>
+          </div>
+          <a-table
+            class="history-ant-table replay-ant-table"
+            size="small"
+            :columns="replayColumns"
+            :data-source="replayRows"
+            :loading="replayLoading"
+            :locale="historyTableLocale"
+            :pagination="replayPagination"
+            :scroll="{ x: replayTableWidth }"
+            :custom-row="replayCustomRow"
+            :row-class-name="replayRowClassName"
+            row-key="key"
+            @change="handleReplayTableChange"
+          />
+        </section>
+      </a-config-provider>
     </section>
   </section>
 </template>
 
 <script setup>
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, h, onMounted, ref, watch } from 'vue';
+import { Button as AButton, ConfigProvider as AConfigProvider, DatePicker as ADatePicker, Form as AForm, FormItem as AFormItem, Select as ASelect, SelectOption as ASelectOption, Table as ATable, theme as antTheme } from 'ant-design-vue';
+import zhCN from 'ant-design-vue/es/locale/zh_CN';
+import dayjs from 'dayjs';
+import 'dayjs/locale/zh-cn';
 import CombinedHistoryChart from '../components/history/CombinedHistoryChart.vue';
 import DeviceHistoryChart from '../components/history/DeviceHistoryChart.vue';
-import QueryField from '../components/common/QueryField.vue';
+import HistoryReplayProfileChart from '../components/history/HistoryReplayProfileChart.vue';
 import StatusText from '../components/common/StatusText.vue';
-import { useCanvasChart } from '../composables/useCanvasChart.js';
 import { useHistoryQuery } from '../composables/useHistoryQuery.js';
-import { REPLAY_QUERY, REPLAY_ROWS } from '../data/monitoring-data.js';
-import { drawProfileChart } from '../utils/canvas-charts.js';
+import { useHistoryReplay } from '../composables/useHistoryReplay.js';
+import { formatReplayValue } from '../history-replay-data.js';
+
+dayjs.locale('zh-cn');
 
 const activeTab = ref('analysis');
 const resultTab = ref('combined');
-const pickerOpen = ref(false);
-const devicePicker = ref(null);
+const tablePage = ref(1);
+const replayTablePage = ref(1);
 const resultTabs = [{ key: 'combined', label: '综合曲线' }, { key: 'devices', label: '分设备曲线' }, { key: 'table', label: '数据表格' }];
-const { canExport, clearDevices, deviceSearch, draft, error, exportCsv, filteredDevices, loading, rangeLabel, resetQuery, results, rows, runQuery, selectAllDevices, selectedDevices, toggleDevice, visibleRows } = useHistoryQuery();
-const { canvasRef: profileChart, redraw: redrawProfile } = useCanvasChart(drawProfileChart);
+const historyColumns = [
+  { title: '时间', dataIndex: 'timestamp', key: 'timestamp', width: 180 },
+  { title: '设备类型', dataIndex: 'type', key: 'type', width: 110 },
+  { title: '设备名称', dataIndex: 'name', key: 'name', width: 170 },
+  { title: '所属渠道', dataIndex: 'location', key: 'location', width: 130 },
+  { title: '数据项', dataIndex: 'metric', key: 'metric', width: 130 },
+  { title: '数值', dataIndex: 'value', key: 'value', width: 110 },
+  { title: '单位', dataIndex: 'unit', key: 'unit', width: 80 },
+  { title: '状态', dataIndex: 'state', key: 'state', width: 90 },
+];
+const historyTableLocale = { emptyText: '当前条件下没有历史数据' };
+const { applyDeviceFilters, canExport, chartRowCount, devicesLoading, draft, error, exportCsv, exporting, historyChannels, historyDevices, historyDeviceTypes, historyTotal, initialize, loading, rangeLabel, resetQuery, results, rows, runQuery, selectableDevices } = useHistoryQuery();
+const historyPagination = computed(() => ({
+  current: tablePage.value,
+  pageSize: 50,
+  total: historyTotal.value,
+  showSizeChanger: false,
+  showQuickJumper: historyTotal.value > 50,
+  showTotal: (total) => `共 ${total} 条`,
+}));
+const {
+  activeIndex: replayActiveIndex,
+  canExport: replayCanExport,
+  channels: replayChannels,
+  currentRow: replayCurrentRow,
+  draft: replayDraft,
+  error: replayError,
+  exportCsv: exportReplayCsv,
+  initialize: initializeReplay,
+  loading: replayLoading,
+  nodes: replayNodes,
+  pause: replayPause,
+  play: replayPlay,
+  playing: replayPlaying,
+  previousRow: replayPreviousRow,
+  rangeLabel: replayRangeLabel,
+  resetQuery: resetReplay,
+  rows: replayRows,
+  runQuery: queryReplay,
+  selectRow: selectReplayRow,
+  setActiveIndex: setReplayActiveIndex,
+} = useHistoryReplay();
+const replayColumns = computed(() => [
+  { title: '时间', dataIndex: 'timestamp', key: 'timestamp', width: 180, fixed: 'left' },
+  ...replayNodes.value.map((node) => ({
+    title: () => h('span', [
+      node.name,
+      h('br'),
+      `${node.label} / ${node.unit}`,
+    ]),
+    dataIndex: node.key,
+    key: node.key,
+    width: 120,
+    customRender: ({ text }) => formatReplayValue(text),
+  })),
+]);
+const replayTableWidth = computed(() => 180 + replayNodes.value.length * 120);
+const replayPagination = computed(() => ({
+  current: replayTablePage.value,
+  pageSize: 50,
+  total: replayRows.value.length,
+  showSizeChanger: false,
+  showQuickJumper: replayRows.value.length > 50,
+  showTotal: (total) => `共 ${total} 条`,
+}));
+const historyTheme = {
+  algorithm: antTheme.darkAlgorithm,
+  token: {
+    colorPrimary: '#269cff',
+    colorBgBase: '#010f1e',
+    colorBgContainer: '#061a2d',
+    colorBorder: '#315a80',
+    colorText: '#eff7ff',
+    colorTextPlaceholder: '#7895b2',
+    borderRadius: 5,
+    controlHeight: 32,
+    fontSize: 13,
+  },
+};
+const startTimeValue = computed({
+  get: () => draft.value.start ? dayjs(draft.value.start) : null,
+  set: (value) => { draft.value.start = value ? value.format('YYYY-MM-DDTHH:mm:ss') : ''; },
+});
+const endTimeValue = computed({
+  get: () => draft.value.end ? dayjs(draft.value.end) : null,
+  set: (value) => { draft.value.end = value ? value.format('YYYY-MM-DDTHH:mm:ss') : ''; },
+});
+const replayStartTimeValue = computed({
+  get: () => replayDraft.value.start ? dayjs(replayDraft.value.start) : null,
+  set: (value) => { replayDraft.value.start = value ? value.format('YYYY-MM-DDTHH:mm:ss') : ''; },
+});
+const replayEndTimeValue = computed({
+  get: () => replayDraft.value.end ? dayjs(replayDraft.value.end) : null,
+  set: (value) => { replayDraft.value.end = value ? value.format('YYYY-MM-DDTHH:mm:ss') : ''; },
+});
 
-function showTab(tab) { activeTab.value = tab; if (tab === 'replay') nextTick(redrawProfile); }
-async function queryAndClose() { if (await runQuery()) pickerOpen.value = false; }
-async function resetAndClose() { await resetQuery(); pickerOpen.value = false; }
-function onPointerDown(event) { if (pickerOpen.value && !devicePicker.value?.contains(event.target)) pickerOpen.value = false; }
-function onKeydown(event) { if (event.key === 'Escape') pickerOpen.value = false; }
+function showTab(tab) {
+  activeTab.value = tab;
+  if (tab === 'replay') initializeReplay().then(syncReplayTablePage);
+}
+async function queryAndClose() { tablePage.value = 1; await runQuery(); }
+async function resetAndClose() { tablePage.value = 1; await resetQuery(); }
+function handleHistoryTableChange(pagination) { tablePage.value = pagination.current || 1; }
+function syncReplayTablePage(success) {
+  if (success) replayTablePage.value = 1;
+}
+async function runReplayQuery() { replayTablePage.value = 1; syncReplayTablePage(await queryReplay()); }
+async function resetReplayQuery() { replayTablePage.value = 1; syncReplayTablePage(await resetReplay()); }
+function handleReplayTableChange(pagination) { replayTablePage.value = pagination.current || 1; }
+function replayCustomRow(record) { return { onClick: () => selectReplayRow(record) }; }
+function replayRowClassName(record) { return record.key === replayActiveIndex.value ? 'selected' : ''; }
+function setReplayIndex(value) { replayPause(); setReplayActiveIndex(value); }
+function stopReplay() { replayPause(); setReplayActiveIndex(0); }
+function filterDeviceOption(input, option) {
+  const device = selectableDevices.value.find((item) => item.id === option.value);
+  return device ? `${device.id} ${device.name} ${device.type} ${device.location}`.toLocaleLowerCase('zh-CN').includes(input.toLocaleLowerCase('zh-CN')) : false;
+}
 
-onMounted(() => { document.addEventListener('pointerdown', onPointerDown); document.addEventListener('keydown', onKeydown); });
-onBeforeUnmount(() => { document.removeEventListener('pointerdown', onPointerDown); document.removeEventListener('keydown', onKeydown); });
+watch(replayActiveIndex, (index) => {
+  if (index >= 0) replayTablePage.value = Math.floor(index / 50) + 1;
+});
+
+onMounted(initialize);
 </script>

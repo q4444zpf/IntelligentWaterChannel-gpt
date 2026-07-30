@@ -46,8 +46,9 @@ export function buildCombinedChartModel(results) {
   const maxLeftOffset = Math.max(0, ...yAxes.filter((axis) => axis.position === 'left').map((axis) => axis.offset));
   const maxRightOffset = Math.max(0, ...yAxes.filter((axis) => axis.position === 'right').map((axis) => axis.offset));
   const series = results.map(({ device, points }, index) => ({
-    name: `${device.id} ${device.metric}`,
+    name: `${device.name || device.id} ${device.metric}`,
     deviceId: device.id,
+    deviceLabel: device.name || device.id,
     metric: device.metric,
     unit: device.unit,
     precision: device.precision,
