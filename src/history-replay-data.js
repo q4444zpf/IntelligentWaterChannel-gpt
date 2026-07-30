@@ -10,6 +10,11 @@ export function parseReplayValue(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+export function formatReplayValue(value) {
+  const parsed = parseReplayValue(value);
+  return parsed === null ? '--' : parsed.toFixed(3);
+}
+
 export function normalizeHistoryReplay(payload) {
   const nodes = [];
   const nodeKeys = new Set();

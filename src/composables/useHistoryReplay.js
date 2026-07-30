@@ -88,7 +88,7 @@ export function useHistoryReplay() {
       channels.value = normalized.channels;
       nodes.value = normalized.nodes;
       rows.value = normalized.rows;
-      activeIndex.value = rows.value.length - 1;
+      activeIndex.value = rows.value.length ? 0 : -1;
       initialized = true;
       return true;
     } catch (requestError) {

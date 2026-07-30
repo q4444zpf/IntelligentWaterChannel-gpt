@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  formatReplayValue,
   normalizeHistoryReplay,
   parseReplayValue,
 } from '../src/history-replay-data.js';
@@ -32,4 +33,10 @@ test('parses numeric replay values and rejects missing values', () => {
   assert.equal(parseReplayValue('0.384'), 0.384);
   assert.equal(parseReplayValue(null), null);
   assert.equal(parseReplayValue('invalid'), null);
+});
+
+test('formats replay table values with three decimal places', () => {
+  assert.equal(formatReplayValue(33), '33.000');
+  assert.equal(formatReplayValue('0.3846'), '0.385');
+  assert.equal(formatReplayValue(null), '--');
 });

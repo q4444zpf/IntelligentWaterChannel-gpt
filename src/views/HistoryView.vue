@@ -171,7 +171,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, h, onMounted, ref, watch } from 'vue';
 import { Button as AButton, ConfigProvider as AConfigProvider, DatePicker as ADatePicker, Form as AForm, FormItem as AFormItem, Select as ASelect, SelectOption as ASelectOption, Table as ATable, theme as antTheme } from 'ant-design-vue';
 import zhCN from 'ant-design-vue/es/locale/zh_CN';
 import dayjs from 'dayjs';
@@ -182,6 +182,7 @@ import HistoryReplayProfileChart from '../components/history/HistoryReplayProfil
 import StatusText from '../components/common/StatusText.vue';
 import { useHistoryQuery } from '../composables/useHistoryQuery.js';
 import { useHistoryReplay } from '../composables/useHistoryReplay.js';
+import { formatReplayValue } from '../history-replay-data.js';
 
 dayjs.locale('zh-cn');
 
@@ -235,14 +236,18 @@ const {
 const replayColumns = computed(() => [
   { title: '时间', dataIndex: 'timestamp', key: 'timestamp', width: 180, fixed: 'left' },
   ...replayNodes.value.map((node) => ({
-    title: `${node.name}（${node.label} / ${node.unit}）`,
+    title: () => h('span', [
+      node.name,
+      h('br'),
+      `${node.label} / ${node.unit}`,
+    ]),
     dataIndex: node.key,
     key: node.key,
-    width: 180,
-    customRender: ({ text }) => text ?? '--',
+    width: 120,
+    customRender: ({ text }) => formatReplayValue(text),
   })),
 ]);
-const replayTableWidth = computed(() => 180 + replayNodes.value.length * 180);
+const replayTableWidth = computed(() => 180 + replayNodes.value.length * 120);
 const replayPagination = computed(() => ({
   current: replayTablePage.value,
   pageSize: 50,
@@ -290,7 +295,7 @@ async function queryAndClose() { tablePage.value = 1; await runQuery(); }
 async function resetAndClose() { tablePage.value = 1; await resetQuery(); }
 function handleHistoryTableChange(pagination) { tablePage.value = pagination.current || 1; }
 function syncReplayTablePage(success) {
-  if (success) replayTablePage.value = Math.max(1, Math.ceil(replayRows.value.length / 50));
+  if (success) replayTablePage.value = 1;
 }
 async function runReplayQuery() { replayTablePage.value = 1; syncReplayTablePage(await queryReplay()); }
 async function resetReplayQuery() { replayTablePage.value = 1; syncReplayTablePage(await resetReplay()); }
