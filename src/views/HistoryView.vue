@@ -92,40 +92,97 @@
     </section>
 
     <section v-show="activeTab === 'replay'" class="history-tab active">
-      <section class="panel query-panel replay-query"><QueryField v-for="field in REPLAY_QUERY" :key="field.label" :field="field" /><button class="primary">查询</button><button>重置</button><button>播放</button><button>暂停</button><button class="success">导出CSV</button></section>
-      <section class="panel chart-panel large replay-card">
-        <div class="panel-head"><h2>节点水位空间剖面（按渠道 / 闸门位置）</h2><div class="legend"><span>当前时刻（2026-07-08 09:30:20）</span><span>上一时刻（09:30:15）</span><span class="limit-red">上限 0.50 m</span><span class="limit-yellow">下限 0.20 m</span></div></div>
-        <canvas ref="profileChart" height="330"></canvas>
-      </section>
-      <section class="timeline panel"><button class="primary">播放</button><button>暂停</button><button>停止</button><button class="active">1x</button><button>2x</button><button>4x</button><input type="range" value="50"><strong>当前时间：2026-07-08 09:30:20</strong></section>
-      <section class="panel"><h2>传感器时序总览表</h2><table class="data-table">
-        <thead><tr><th>时间</th><th>WL-01（渠① / 水位 / m）</th><th>WL-02（渠② / 水位 / m）</th><th>WL-03（渠③ / 水位 / m）</th><th>FM-01（分水口 / 流量 / L/s）</th><th>PT-01（泵出口 / 压力 / MPa）</th><th>G2（渠③ / 开度 / %）</th><th>P1（前池 / 频率 / Hz）</th></tr></thead>
-        <tbody><tr v-for="(row, index) in REPLAY_ROWS" :key="row.time" :class="{ selected: index === REPLAY_ROWS.length - 1 }"><td>{{ row.time }}</td><td>{{ row.wl01 }}</td><td>{{ row.wl02 }}</td><td>{{ row.wl03 }}</td><td>{{ row.fm01 }}</td><td>{{ row.pt01 }}</td><td>{{ row.g2 }}</td><td>{{ row.p1 }}</td></tr></tbody>
-      </table><div class="pager">共 12,480 条 <button>1</button><button>2</button><button>3</button><span>...</span><button>208</button><span>每页显示 50</span></div></section>
+      <a-config-provider :locale="zhCN" :theme="historyTheme">
+        <section class="panel query-panel history-query replay-history-query">
+          <div class="form-fields history-form-fields replay-history-form-fields">
+            <a-form :model="replayDraft" layout="vertical">
+              <a-form-item label="开始时间">
+                <a-date-picker v-model:value="replayStartTimeValue" show-time format="YYYY-MM-DD HH:mm:ss" :allow-clear="false" />
+              </a-form-item>
+              <a-form-item label="结束时间">
+                <a-date-picker v-model:value="replayEndTimeValue" show-time format="YYYY-MM-DD HH:mm:ss" :allow-clear="false" />
+              </a-form-item>
+              <a-form-item label="数据粒度">
+                <a-select v-model:value="replayDraft.intervalSeconds">
+                  <a-select-option :value="5">5秒</a-select-option><a-select-option :value="10">10秒</a-select-option><a-select-option :value="30">30秒</a-select-option><a-select-option :value="60">1分钟</a-select-option><a-select-option :value="300">5分钟</a-select-option>
+                </a-select>
+              </a-form-item>
+              <a-form-item label="渠道范围">
+                <a-select v-model:value="replayDraft.channel">
+                  <a-select-option v-for="channel in replayChannelOptions" :key="channel" :value="channel">{{ channel }}</a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-form>
+          </div>
+          <div class="form-actions history-query-actions">
+            <a-button type="primary" :loading="replayLoading" @click="runReplayQuery">查询</a-button>
+            <a-button :disabled="replayLoading" @click="resetReplayQuery">重置</a-button>
+            <a-button :disabled="replayLoading" @click="runReplayQuery">刷新</a-button>
+            <a-button class="success" :disabled="!replayCanExport" @click="exportReplayCsv">导出CSV</a-button>
+          </div>
+          <p v-if="replayError" class="query-error query-feedback" role="alert">{{ replayError }}</p>
+        </section>
+
+        <HistoryReplayProfileChart
+          :nodes="replayNodes"
+          :current-row="replayCurrentRow"
+          :previous-row="replayPreviousRow"
+          :loading="replayLoading"
+        />
+
+        <section class="timeline panel replay-timeline">
+          <a-button type="primary" :disabled="replayRows.length < 2 || replayPlaying" @click="replayPlay">播放</a-button>
+          <a-button :disabled="!replayPlaying" @click="replayPause">暂停</a-button>
+          <a-button :disabled="!replayRows.length" @click="stopReplay">停止</a-button>
+          <input type="range" min="0" :max="Math.max(0, replayRows.length - 1)" :value="Math.max(0, replayActiveIndex)" :disabled="!replayRows.length" @input="setReplayIndex($event.target.value)">
+          <span>{{ replayRows.length ? replayActiveIndex + 1 : 0 }} / {{ replayRows.length }}</span>
+          <strong>当前时间：{{ replayCurrentRow?.timestamp || '--' }}</strong>
+        </section>
+
+        <section class="panel replay-table-panel">
+          <div class="panel-head">
+            <h2>传感器时序总览表</h2>
+            <span>{{ replayRangeLabel }} · {{ replayRows.length }} 个时间点</span>
+          </div>
+          <a-table
+            class="history-ant-table replay-ant-table"
+            size="small"
+            :columns="replayColumns"
+            :data-source="replayRows"
+            :loading="replayLoading"
+            :locale="historyTableLocale"
+            :pagination="replayPagination"
+            :scroll="{ x: replayTableWidth }"
+            :custom-row="replayCustomRow"
+            :row-class-name="replayRowClassName"
+            row-key="key"
+            @change="handleReplayTableChange"
+          />
+        </section>
+      </a-config-provider>
     </section>
   </section>
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { Button as AButton, ConfigProvider as AConfigProvider, DatePicker as ADatePicker, Form as AForm, FormItem as AFormItem, Select as ASelect, SelectOption as ASelectOption, Table as ATable, theme as antTheme } from 'ant-design-vue';
 import zhCN from 'ant-design-vue/es/locale/zh_CN';
 import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
 import CombinedHistoryChart from '../components/history/CombinedHistoryChart.vue';
 import DeviceHistoryChart from '../components/history/DeviceHistoryChart.vue';
-import QueryField from '../components/common/QueryField.vue';
+import HistoryReplayProfileChart from '../components/history/HistoryReplayProfileChart.vue';
 import StatusText from '../components/common/StatusText.vue';
-import { useCanvasChart } from '../composables/useCanvasChart.js';
 import { useHistoryQuery } from '../composables/useHistoryQuery.js';
-import { REPLAY_QUERY, REPLAY_ROWS } from '../data/monitoring-data.js';
-import { drawProfileChart } from '../utils/canvas-charts.js';
+import { useHistoryReplay } from '../composables/useHistoryReplay.js';
 
 dayjs.locale('zh-cn');
 
 const activeTab = ref('analysis');
 const resultTab = ref('combined');
 const tablePage = ref(1);
+const replayTablePage = ref(1);
 const resultTabs = [{ key: 'combined', label: '综合曲线' }, { key: 'devices', label: '分设备曲线' }, { key: 'table', label: '数据表格' }];
 const historyColumns = [
   { title: '时间', dataIndex: 'timestamp', key: 'timestamp', width: 180 },
@@ -147,7 +204,48 @@ const historyPagination = computed(() => ({
   showQuickJumper: historyTotal.value > 50,
   showTotal: (total) => `共 ${total} 条`,
 }));
-const { canvasRef: profileChart, redraw: redrawProfile } = useCanvasChart(drawProfileChart);
+const {
+  activeIndex: replayActiveIndex,
+  canExport: replayCanExport,
+  channels: replayChannels,
+  currentRow: replayCurrentRow,
+  draft: replayDraft,
+  error: replayError,
+  exportCsv: exportReplayCsv,
+  initialize: initializeReplay,
+  loading: replayLoading,
+  nodes: replayNodes,
+  pause: replayPause,
+  play: replayPlay,
+  playing: replayPlaying,
+  previousRow: replayPreviousRow,
+  rangeLabel: replayRangeLabel,
+  resetQuery: resetReplay,
+  rows: replayRows,
+  runQuery: queryReplay,
+  selectRow: selectReplayRow,
+  setActiveIndex: setReplayActiveIndex,
+} = useHistoryReplay();
+const replayChannelOptions = computed(() => ['全部', ...replayChannels.value]);
+const replayColumns = computed(() => [
+  { title: '时间', dataIndex: 'timestamp', key: 'timestamp', width: 180, fixed: 'left' },
+  ...replayNodes.value.map((node) => ({
+    title: `${node.name}（${node.label} / ${node.unit}）`,
+    dataIndex: node.key,
+    key: node.key,
+    width: 180,
+    customRender: ({ text }) => text ?? '--',
+  })),
+]);
+const replayTableWidth = computed(() => 180 + replayNodes.value.length * 180);
+const replayPagination = computed(() => ({
+  current: replayTablePage.value,
+  pageSize: 50,
+  total: replayRows.value.length,
+  showSizeChanger: false,
+  showQuickJumper: replayRows.value.length > 50,
+  showTotal: (total) => `共 ${total} 条`,
+}));
 const historyTheme = {
   algorithm: antTheme.darkAlgorithm,
   token: {
@@ -170,15 +268,40 @@ const endTimeValue = computed({
   get: () => draft.value.end ? dayjs(draft.value.end) : null,
   set: (value) => { draft.value.end = value ? value.format('YYYY-MM-DDTHH:mm:ss') : ''; },
 });
+const replayStartTimeValue = computed({
+  get: () => replayDraft.value.start ? dayjs(replayDraft.value.start) : null,
+  set: (value) => { replayDraft.value.start = value ? value.format('YYYY-MM-DDTHH:mm:ss') : ''; },
+});
+const replayEndTimeValue = computed({
+  get: () => replayDraft.value.end ? dayjs(replayDraft.value.end) : null,
+  set: (value) => { replayDraft.value.end = value ? value.format('YYYY-MM-DDTHH:mm:ss') : ''; },
+});
 
-function showTab(tab) { activeTab.value = tab; if (tab === 'replay') nextTick(redrawProfile); }
+function showTab(tab) {
+  activeTab.value = tab;
+  if (tab === 'replay') initializeReplay().then(syncReplayTablePage);
+}
 async function queryAndClose() { tablePage.value = 1; await runQuery(); }
 async function resetAndClose() { tablePage.value = 1; await resetQuery(); }
 function handleHistoryTableChange(pagination) { tablePage.value = pagination.current || 1; }
+function syncReplayTablePage(success) {
+  if (success) replayTablePage.value = Math.max(1, Math.ceil(replayRows.value.length / 50));
+}
+async function runReplayQuery() { replayTablePage.value = 1; syncReplayTablePage(await queryReplay()); }
+async function resetReplayQuery() { replayTablePage.value = 1; syncReplayTablePage(await resetReplay()); }
+function handleReplayTableChange(pagination) { replayTablePage.value = pagination.current || 1; }
+function replayCustomRow(record) { return { onClick: () => selectReplayRow(record) }; }
+function replayRowClassName(record) { return record.key === replayActiveIndex.value ? 'selected' : ''; }
+function setReplayIndex(value) { replayPause(); setReplayActiveIndex(value); }
+function stopReplay() { replayPause(); setReplayActiveIndex(0); }
 function filterDeviceOption(input, option) {
   const device = selectableDevices.value.find((item) => item.id === option.value);
   return device ? `${device.id} ${device.name} ${device.type} ${device.location}`.toLocaleLowerCase('zh-CN').includes(input.toLocaleLowerCase('zh-CN')) : false;
 }
+
+watch(replayActiveIndex, (index) => {
+  if (index >= 0) replayTablePage.value = Math.floor(index / 50) + 1;
+});
 
 onMounted(initialize);
 </script>
