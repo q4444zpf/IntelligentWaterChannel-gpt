@@ -156,18 +156,18 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.combined-history-chart { min-width: 0; padding: 0 12px 12px; }
+.combined-history-chart { min-width: 0; min-height: 0; display: flex; flex: 1; flex-direction: column; padding: 10px 12px 12px; }
 .combined-chart-head { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 12px; border: 1px solid rgba(67, 146, 217, .25); border-bottom: 0; border-radius: 6px 6px 0 0; background: rgba(3, 22, 39, .78); }
 .combined-chart-head strong { color: #eff8ff; font-size: 15px; }
 .combined-chart-head p { margin: 5px 0 0; color: #7898b8; font-size: 12px; }
 .combined-chart-summary { display: flex; align-items: center; gap: 12px; color: #86a5c3; font-size: 12px; }
 .combined-chart-summary button { padding: 5px 9px; font-size: 12px; }
-.combined-chart-canvas { width: 100%; height: 430px; border: 1px solid rgba(67, 146, 217, .25); border-radius: 0 0 6px 6px; background: rgba(3, 22, 39, .78); }
-.combined-chart-empty { min-height: 300px; display: grid; place-items: center; border: 1px dashed rgba(92, 149, 203, .26); color: #7892ad; }
+.combined-chart-canvas { width: 100%; min-height: 430px; flex: 1 1 430px; border: 1px solid rgba(67, 146, 217, .25); border-radius: 0 0 6px 6px; background: rgba(3, 22, 39, .78); }
+.combined-chart-empty { min-height: 300px; display: grid; flex: 1; place-items: center; border: 1px dashed rgba(92, 149, 203, .26); color: #7892ad; }
 :global(.combined-tooltip-row) { display: grid; grid-template-columns: auto minmax(110px, 1fr) auto; align-items: center; gap: 8px; margin-top: 7px; }
 :global(.combined-tooltip-row b) { color: #fff; font-weight: 600; }
 @media (max-width: 1100px) {
-  .combined-chart-canvas { height: 500px; }
+  .combined-chart-canvas { min-height: 500px; flex-basis: 500px; }
   .combined-chart-head { align-items: flex-start; }
   .combined-chart-summary { flex-wrap: wrap; justify-content: flex-end; }
 }
