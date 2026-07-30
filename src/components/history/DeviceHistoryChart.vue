@@ -3,7 +3,7 @@
     <header class="device-chart-head">
       <div>
         <div class="device-chart-title">
-          <strong>{{ result.device.id }}</strong>
+          <strong>{{ result.device.name || result.device.id }}</strong>
           <span>{{ result.device.type }}</span>
           <i :class="statusClass">{{ result.device.state }}</i>
         </div>
@@ -59,6 +59,7 @@ const latestValue = computed(() => {
 });
 const chartLabel = computed(() => `${props.result.device.id}${props.result.device.metric}历史变化曲线`);
 const statusClass = computed(() => ({
+  正常: 'online',
   在线: 'online',
   异常: 'warning',
   离线: 'offline'

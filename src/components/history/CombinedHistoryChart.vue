@@ -60,7 +60,7 @@ function tooltipFormatter(params) {
     const display = value === null || value === undefined
       ? '--'
       : `${Number(value).toFixed(item.precision)} ${item.unit}`;
-    return `<div class="combined-tooltip-row">${param.marker}<span>${item.deviceId} ${item.metric}</span><b>${display}</b></div>`;
+    return `<div class="combined-tooltip-row">${param.marker}<span>${item.deviceLabel} ${item.metric}</span><b>${display}</b></div>`;
   });
   return `<strong>${time}</strong>${rows.join('')}`;
 }
@@ -117,9 +117,20 @@ function chartOption() {
 }
 
 function renderChart() {
-  if (!chartElement.value || !props.results.length) return;
+  if (!chartElement.value || !props.results.length) {
+    chart?.dispose();
+    chart = null;
+    return;
+  }
   if (!chart) chart = echarts.init(chartElement.value, null, { renderer: 'canvas' });
   chart.setOption(chartOption(), true);
+}
+
+function observeChartElement() {
+  if (!chartElement.value) return;
+  resizeObserver?.disconnect();
+  resizeObserver = new ResizeObserver(() => chart?.resize());
+  resizeObserver.observe(chartElement.value);
 }
 
 function resetZoom() {
@@ -129,15 +140,13 @@ function resetZoom() {
 onMounted(async () => {
   await nextTick();
   renderChart();
-  if (chartElement.value) {
-    resizeObserver = new ResizeObserver(() => chart?.resize());
-    resizeObserver.observe(chartElement.value);
-  }
+  observeChartElement();
 });
 
 watch(() => props.results, async () => {
   await nextTick();
   renderChart();
+  observeChartElement();
 }, { deep: true });
 
 onBeforeUnmount(() => {

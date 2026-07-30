@@ -11,11 +11,10 @@ import {
 } from '../history-device-data.js';
 import {
   DEFAULT_DEVICE_IDS,
-  buildHistoryResults,
-  buildHistoryRows,
   createTodayHistoryRange,
   validateHistoryQuery
 } from '../history-data.js';
+import { normalizeHistoryChartResults } from '../history-chart-data.js';
 import { normalizeHistoryPage } from '../history-table-data.js';
 
 const DEFAULT_QUERY = Object.freeze({
@@ -41,13 +40,14 @@ export function useHistoryQuery() {
   const historyDevices = ref([]);
   const draft = ref(createDefaultQuery());
   const appliedQuery = ref(createDefaultQuery());
-  const results = ref(buildHistoryResults(appliedQuery.value));
+  const results = ref([]);
   const rows = ref([]);
   const historyPage = ref(1);
   const historyPageSize = ref(50);
   const historyTotal = ref(0);
   const historyPageCount = ref(1);
-  const chartRowCount = computed(() => buildHistoryRows(results.value).length);
+  const chartRowCount = computed(() => results.value
+    .reduce((total, result) => total + result.points.length, 0));
   const visibleRows = computed(() => rows.value);
   const selectedDevices = computed(() => sortHistoryDeviceOptionIds(historyDevices.value, draft.value.deviceIds)
     .map((id) => historyDevices.value.find((device) => device.id === id))
@@ -106,6 +106,7 @@ export function useHistoryQuery() {
       start: query.start,
       end: query.end,
       intervalSeconds: query.intervalSeconds,
+      deviceIds: query.deviceIds,
     });
     const normalized = normalizeHistoryPage(responsePage);
     rows.value = normalized.rows;
@@ -113,6 +114,22 @@ export function useHistoryQuery() {
     historyPageSize.value = normalized.size;
     historyTotal.value = normalized.total;
     historyPageCount.value = normalized.pageCount;
+  }
+
+  async function requestHistoryCharts(query = appliedQuery.value) {
+    const responsePage = await getBigWaterChannelHistory({
+      current: 1,
+      size: -1,
+      start: query.start,
+      end: query.end,
+      intervalSeconds: query.intervalSeconds,
+      deviceIds: query.deviceIds,
+    });
+    results.value = normalizeHistoryChartResults(
+      responsePage.records,
+      historyDevices.value,
+      query.deviceIds,
+    );
   }
 
   function toggleDevice(id) {
@@ -149,16 +166,14 @@ export function useHistoryQuery() {
         ...draft.value,
         deviceIds: sortHistoryDeviceOptionIds(historyDevices.value, draft.value.deviceIds),
       };
-      const nextResults = buildHistoryResults(nextQuery);
-      if (nextResults.length) {
-        results.value = nextQuery.status === '全部'
-          ? nextResults
-          : nextResults.filter((result) => result.device.state === nextQuery.status);
-      }
       appliedQuery.value = nextQuery;
-      await requestHistoryPage(1, nextQuery);
+      await Promise.all([
+        requestHistoryPage(1, nextQuery),
+        requestHistoryCharts(nextQuery),
+      ]);
       return true;
     } catch (requestError) {
+      results.value = [];
       rows.value = [];
       historyTotal.value = 0;
       historyPage.value = 1;
@@ -211,6 +226,7 @@ export function useHistoryQuery() {
         start: appliedQuery.value.start,
         end: appliedQuery.value.end,
         intervalSeconds: appliedQuery.value.intervalSeconds,
+        deviceIds: appliedQuery.value.deviceIds,
       });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
