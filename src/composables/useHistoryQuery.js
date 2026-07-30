@@ -42,13 +42,9 @@ export function useHistoryQuery() {
   const appliedQuery = ref(createDefaultQuery());
   const results = ref([]);
   const rows = ref([]);
-  const historyPage = ref(1);
-  const historyPageSize = ref(50);
-  const historyTotal = ref(0);
-  const historyPageCount = ref(1);
+  const historyTotal = computed(() => rows.value.length);
   const chartRowCount = computed(() => results.value
     .reduce((total, result) => total + result.points.length, 0));
-  const visibleRows = computed(() => rows.value);
   const selectedDevices = computed(() => sortHistoryDeviceOptionIds(historyDevices.value, draft.value.deviceIds)
     .map((id) => historyDevices.value.find((device) => device.id === id))
     .filter(Boolean));
@@ -99,24 +95,7 @@ export function useHistoryQuery() {
     return runQuery();
   }
 
-  async function requestHistoryPage(page, query = appliedQuery.value) {
-    const responsePage = await getBigWaterChannelHistory({
-      current: page,
-      size: historyPageSize.value,
-      start: query.start,
-      end: query.end,
-      intervalSeconds: query.intervalSeconds,
-      deviceIds: query.deviceIds,
-    });
-    const normalized = normalizeHistoryPage(responsePage);
-    rows.value = normalized.rows;
-    historyPage.value = normalized.current;
-    historyPageSize.value = normalized.size;
-    historyTotal.value = normalized.total;
-    historyPageCount.value = normalized.pageCount;
-  }
-
-  async function requestHistoryCharts(query = appliedQuery.value) {
+  async function requestHistory(query = appliedQuery.value) {
     const responsePage = await getBigWaterChannelHistory({
       current: 1,
       size: -1,
@@ -125,6 +104,8 @@ export function useHistoryQuery() {
       intervalSeconds: query.intervalSeconds,
       deviceIds: query.deviceIds,
     });
+    const normalized = normalizeHistoryPage(responsePage);
+    rows.value = normalized.rows;
     results.value = normalizeHistoryChartResults(
       responsePage.records,
       historyDevices.value,
@@ -167,17 +148,11 @@ export function useHistoryQuery() {
         deviceIds: sortHistoryDeviceOptionIds(historyDevices.value, draft.value.deviceIds),
       };
       appliedQuery.value = nextQuery;
-      await Promise.all([
-        requestHistoryPage(1, nextQuery),
-        requestHistoryCharts(nextQuery),
-      ]);
+      await requestHistory(nextQuery);
       return true;
     } catch (requestError) {
       results.value = [];
       rows.value = [];
-      historyTotal.value = 0;
-      historyPage.value = 1;
-      historyPageCount.value = 1;
       error.value = requestError?.message || '获取历史数据失败';
       return false;
     } finally {
@@ -193,20 +168,6 @@ export function useHistoryQuery() {
       : sortHistoryDeviceOptionIds(historyDevices.value, [...selectableIds]);
     deviceSearch.value = '';
     error.value = draft.value.deviceIds.length ? '' : '当前筛选条件下没有可选设备';
-  }
-
-  async function loadHistoryPage(page) {
-    const targetPage = Math.min(Math.max(1, page), historyPageCount.value);
-    if (loading.value || targetPage === historyPage.value) return;
-    error.value = '';
-    loading.value = true;
-    try {
-      await requestHistoryPage(targetPage);
-    } catch (requestError) {
-      error.value = requestError?.message || '获取历史数据失败';
-    } finally {
-      loading.value = false;
-    }
   }
 
   function resetQuery() {
@@ -255,14 +216,11 @@ export function useHistoryQuery() {
     exportCsv,
     exporting,
     filteredDevices,
-    historyPage,
-    historyPageCount,
     historyTotal,
     historyChannels,
     historyDevices,
     historyDeviceTypes,
     initialize,
-    loadHistoryPage,
     loading,
     rangeLabel,
     resetQuery,
@@ -273,6 +231,5 @@ export function useHistoryQuery() {
     selectableDevices,
     selectedDevices,
     toggleDevice,
-    visibleRows
   };
 }

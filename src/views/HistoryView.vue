@@ -69,21 +69,24 @@
         </div>
         <div v-else-if="resultTab === 'devices'" class="history-empty">当前条件下没有历史数据</div>
         <div v-else class="history-table-view" role="tabpanel" aria-label="历史数据表格">
-          <div class="history-table-scroll"><table class="data-table">
-            <thead><tr><th>时间</th><th>设备类型</th><th>设备名称</th><th>所属渠道</th><th>数据项</th><th>数值</th><th>单位</th><th>状态</th></tr></thead>
-            <tbody>
-              <tr v-for="(row, index) in visibleRows" :key="`${row.timestampValue}-${row.name}-${row.metric}-${index}`"><td>{{ row.timestamp }}</td><td>{{ row.type }}</td><td>{{ row.name }}</td><td>{{ row.location }}</td><td>{{ row.metric }}</td><td>{{ row.value }}</td><td>{{ row.unit }}</td><td><StatusText :value="row.state" /></td></tr>
-              <tr v-if="loading && !rows.length"><td colspan="8" class="table-empty">正在加载历史数据...</td></tr>
-              <tr v-else-if="!rows.length"><td colspan="8" class="table-empty">当前条件下没有历史数据</td></tr>
-            </tbody>
-          </table></div>
-          <div class="pager">
-            共 {{ historyTotal }} 条
-            <button type="button" title="上一页" :disabled="loading || historyPage <= 1" @click="loadHistoryPage(historyPage - 1)">&lsaquo;</button>
-            <span>第 {{ historyPage }} / {{ historyPageCount }} 页</span>
-            <button type="button" title="下一页" :disabled="loading || historyPage >= historyPageCount" @click="loadHistoryPage(historyPage + 1)">&rsaquo;</button>
-            <span>每页 50 条</span>
-          </div>
+          <a-config-provider :locale="zhCN" :theme="historyTheme">
+            <a-table
+              class="history-ant-table"
+              size="small"
+              :columns="historyColumns"
+              :data-source="rows"
+              :loading="loading"
+              :locale="historyTableLocale"
+              :pagination="historyPagination"
+              :scroll="{ x: 960 }"
+              row-key="key"
+              @change="handleHistoryTableChange"
+            >
+              <template #bodyCell="{ column, record }">
+                <StatusText v-if="column.key === 'state'" :value="record.state" />
+              </template>
+            </a-table>
+          </a-config-provider>
         </div>
       </section>
     </section>
@@ -105,7 +108,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, ref } from 'vue';
-import { Button as AButton, ConfigProvider as AConfigProvider, DatePicker as ADatePicker, Form as AForm, FormItem as AFormItem, Select as ASelect, SelectOption as ASelectOption, theme as antTheme } from 'ant-design-vue';
+import { Button as AButton, ConfigProvider as AConfigProvider, DatePicker as ADatePicker, Form as AForm, FormItem as AFormItem, Select as ASelect, SelectOption as ASelectOption, Table as ATable, theme as antTheme } from 'ant-design-vue';
 import zhCN from 'ant-design-vue/es/locale/zh_CN';
 import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
@@ -122,8 +125,28 @@ dayjs.locale('zh-cn');
 
 const activeTab = ref('analysis');
 const resultTab = ref('combined');
+const tablePage = ref(1);
 const resultTabs = [{ key: 'combined', label: '综合曲线' }, { key: 'devices', label: '分设备曲线' }, { key: 'table', label: '数据表格' }];
-const { applyDeviceFilters, canExport, chartRowCount, devicesLoading, draft, error, exportCsv, exporting, historyChannels, historyDevices, historyDeviceTypes, historyPage, historyPageCount, historyTotal, initialize, loadHistoryPage, loading, rangeLabel, resetQuery, results, rows, runQuery, selectableDevices, visibleRows } = useHistoryQuery();
+const historyColumns = [
+  { title: '时间', dataIndex: 'timestamp', key: 'timestamp', width: 180 },
+  { title: '设备类型', dataIndex: 'type', key: 'type', width: 110 },
+  { title: '设备名称', dataIndex: 'name', key: 'name', width: 170 },
+  { title: '所属渠道', dataIndex: 'location', key: 'location', width: 130 },
+  { title: '数据项', dataIndex: 'metric', key: 'metric', width: 130 },
+  { title: '数值', dataIndex: 'value', key: 'value', width: 110 },
+  { title: '单位', dataIndex: 'unit', key: 'unit', width: 80 },
+  { title: '状态', dataIndex: 'state', key: 'state', width: 90 },
+];
+const historyTableLocale = { emptyText: '当前条件下没有历史数据' };
+const { applyDeviceFilters, canExport, chartRowCount, devicesLoading, draft, error, exportCsv, exporting, historyChannels, historyDevices, historyDeviceTypes, historyTotal, initialize, loading, rangeLabel, resetQuery, results, rows, runQuery, selectableDevices } = useHistoryQuery();
+const historyPagination = computed(() => ({
+  current: tablePage.value,
+  pageSize: 50,
+  total: historyTotal.value,
+  showSizeChanger: false,
+  showQuickJumper: historyTotal.value > 50,
+  showTotal: (total) => `共 ${total} 条`,
+}));
 const { canvasRef: profileChart, redraw: redrawProfile } = useCanvasChart(drawProfileChart);
 const historyTheme = {
   algorithm: antTheme.darkAlgorithm,
@@ -149,8 +172,9 @@ const endTimeValue = computed({
 });
 
 function showTab(tab) { activeTab.value = tab; if (tab === 'replay') nextTick(redrawProfile); }
-async function queryAndClose() { await runQuery(); }
-async function resetAndClose() { await resetQuery(); }
+async function queryAndClose() { tablePage.value = 1; await runQuery(); }
+async function resetAndClose() { tablePage.value = 1; await resetQuery(); }
+function handleHistoryTableChange(pagination) { tablePage.value = pagination.current || 1; }
 function filterDeviceOption(input, option) {
   const device = selectableDevices.value.find((item) => item.id === option.value);
   return device ? `${device.id} ${device.name} ${device.type} ${device.location}`.toLocaleLowerCase('zh-CN').includes(input.toLocaleLowerCase('zh-CN')) : false;

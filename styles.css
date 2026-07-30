@@ -207,6 +207,13 @@ button:disabled { opacity: .43; cursor: not-allowed; transform: none; box-shadow
 .history-table-view { padding-top: 10px; }
 .history-table-scroll { overflow-x: auto; }
 .history-table-scroll .data-table { min-width: 900px; }
+.history-ant-table { padding: 0 12px; }
+.history-ant-table .ant-table { background: rgba(3, 22, 39, .78); }
+.history-ant-table .ant-table-container { border: 1px solid rgba(67, 146, 217, .25); border-radius: 5px; overflow: hidden; }
+.history-ant-table .ant-table-thead > tr > th { background: rgba(8, 43, 72, .94); color: #d7e9f8; }
+.history-ant-table .ant-table-tbody > tr > td { border-bottom-color: rgba(67, 146, 217, .14); }
+.history-ant-table .ant-table-tbody > tr.ant-table-row:hover > td { background: rgba(21, 87, 137, .28); }
+.history-ant-table .ant-pagination { margin: 12px 0 2px; }
 .table-empty { height: 100px; text-align: center; color: #7892ad; }
 .pager { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 10px 14px 14px; color: #b8cbe0; }
 .pager button { min-width: 38px; padding: 7px 10px; }
