@@ -105,6 +105,7 @@ export function useHistoryQuery() {
       size: historyPageSize.value,
       start: query.start,
       end: query.end,
+      intervalSeconds: query.intervalSeconds,
     });
     const normalized = normalizeHistoryPage(responsePage);
     rows.value = normalized.rows;
@@ -209,6 +210,7 @@ export function useHistoryQuery() {
       const { blob, fileName } = await exportBigWaterChannelHistory({
         start: appliedQuery.value.start,
         end: appliedQuery.value.end,
+        intervalSeconds: appliedQuery.value.intervalSeconds,
       });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
