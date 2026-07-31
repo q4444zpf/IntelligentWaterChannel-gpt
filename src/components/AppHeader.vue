@@ -21,7 +21,7 @@
       <span class="status ok">WebSocket 已连接</span>
       <span class="status ok">数据库 正常</span>
     </div>
-    <time class="clock">09:35:21</time>
+    <time class="clock" :datetime="currentDateTime">{{ currentTime }}</time>
     <div class="user-area">
       <span class="user-name">{{ username }}</span>
       <button class="logout-btn" title="退出登录" :disabled="loggingOut" @click="handleLogout">
@@ -51,10 +51,19 @@ const loggingOut = ref(false);
 const unhandledAlarmCount = ref(0);
 const unhandledAlarmDisplay = computed(() => unhandledAlarmCount.value > 999 ? '999+' : unhandledAlarmCount.value);
 let alarmRefreshTimer = null;
+let clockTimer = null;
+const currentTime = ref('');
+const currentDateTime = ref('');
 const username = computed(() => {
   const user = authState.user.value;
   return user?.name || user?.username || user?.account || '用户';
 });
+
+function refreshClock() {
+  const now = new Date();
+  currentTime.value = now.toLocaleTimeString('zh-CN', { hour12: false });
+  currentDateTime.value = now.toISOString();
+}
 
 async function handleLogout() {
   if (loggingOut.value) return;
@@ -80,12 +89,15 @@ async function refreshUnhandledAlarmCount() {
 }
 
 onMounted(() => {
+  refreshClock();
+  clockTimer = window.setInterval(refreshClock, 1_000);
   void refreshUnhandledAlarmCount();
   alarmRefreshTimer = window.setInterval(refreshUnhandledAlarmCount, 30_000);
   window.addEventListener('alarm-status-changed', refreshUnhandledAlarmCount);
 });
 
 onBeforeUnmount(() => {
+  if (clockTimer !== null) window.clearInterval(clockTimer);
   if (alarmRefreshTimer !== null) window.clearInterval(alarmRefreshTimer);
   window.removeEventListener('alarm-status-changed', refreshUnhandledAlarmCount);
 });
