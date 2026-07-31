@@ -10,7 +10,7 @@
         @click="$emit('navigate', tab.key)"
       >
         {{ tab.label }}
-        <span v-if="tab.key === 'alarm' && unhandledAlarmCount > 0" class="badge">{{ unhandledAlarmCount }}</span>
+        <span v-if="tab.key === 'alarm' && unhandledAlarmCount > 0" class="badge">{{ unhandledAlarmDisplay }}</span>
       </button>
     </nav>
     <div class="meta">工况：明满流混合实验</div>
@@ -49,6 +49,7 @@ defineEmits(['navigate']);
 
 const loggingOut = ref(false);
 const unhandledAlarmCount = ref(0);
+const unhandledAlarmDisplay = computed(() => unhandledAlarmCount.value > 999 ? '999+' : unhandledAlarmCount.value);
 let alarmRefreshTimer = null;
 const username = computed(() => {
   const user = authState.user.value;

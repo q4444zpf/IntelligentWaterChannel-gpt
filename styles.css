@@ -44,7 +44,7 @@ button:disabled { cursor: not-allowed; opacity: .48; transform: none; }
 .main-tabs { display: flex; height: 100%; align-items: stretch; }
 .nav-tab { min-width: 118px; border-radius: 0; border-width: 0 1px; background: transparent; font-weight: 700; position: relative; }
 .nav-tab.active { background: linear-gradient(145deg, rgba(0, 102, 222, .8), rgba(4, 35, 75, .82)); }
-.badge { display: inline-grid; place-items: center; min-width: 19px; height: 19px; margin-left: 4px; border-radius: 50%; background: var(--red); font-size: 12px; color: white; }
+.badge { display: inline-grid; place-items: center; min-width: 19px; height: 19px; margin-left: 4px; padding: 0 4px; border-radius: 10px; background: var(--red); font-size: 12px; color: white; }
 .meta { color: #b8cae0; font-size: 14px; white-space: nowrap; }
 .status-strip { display: flex; gap: 8px; }
 .status { padding: 5px 10px; border-radius: 5px; font-size: 13px; border: 1px solid rgba(57, 230, 109, .34); background: rgba(24, 106, 42, .26); color: #73ff92; white-space: nowrap; }
