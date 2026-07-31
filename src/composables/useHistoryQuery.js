@@ -11,6 +11,7 @@ import {
 } from '../history-device-data.js';
 import {
   DEFAULT_DEVICE_IDS,
+  buildAlarmHistoryQuery,
   createTodayHistoryRange,
   validateHistoryQuery
 } from '../history-data.js';
@@ -74,7 +75,7 @@ export function useHistoryQuery() {
       const devices = normalizeHistoryDevices(await getBigWaterChannelHistoryDevices());
       historyDevices.value = devices;
       const retainedIds = sortHistoryDeviceOptionIds(devices, draft.value.deviceIds);
-      draft.value.deviceIds = retainedIds.length ? retainedIds : devices.map((device) => device.id);
+      draft.value.deviceIds = retainedIds.length ? retainedIds : devices.slice(0, 1).map((device) => device.id);
       if (!devices.length) {
         error.value = '当前设备分组下没有可选设备';
         return false;
@@ -90,8 +91,16 @@ export function useHistoryQuery() {
     }
   }
 
-  async function initialize() {
+  async function initialize(alarmContext = null) {
     if (!await loadHistoryDevices()) return false;
+    if (alarmContext) {
+      const alarmQuery = buildAlarmHistoryQuery(alarmContext, historyDevices.value);
+      if (!alarmQuery) {
+        error.value = '未找到告警对应的历史设备或告警时间无效';
+        return false;
+      }
+      draft.value = { ...draft.value, ...alarmQuery };
+    }
     return runQuery();
   }
 
@@ -165,14 +174,14 @@ export function useHistoryQuery() {
     const retainedIds = draft.value.deviceIds.filter((id) => selectableIds.has(id));
     draft.value.deviceIds = retainedIds.length
       ? sortHistoryDeviceOptionIds(historyDevices.value, retainedIds)
-      : sortHistoryDeviceOptionIds(historyDevices.value, [...selectableIds]);
+      : selectableDevices.value.slice(0, 1).map((device) => device.id);
     deviceSearch.value = '';
     error.value = draft.value.deviceIds.length ? '' : '当前筛选条件下没有可选设备';
   }
 
   function resetQuery() {
     draft.value = createDefaultQuery();
-    draft.value.deviceIds = historyDevices.value.map((device) => device.id);
+    draft.value.deviceIds = historyDevices.value.slice(0, 1).map((device) => device.id);
     error.value = '';
     deviceSearch.value = '';
     return runQuery();

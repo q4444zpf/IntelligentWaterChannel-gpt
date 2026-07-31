@@ -55,15 +55,19 @@ test('merges flat MQTT payloads while retaining previous tag values', () => {
   mergeRealtimeValues(values, { ' WL2 ': 0, G1: 35 });
   mergeRealtimeValues(values, null);
 
-  assert.deepEqual(values, { wl1: 100, wl2: 0, g1: 35 });
+  assert.deepEqual(values, { wl1: 100, ' WL2 ': 0, G1: 35 });
 });
 
-test('recomputes table rows when MQTT adds reactive tag values', () => {
+test('matches reactive MQTT tag values with case sensitivity', () => {
   const values = reactive({});
   const tableData = computed(() => buildRealtimeTableData(deviceGroups, values));
 
   assert.equal(tableData.value.sensorGroups[0].rows[0].value, '--');
   mergeRealtimeValues(values, { WL1: 88.6 });
+  assert.equal(tableData.value.sensorGroups[0].rows[0].value, '--');
+  assert.equal(tableData.value.gates[0].state, '离线');
+
+  mergeRealtimeValues(values, { wl1: 88.6 });
   assert.equal(tableData.value.sensorGroups[0].rows[0].value, '88.6');
   assert.equal(tableData.value.gates[0].before, '88.6');
   assert.equal(tableData.value.gates[0].state, '离线');

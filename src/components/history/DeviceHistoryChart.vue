@@ -29,15 +29,18 @@ import { LineChart } from 'echarts/charts';
 import {
   DataZoomComponent,
   GridComponent,
+  MarkLineComponent,
   TooltipComponent
 } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
+import { createWaterLevelMarkLine, isWaterLevelMetric } from '../../water-level-thresholds.js';
 
 echarts.use([
   LineChart,
   DataZoomComponent,
   GridComponent,
+  MarkLineComponent,
   TooltipComponent,
   CanvasRenderer
 ]);
@@ -126,10 +129,10 @@ function chartOption() {
       type: 'line',
       showSymbol: false,
       connectNulls: false,
-      smooth: 0.18,
       lineStyle: { width: 2, color },
       areaStyle: { color, opacity: 0.07 },
-      data: points.map((point) => [point.timestamp, point.value])
+      data: points.map((point) => [point.timestamp, point.value]),
+      ...(isWaterLevelMetric(device) ? { markLine: createWaterLevelMarkLine() } : {}),
     }]
   };
 }

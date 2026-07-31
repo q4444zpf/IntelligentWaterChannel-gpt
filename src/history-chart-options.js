@@ -1,3 +1,5 @@
+import { createWaterLevelMarkLine, isWaterLevelMetric } from './water-level-thresholds.js';
+
 const UNIT_COLORS = {
   m: '#26a8ff',
   '%': '#ff8a4c',
@@ -45,23 +47,28 @@ export function buildCombinedChartModel(results) {
 
   const maxLeftOffset = Math.max(0, ...yAxes.filter((axis) => axis.position === 'left').map((axis) => axis.offset));
   const maxRightOffset = Math.max(0, ...yAxes.filter((axis) => axis.position === 'right').map((axis) => axis.offset));
-  const series = results.map(({ device, points }, index) => ({
-    name: `${device.name || device.id} ${device.metric}`,
-    deviceId: device.id,
-    deviceLabel: device.name || device.id,
-    metric: device.metric,
-    unit: device.unit,
-    precision: device.precision,
-    type: 'line',
-    yAxisIndex: axisIndexByUnit.get(device.unit),
-    showSymbol: false,
-    connectNulls: false,
-    smooth: 0.16,
-    emphasis: { focus: 'series' },
-    lineStyle: { width: 2, color: SERIES_COLORS[index % SERIES_COLORS.length] },
-    itemStyle: { color: SERIES_COLORS[index % SERIES_COLORS.length] },
-    data: points.map((point) => [point.timestamp, point.value])
-  }));
+  let waterLevelThresholdAdded = false;
+  const series = results.map(({ device, points }, index) => {
+    const showWaterLevelThreshold = isWaterLevelMetric(device) && !waterLevelThresholdAdded;
+    if (showWaterLevelThreshold) waterLevelThresholdAdded = true;
+    return {
+      name: `${device.name || device.id} ${device.metric}`,
+      deviceId: device.id,
+      deviceLabel: device.name || device.id,
+      metric: device.metric,
+      unit: device.unit,
+      precision: device.precision,
+      type: 'line',
+      yAxisIndex: axisIndexByUnit.get(device.unit),
+      showSymbol: false,
+      connectNulls: false,
+      emphasis: { focus: 'series' },
+      lineStyle: { width: 2, color: SERIES_COLORS[index % SERIES_COLORS.length] },
+      itemStyle: { color: SERIES_COLORS[index % SERIES_COLORS.length] },
+      data: points.map((point) => [point.timestamp, point.value]),
+      ...(showWaterLevelThreshold ? { markLine: createWaterLevelMarkLine() } : {}),
+    };
+  });
 
   return {
     yAxes,

@@ -4,67 +4,136 @@
       <h2>实时趋势分析</h2>
       <TrendTabs v-model:active-key="activeTab" />
       <div v-if="isNode" class="mini-actions profile-actions">
-        <span class="refresh-status" :title="nodeUpdatedLabel">5秒刷新</span>
-        <button type="button" @click="toggleNodePolling">{{ nodePaused ? '继续' : '暂停' }}</button>
-        <button type="button" :disabled="nodeRefreshing" @click="nodeRefresh">立即刷新</button>
+        <span class="refresh-status" :title="nodeUpdatedLabel">MQTT 实时更新</span>
         <button type="button" @click="profileChart?.resetZoom()">复位</button>
       </div>
       <div v-else class="trend-live-status">
-        <span class="refresh-status" :title="trendUpdatedLabel">5秒刷新</span>
+        <span class="refresh-status" :title="trendUpdatedLabel">MQTT 实时更新</span>
         <button type="button" @click="toggleTrendPolling">{{ trendPaused ? '继续' : '暂停' }}</button>
-        <button type="button" :disabled="trendRefreshing" @click="trendRefresh">刷新</button>
         <button type="button" @click="trendChart?.resetZoom()">复位</button>
       </div>
     </div>
 
-    <RealtimeWaterProfileChart v-if="isNode" ref="profileChart" :snapshot="nodeSnapshot || undefined" :loading="nodeLoading" :refreshing="nodeRefreshing" :error="nodeError" />
+    <RealtimeWaterProfileChart v-if="isNode" ref="profileChart" :snapshot="nodeSnapshot" :loading="profileLoading" :error="profileError" />
 
     <div v-else class="trend-workbench">
       <div class="trend-main">
         <div class="trend-toolbar">
-          <TrendDeviceSelect v-if="config.key !== 'pump'" :devices="devices" :model-value="selectedDeviceId" @update:model-value="setSelectedDeviceId" />
-          <div v-else class="fixed-device"><span>设备</span><b>P1 · 一号变频泵</b></div>
+          <TrendDeviceSelect :devices="devices" :model-value="selectedDeviceId" :loading="trendDevicesLoading" :error="trendDevicesError" @update:model-value="setSelectedDeviceId" />
           <TimeRangePicker :range-key="rangeKey" :custom-range="customRange" @change="setRange" />
           <div v-if="config.showStatistics" class="trend-statistics">
-            <span v-for="item in statistics" :key="item.device.id"><b :style="{ color: item.device.color }">{{ item.device.id }}</b> 当前 {{ formatStat(item.current) }}<template v-if="item.min !== null"> / {{ formatStat(item.min) }}–{{ formatStat(item.max) }}</template><i v-if="item.running !== undefined" :class="{ stopped: !item.running }">{{ item.running ? '运行' : '停止' }}</i></span>
+            <span v-for="item in statistics" :key="item.device.id"><b :style="{ color: item.device.color }">{{ item.device.name }}</b> 当前 {{ formatStat(item.current) }}<template v-if="item.min !== null"> / {{ formatStat(item.min) }}–{{ formatStat(item.max) }}</template><i v-if="item.running !== undefined" :class="{ stopped: !item.running }">{{ item.running ? '运行' : '停止' }}</i></span>
           </div>
         </div>
-        <TrendChart ref="trendChart" :config="config" :snapshot="trendSnapshot" :loading="trendLoading" :refreshing="trendRefreshing" :error="trendError" compact />
+        <TrendChart ref="trendChart" :config="config" :snapshot="trendSnapshot" :loading="trendDevicesLoading" :error="trendDevicesError" compact />
       </div>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import type { TrendTabKey, TrendType } from '../../../config/trendConfig.ts';
-import { createRealtimeTrendSource } from '../../../data/realtime-trend-data.ts';
-import { GATES, SENSOR_GROUPS } from '../../../data/monitoring-data.js';
-import { createMockWaterProfileSource } from '../../../realtime-water-profile.js';
-import { useRealtimeWaterProfile } from '../../../composables/useRealtimeWaterProfile.js';
-import { useRealtimeTrends } from '../../../composables/useRealtimeTrends.ts';
+import { computed, onMounted, reactive, ref, toRef, watch } from 'vue';
+import { getBigWaterChannelHistory } from '../../../api/history.js';
+import { getRealtimeTrendDevices } from '../../../api/realtime.js';
+import {
+  normalizeRealtimeTrendDevices,
+  type TrendDevice,
+  type TrendTabKey,
+  type TrendType,
+} from '../../../config/trendConfig.ts';
+import { useMqttRealtimeTrends } from '../../../composables/useMqttRealtimeTrends.ts';
+import { buildWaterProfileSnapshot } from '../../../realtime-water-profile.js';
+import {
+  formatTrendHistoryDateTime,
+  normalizeTrendHistoryPoints,
+} from '../../../realtime-trend-history.ts';
 import RealtimeWaterProfileChart from '../RealtimeWaterProfileChart.vue';
 import TimeRangePicker from './TimeRangePicker.vue';
 import TrendChart from './TrendChart.vue';
 import TrendDeviceSelect from './TrendDeviceSelect.vue';
 import TrendTabs from './TrendTabs.vue';
 
+interface ProfileNode {
+  key?: string;
+  name?: string;
+  label?: string;
+  channel?: string;
+  unit?: string;
+  tag?: string;
+}
+
+const props = withDefaults(defineProps<{
+  profileNodes?: ProfileNode[];
+  realtimeValues?: Record<string, unknown>;
+  profileLoading?: boolean;
+  profileError?: string;
+  profileTimestamp?: number | null;
+}>(), {
+  profileNodes: () => [],
+  realtimeValues: () => ({}),
+  profileLoading: false,
+  profileError: '',
+  profileTimestamp: null,
+});
+
 const activeTab = ref<TrendTabKey>('node');
 const profileChart = ref<InstanceType<typeof RealtimeWaterProfileChart> | null>(null);
 const trendChart = ref<InstanceType<typeof TrendChart> | null>(null);
-const nodeSource = createMockWaterProfileSource({ gates: GATES, sensorGroups: SENSOR_GROUPS });
-const { snapshot: nodeSnapshot, loading: nodeLoading, refreshing: nodeRefreshing, error: nodeError, paused: nodePaused, lastUpdated: nodeUpdated, refresh: nodeRefresh, pause: nodePause, resume: nodeResume } = useRealtimeWaterProfile({ source: nodeSource });
-const trendSource = createRealtimeTrendSource();
-const { snapshot: trendSnapshot, loading: trendLoading, refreshing: trendRefreshing, error: trendError, paused: trendPaused, lastUpdated: trendUpdated, rangeKey, customRange, selectedDeviceId, config, devices, statistics, setTrendType, setSelectedDeviceId, setRange, refresh: trendRefresh, pause: trendPause, resume: trendResume } = useRealtimeTrends({ source: trendSource });
+const trendTypes: TrendType[] = ['flow', 'level', 'pump', 'siphon'];
+const trendDevicesByType = reactive<Record<TrendType, TrendDevice[]>>({
+  flow: [], level: [], pump: [], siphon: [],
+});
+const trendLoadingByType = reactive<Record<TrendType, boolean>>({
+  flow: true, level: true, pump: true, siphon: true,
+});
+const trendErrorByType = reactive<Record<TrendType, string>>({
+  flow: '', level: '', pump: '', siphon: '',
+});
+const nodeSnapshot = computed(() => buildWaterProfileSnapshot({
+  topology: props.profileNodes,
+  values: props.realtimeValues,
+  timestamp: props.profileTimestamp,
+}));
+const { snapshot: trendSnapshot, paused: trendPaused, lastUpdated: trendUpdated, initialLoading: trendInitialLoading, initialError: trendInitialError, rangeKey, customRange, selectedDeviceId, config, devices, statistics, setTrendType, setSelectedDeviceId, setRange, pause: trendPause, resume: trendResume } = useMqttRealtimeTrends({
+  devicesByType: trendDevicesByType,
+  realtimeValues: toRef(props, 'realtimeValues'),
+  mqttTimestamp: toRef(props, 'profileTimestamp'),
+  loadInitial: async ({ type, device, startTime, endTime, intervalSeconds }) => {
+    const page = await getBigWaterChannelHistory({
+      current: 1,
+      size: -1,
+      start: formatTrendHistoryDateTime(startTime),
+      end: formatTrendHistoryDateTime(endTime),
+      intervalSeconds,
+      deviceIds: [device.id],
+    });
+    return normalizeTrendHistoryPoints(page.records, type, device.id);
+  },
+});
 const isNode = computed(() => activeTab.value === 'node');
+const trendDevicesLoading = computed(() => trendLoadingByType[config.value.key] || trendInitialLoading.value);
+const trendDevicesError = computed(() => trendErrorByType[config.value.key] || trendInitialError.value);
 const timeLabel = (value: number | null) => value ? new Date(value).toLocaleTimeString('zh-CN', { hour12: false }) : '等待首次数据';
-const nodeUpdatedLabel = computed(() => `最近更新：${timeLabel(nodeUpdated.value)}`);
+const nodeUpdatedLabel = computed(() => `最近更新：${timeLabel(props.profileTimestamp)}`);
 const trendUpdatedLabel = computed(() => `最近更新：${timeLabel(trendUpdated.value)}`);
 
-watch(activeTab, (key) => { if (key !== 'node') void setTrendType(key as TrendType); });
-function toggleNodePolling() { nodePaused.value ? nodeResume() : nodePause(); }
+async function loadTrendDevices(type: TrendType) {
+  trendLoadingByType[type] = true;
+  trendErrorByType[type] = '';
+  try {
+    const rows = await getRealtimeTrendDevices(type);
+    trendDevicesByType[type] = normalizeRealtimeTrendDevices(type, rows);
+  } catch (error: any) {
+    trendErrorByType[type] = error?.message || '获取趋势设备失败';
+  } finally {
+    trendLoadingByType[type] = false;
+  }
+}
+
+watch(activeTab, (key) => { if (key !== 'node') setTrendType(key as TrendType); });
 function toggleTrendPolling() { trendPaused.value ? trendResume() : trendPause(); }
 function formatStat(value: number | null) { return value === null ? '--' : `${value.toFixed(config.value.precision)}${config.value.unit}`; }
+onMounted(() => trendTypes.forEach((type) => { void loadTrendDevices(type); }));
 </script>
 
 <style scoped>

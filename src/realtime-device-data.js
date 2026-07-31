@@ -1,12 +1,6 @@
-function normalizeTag(tag) {
-  return typeof tag === 'string' ? tag.trim().toLowerCase() : '';
-}
-
 function tagValue(values, tag) {
-  const normalizedTag = normalizeTag(tag);
-  if (!normalizedTag) return undefined;
-  const normalizedValue = values[normalizedTag];
-  return normalizedValue !== undefined ? normalizedValue : values[tag];
+  if (typeof tag !== 'string' || !tag) return undefined;
+  return values[tag];
 }
 
 function hasValue(values, tag) {
@@ -74,7 +68,6 @@ export function mergeRealtimeValues(target, payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return;
 
   for (const [tag, value] of Object.entries(payload)) {
-    const normalizedTag = normalizeTag(tag);
-    if (normalizedTag) target[normalizedTag] = value;
+    if (tag) target[tag] = value;
   }
 }

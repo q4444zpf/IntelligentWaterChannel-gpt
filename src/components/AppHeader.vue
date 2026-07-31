@@ -9,7 +9,8 @@
         :class="{ active: activePage === tab.key }"
         @click="$emit('navigate', tab.key)"
       >
-        {{ tab.label }} <span v-if="tab.badge" class="badge">{{ tab.badge }}</span>
+        {{ tab.label }}
+        <span v-if="tab.key === 'alarm' && unhandledAlarmCount > 0" class="badge">{{ unhandledAlarmDisplay }}</span>
       </button>
     </nav>
     <div class="meta">工况：明满流混合实验</div>
@@ -20,7 +21,7 @@
       <span class="status ok">WebSocket 已连接</span>
       <span class="status ok">数据库 正常</span>
     </div>
-    <time class="clock">09:35:21</time>
+    <time class="clock" :datetime="currentDateTime">{{ currentTime }}</time>
     <div class="user-area">
       <span class="user-name">{{ username }}</span>
       <button class="logout-btn" title="退出登录" :disabled="loggingOut" @click="handleLogout">
@@ -31,8 +32,10 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { getBigWaterChannelAlarmStatistics } from '../api/alarm.js';
+import { normalizeAlarmStatistics } from '../alarm-data.js';
 import { PAGE_TABS } from '../data/monitoring-data.js';
 import { authState, signOut } from '../stores/auth.js';
 
@@ -45,10 +48,22 @@ defineProps({
 defineEmits(['navigate']);
 
 const loggingOut = ref(false);
+const unhandledAlarmCount = ref(0);
+const unhandledAlarmDisplay = computed(() => unhandledAlarmCount.value > 999 ? '999+' : unhandledAlarmCount.value);
+let alarmRefreshTimer = null;
+let clockTimer = null;
+const currentTime = ref('');
+const currentDateTime = ref('');
 const username = computed(() => {
   const user = authState.user.value;
   return user?.name || user?.username || user?.account || '用户';
 });
+
+function refreshClock() {
+  const now = new Date();
+  currentTime.value = now.toLocaleTimeString('zh-CN', { hour12: false });
+  currentDateTime.value = now.toISOString();
+}
 
 async function handleLogout() {
   if (loggingOut.value) return;
@@ -63,4 +78,27 @@ async function handleLogout() {
     loggingOut.value = false;
   }
 }
+
+async function refreshUnhandledAlarmCount() {
+  try {
+    const statistics = normalizeAlarmStatistics(await getBigWaterChannelAlarmStatistics());
+    unhandledAlarmCount.value = statistics.unhandled;
+  } catch (error) {
+    console.error('获取未处理告警数量失败', error);
+  }
+}
+
+onMounted(() => {
+  refreshClock();
+  clockTimer = window.setInterval(refreshClock, 1_000);
+  void refreshUnhandledAlarmCount();
+  alarmRefreshTimer = window.setInterval(refreshUnhandledAlarmCount, 30_000);
+  window.addEventListener('alarm-status-changed', refreshUnhandledAlarmCount);
+});
+
+onBeforeUnmount(() => {
+  if (clockTimer !== null) window.clearInterval(clockTimer);
+  if (alarmRefreshTimer !== null) window.clearInterval(alarmRefreshTimer);
+  window.removeEventListener('alarm-status-changed', refreshUnhandledAlarmCount);
+});
 </script>

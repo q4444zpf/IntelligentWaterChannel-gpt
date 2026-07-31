@@ -24,9 +24,9 @@ const RANGE_SPANS: Record<Exclude<TimeRangeKey, 'custom'>, number> = {
   '24h': 86_400_000
 };
 const PRESET_INTERVALS: Record<Exclude<TimeRangeKey, 'custom'>, number> = {
-  '10m': 10_000,
-  '1h': 60_000,
-  '24h': 1_200_000
+  '10m': 1_000,
+  '1h': 5_000,
+  '24h': 60_000
 };
 
 export function resolveTimeRange(key: TimeRangeKey, now: number, custom?: CustomTimeRange): ResolvedTimeRange {
@@ -91,7 +91,12 @@ export async function queryTrendData(query: TrendQuery): Promise<TrendSnapshot> 
     }
     return { device, points };
   });
-  return { timestamp: query.now ?? query.endTime, series };
+  return {
+    timestamp: query.now ?? query.endTime,
+    startTime: query.startTime,
+    endTime: query.endTime,
+    series,
+  };
 }
 
 export function summarizeSeries(series: TrendSeries): SeriesSummary {

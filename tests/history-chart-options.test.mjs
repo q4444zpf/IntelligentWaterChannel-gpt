@@ -41,3 +41,13 @@ test('preserves process order in legend and series data', () => {
   assert.deepEqual(model.series[2].data, [[1000, 40], [2000, 42]]);
   assert.equal(model.series[2].unit, '%');
 });
+
+test('adds water-level thresholds once without treating gate meters as water level', () => {
+  const model = buildCombinedChartModel([
+    ...results,
+    makeResult('G6', '闸门', '开度', 'm', 80, [0.2, 0.3]),
+  ]);
+  assert.deepEqual(model.series[0].markLine.data.map((line) => line.yAxis), [0.5, 0.2]);
+  assert.equal(model.series[1].markLine, undefined);
+  assert.equal(model.series[4].markLine, undefined);
+});
