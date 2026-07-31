@@ -74,7 +74,7 @@ export function useHistoryQuery() {
       const devices = normalizeHistoryDevices(await getBigWaterChannelHistoryDevices());
       historyDevices.value = devices;
       const retainedIds = sortHistoryDeviceOptionIds(devices, draft.value.deviceIds);
-      draft.value.deviceIds = retainedIds.length ? retainedIds : devices.map((device) => device.id);
+      draft.value.deviceIds = retainedIds.length ? retainedIds : devices.slice(0, 1).map((device) => device.id);
       if (!devices.length) {
         error.value = '当前设备分组下没有可选设备';
         return false;
@@ -165,14 +165,14 @@ export function useHistoryQuery() {
     const retainedIds = draft.value.deviceIds.filter((id) => selectableIds.has(id));
     draft.value.deviceIds = retainedIds.length
       ? sortHistoryDeviceOptionIds(historyDevices.value, retainedIds)
-      : sortHistoryDeviceOptionIds(historyDevices.value, [...selectableIds]);
+      : selectableDevices.value.slice(0, 1).map((device) => device.id);
     deviceSearch.value = '';
     error.value = draft.value.deviceIds.length ? '' : '当前筛选条件下没有可选设备';
   }
 
   function resetQuery() {
     draft.value = createDefaultQuery();
-    draft.value.deviceIds = historyDevices.value.map((device) => device.id);
+    draft.value.deviceIds = historyDevices.value.slice(0, 1).map((device) => device.id);
     error.value = '';
     deviceSearch.value = '';
     return runQuery();
