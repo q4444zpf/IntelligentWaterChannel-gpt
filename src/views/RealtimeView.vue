@@ -25,7 +25,13 @@
           <SmartWaterFlumePreview ref="previewRef" @mqtt-data="handleMqttData" />
         </div>
       </section>
-      <TrendAnalysis />
+      <TrendAnalysis
+        :profile-nodes="profileNodes"
+        :realtime-values="realtimeValues"
+        :profile-loading="profileLoading"
+        :profile-error="profileError"
+        :profile-timestamp="latestMqttAt"
+      />
     </section>
 
     <aside class="right-stack">
@@ -43,7 +49,10 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue';
-import { getRealtimeGroupDevices } from '../api/realtime.js';
+import {
+  getRealtimeGroupDevices,
+  getRealtimeWaterProfileTopology,
+} from '../api/realtime.js';
 import StatusText from '../components/common/StatusText.vue';
 import SmartWaterFlumePreview from '../components/realtime/smart-water-flume-preview/SmartWaterFlumePreview.vue';
 import TrendAnalysis from '../components/realtime/trend/TrendAnalysis.vue';
@@ -57,6 +66,10 @@ const deviceGroups = ref([]);
 const deviceLoading = ref(true);
 const deviceError = ref('');
 const realtimeValues = reactive({});
+const profileNodes = ref([]);
+const profileLoading = ref(true);
+const profileError = ref('');
+const latestMqttAt = ref(null);
 const tableData = computed(() => buildRealtimeTableData(deviceGroups.value, realtimeValues));
 const gates = computed(() => tableData.value.gates);
 const sensorGroups = computed(() => tableData.value.sensorGroups);
@@ -67,6 +80,9 @@ const deviceMessage = computed(() => {
 
 function handleMqttData(payload) {
   mergeRealtimeValues(realtimeValues, payload);
+  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+    latestMqttAt.value = Date.now();
+  }
 }
 
 async function loadRealtimeDevices() {
@@ -82,7 +98,23 @@ async function loadRealtimeDevices() {
   }
 }
 
-onMounted(loadRealtimeDevices);
+async function loadRealtimeProfileTopology() {
+  profileLoading.value = true;
+  profileError.value = '';
+
+  try {
+    profileNodes.value = await getRealtimeWaterProfileTopology();
+  } catch (error) {
+    profileError.value = error?.message || '获取节点水位拓扑失败';
+  } finally {
+    profileLoading.value = false;
+  }
+}
+
+onMounted(() => {
+  void loadRealtimeDevices();
+  void loadRealtimeProfileTopology();
+});
 </script>
 
 <style scoped>

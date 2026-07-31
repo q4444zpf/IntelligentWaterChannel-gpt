@@ -2,7 +2,7 @@
   <div class="water-profile-shell" :aria-busy="loading || refreshing">
     <div v-if="loading" class="profile-state profile-loading"><span></span>正在加载节点水位数据</div>
     <div v-else-if="isEmpty" class="profile-state">当前没有可用的节点水位数据</div>
-    <div v-show="!loading && !isEmpty" ref="chartElement" class="water-profile-chart" role="img" aria-label="节点水位沿程实测与模拟曲线"></div>
+    <div v-show="!loading && !isEmpty" ref="chartElement" class="water-profile-chart" role="img" aria-label="最新时刻节点水位空间剖面"></div>
     <div v-if="error && !loading" class="profile-error" role="status">{{ error }}</div>
     <div v-if="refreshing" class="profile-refreshing"><span></span>数据更新中</div>
   </div>
@@ -42,7 +42,7 @@ const props = defineProps({
 });
 
 const chartElement = ref(null);
-const isEmpty = computed(() => !props.snapshot?.nodes?.some((node) => node.measured !== null || node.simulated !== null));
+const isEmpty = computed(() => !props.snapshot?.nodes?.length);
 let chart = null;
 let resizeObserver = null;
 
@@ -55,7 +55,7 @@ async function renderChart() {
     resizeObserver = new ResizeObserver(() => chart?.resize());
     resizeObserver.observe(chartElement.value);
   }
-  chart.setOption(buildRealtimeWaterProfileOption(props.snapshot), true);
+  chart.setOption(buildRealtimeWaterProfileOption(props.snapshot));
   chart.resize();
 }
 

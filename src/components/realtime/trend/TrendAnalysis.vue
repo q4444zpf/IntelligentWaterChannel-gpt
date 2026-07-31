@@ -4,9 +4,7 @@
       <h2>实时趋势分析</h2>
       <TrendTabs v-model:active-key="activeTab" />
       <div v-if="isNode" class="mini-actions profile-actions">
-        <span class="refresh-status" :title="nodeUpdatedLabel">5秒刷新</span>
-        <button type="button" @click="toggleNodePolling">{{ nodePaused ? '继续' : '暂停' }}</button>
-        <button type="button" :disabled="nodeRefreshing" @click="nodeRefresh">立即刷新</button>
+        <span class="refresh-status" :title="nodeUpdatedLabel">MQTT 实时更新</span>
         <button type="button" @click="profileChart?.resetZoom()">复位</button>
       </div>
       <div v-else class="trend-live-status">
@@ -17,7 +15,7 @@
       </div>
     </div>
 
-    <RealtimeWaterProfileChart v-if="isNode" ref="profileChart" :snapshot="nodeSnapshot || undefined" :loading="nodeLoading" :refreshing="nodeRefreshing" :error="nodeError" />
+    <RealtimeWaterProfileChart v-if="isNode" ref="profileChart" :snapshot="nodeSnapshot" :loading="profileLoading" :error="profileError" />
 
     <div v-else class="trend-workbench">
       <div class="trend-main">
@@ -39,9 +37,7 @@
 import { computed, ref, watch } from 'vue';
 import type { TrendTabKey, TrendType } from '../../../config/trendConfig.ts';
 import { createRealtimeTrendSource } from '../../../data/realtime-trend-data.ts';
-import { GATES, SENSOR_GROUPS } from '../../../data/monitoring-data.js';
-import { createMockWaterProfileSource } from '../../../realtime-water-profile.js';
-import { useRealtimeWaterProfile } from '../../../composables/useRealtimeWaterProfile.js';
+import { buildWaterProfileSnapshot } from '../../../realtime-water-profile.js';
 import { useRealtimeTrends } from '../../../composables/useRealtimeTrends.ts';
 import RealtimeWaterProfileChart from '../RealtimeWaterProfileChart.vue';
 import TimeRangePicker from './TimeRangePicker.vue';
@@ -49,20 +45,45 @@ import TrendChart from './TrendChart.vue';
 import TrendDeviceSelect from './TrendDeviceSelect.vue';
 import TrendTabs from './TrendTabs.vue';
 
+interface ProfileNode {
+  key?: string;
+  name?: string;
+  label?: string;
+  channel?: string;
+  unit?: string;
+  tag?: string;
+}
+
+const props = withDefaults(defineProps<{
+  profileNodes?: ProfileNode[];
+  realtimeValues?: Record<string, unknown>;
+  profileLoading?: boolean;
+  profileError?: string;
+  profileTimestamp?: number | null;
+}>(), {
+  profileNodes: () => [],
+  realtimeValues: () => ({}),
+  profileLoading: false,
+  profileError: '',
+  profileTimestamp: null,
+});
+
 const activeTab = ref<TrendTabKey>('node');
 const profileChart = ref<InstanceType<typeof RealtimeWaterProfileChart> | null>(null);
 const trendChart = ref<InstanceType<typeof TrendChart> | null>(null);
-const nodeSource = createMockWaterProfileSource({ gates: GATES, sensorGroups: SENSOR_GROUPS });
-const { snapshot: nodeSnapshot, loading: nodeLoading, refreshing: nodeRefreshing, error: nodeError, paused: nodePaused, lastUpdated: nodeUpdated, refresh: nodeRefresh, pause: nodePause, resume: nodeResume } = useRealtimeWaterProfile({ source: nodeSource });
+const nodeSnapshot = computed(() => buildWaterProfileSnapshot({
+  topology: props.profileNodes,
+  values: props.realtimeValues,
+  timestamp: props.profileTimestamp,
+}));
 const trendSource = createRealtimeTrendSource();
 const { snapshot: trendSnapshot, loading: trendLoading, refreshing: trendRefreshing, error: trendError, paused: trendPaused, lastUpdated: trendUpdated, rangeKey, customRange, selectedDeviceId, config, devices, statistics, setTrendType, setSelectedDeviceId, setRange, refresh: trendRefresh, pause: trendPause, resume: trendResume } = useRealtimeTrends({ source: trendSource });
 const isNode = computed(() => activeTab.value === 'node');
 const timeLabel = (value: number | null) => value ? new Date(value).toLocaleTimeString('zh-CN', { hour12: false }) : '等待首次数据';
-const nodeUpdatedLabel = computed(() => `最近更新：${timeLabel(nodeUpdated.value)}`);
+const nodeUpdatedLabel = computed(() => `最近更新：${timeLabel(props.profileTimestamp)}`);
 const trendUpdatedLabel = computed(() => `最近更新：${timeLabel(trendUpdated.value)}`);
 
 watch(activeTab, (key) => { if (key !== 'node') void setTrendType(key as TrendType); });
-function toggleNodePolling() { nodePaused.value ? nodeResume() : nodePause(); }
 function toggleTrendPolling() { trendPaused.value ? trendResume() : trendPause(); }
 function formatStat(value: number | null) { return value === null ? '--' : `${value.toFixed(config.value.precision)}${config.value.unit}`; }
 </script>

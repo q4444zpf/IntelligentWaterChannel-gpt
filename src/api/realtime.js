@@ -15,3 +15,20 @@ export async function getRealtimeGroupDevices(groupId = WEB_TOPO_CONFIG.deviceGr
 
   return response.data;
 }
+
+export async function getRealtimeWaterProfileTopology(
+  groupId = WEB_TOPO_CONFIG.deviceGroupId,
+) {
+  const response = await http.get('/iot/device/bigWaterChannel/realtime/profile/topology', {
+    params: { groupId },
+  });
+
+  if (response?.code !== 200 || !Array.isArray(response.data)) {
+    throw new ApiError(
+      response?.message || response?.msg || '获取节点水位拓扑失败',
+      response?.code,
+    );
+  }
+
+  return response.data;
+}
