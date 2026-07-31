@@ -14,8 +14,11 @@ const now = Date.UTC(2026, 6, 17, 8, 0, 0);
 
 test('resolves preset ranges and rejects inverted custom ranges', () => {
   assert.equal(resolveTimeRange('10m', now).startTime, now - 600_000);
+  assert.equal(resolveTimeRange('10m', now).sampleInterval, 1_000);
   assert.equal(resolveTimeRange('1h', now).startTime, now - 3_600_000);
+  assert.equal(resolveTimeRange('1h', now).sampleInterval, 5_000);
   assert.equal(resolveTimeRange('24h', now).startTime, now - 86_400_000);
+  assert.equal(resolveTimeRange('24h', now).sampleInterval, 60_000);
   assert.throws(() => resolveTimeRange('custom', now, { startTime: now, endTime: now - 1 }), /开始时间/);
 });
 
@@ -29,12 +32,12 @@ test('selects and clears only the filtered device subset', () => {
   assert.deepEqual(toggleFilteredSelection(['FM-01', 'FM-02'], ['FM-02', 'FM-03'], false), ['FM-01']);
 });
 
-test('generates deterministic bounded trend data with a capped sample count', async () => {
+test('generates deterministic trend data at the configured 24-hour granularity', async () => {
   const query = { trendType: 'level', deviceIds: ['WL-01', 'WL-02'], startTime: now - 86_400_000, endTime: now, now };
   const first = await queryTrendData(query);
   const second = await queryTrendData(query);
   assert.deepEqual(first, second);
-  assert.ok(first.series.every((series) => series.points.length <= 121));
+  assert.ok(first.series.every((series) => series.points.length === 1441));
   assert.deepEqual(first.series.map((series) => series.device.id), ['WL-01', 'WL-02']);
 });
 

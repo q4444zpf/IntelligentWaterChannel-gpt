@@ -44,7 +44,7 @@ export function buildRealtimeWaterProfileOption(snapshot) {
       axisPointer: { type: 'cross', label: { backgroundColor: '#1c668d' } },
       backgroundColor: 'rgba(3, 20, 36, .97)', borderColor: '#298ab3', textStyle: { color: '#e8f7ff' }
     },
-    grid: { left: 62, right: 30, top: 62, bottom: 72, containLabel: true },
+    grid: { left: 62, right: 30, top: 62, bottom: 16, containLabel: true },
     xAxis: {
       type: 'category', data: nodes.map((node) => node.label), name: '', boundaryGap: false,
       axisLine: { lineStyle: { color: '#55718c' } }, axisLabel: { color: '#91abc4', hideOverlap: true, interval: 0, rotate: 28, fontSize: 9 },
@@ -57,7 +57,7 @@ export function buildRealtimeWaterProfileOption(snapshot) {
     },
     series: [
       {
-        id: 'latest-water-level', name: '最新水位', type: 'line', smooth: true, connectNulls: false, symbol: 'circle', symbolSize: 7,
+        id: 'latest-water-level', name: '最新水位', type: 'line', connectNulls: false, symbol: 'circle', symbolSize: 7,
         data: nodes.map((node) => node.measured),
         lineStyle: { color: '#39f6ff', width: 3, type: 'solid', shadowColor: 'rgba(57, 246, 255, .7)', shadowBlur: 9 },
         itemStyle: { color: '#39f6ff', borderColor: '#d9fdff', borderWidth: 1 },

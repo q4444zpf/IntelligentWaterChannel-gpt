@@ -28,15 +28,14 @@ export function buildRealtimeTrendOption(config: TrendConfig, snapshot: TrendSna
       const rawValue = point?.value ?? param.value?.[1];
       const value = rawValue === null || rawValue === undefined ? '--' : `${Number(rawValue).toFixed(config.precision)} ${config.unit}`;
       const running = point?.running === undefined ? '' : `<span>${point.running ? '运行' : '停止'}</span>`;
-      return `<div class="trend-tooltip-row">${param.marker}<span>${item.device.id} ${item.device.location}</span><b>${value}</b>${running}</div>`;
+      return `<div class="trend-tooltip-row">${param.marker}<span>${item.device.name} ${item.device.location}</span><b>${value}</b>${running}</div>`;
     });
     return `<strong>${formatTime(timestamp)}</strong>${rows.join('')}`;
   };
 
   const series = snapshot.series.map((item) => ({
-    name: item.device.id,
+    name: item.device.name,
     type: 'line',
-    smooth: 0.16,
     showSymbol: false,
     connectNulls: false,
     emphasis: { focus: 'series' },
@@ -47,14 +46,24 @@ export function buildRealtimeTrendOption(config: TrendConfig, snapshot: TrendSna
   }));
 
   return {
-    animationDuration: 300,
+    animation: false,
     textStyle: { color: '#a9bdd5', fontFamily: 'Microsoft YaHei, sans-serif' },
     legend: { type: 'scroll', top: 8, left: 14, right: 72, data: series.map((item) => item.name), textStyle: { color: '#b4c9df' }, pageTextStyle: { color: '#8eb5d8' } },
     tooltip: { trigger: 'axis', confine: true, formatter: tooltipFormatter, axisPointer: { type: 'cross', label: { backgroundColor: '#1d648c' } }, backgroundColor: 'rgba(3, 20, 36, .97)', borderColor: '#297eb9', textStyle: { color: '#e8f4ff' } },
     toolbox: { right: 10, top: 3, iconStyle: { borderColor: '#7eaaca' }, emphasis: { iconStyle: { borderColor: '#39f6ff' } }, feature: { dataZoom: { yAxisIndex: 'none', title: { zoom: '框选缩放', back: '缩放回退' } }, brush: { type: ['lineX', 'clear'], title: { lineX: '框选区间', clear: '清除框选' } }, restore: { title: '恢复视图' } } },
     brush: { xAxisIndex: 0, brushMode: 'single', throttleType: 'debounce', throttleDelay: 300 },
     grid: { left: compact ? 50 : 58, right: 24, top: 50, bottom: 60, containLabel: true },
-    xAxis: { type: 'time', name: '时间', nameLocation: 'middle', nameGap: 30, axisLine: { lineStyle: { color: '#526e88' } }, axisLabel: { color: '#8fa9c2', hideOverlap: true }, splitLine: { show: false } },
+    xAxis: {
+      type: 'time',
+      min: snapshot.startTime,
+      max: snapshot.endTime,
+      name: '时间',
+      nameLocation: 'middle',
+      nameGap: 30,
+      axisLine: { lineStyle: { color: '#526e88' } },
+      axisLabel: { color: '#8fa9c2', hideOverlap: true },
+      splitLine: { show: false }
+    },
     yAxis: { type: 'value', scale: true, name: `${config.axisName}（${config.unit}）`, nameLocation: 'middle', nameRotate: 90, nameGap: 42, axisLine: { show: true, lineStyle: { color: '#526e88' } }, axisLabel: { color: '#8fa9c2' }, splitLine: { lineStyle: { color: 'rgba(88, 137, 178, .16)' } } },
     dataZoom: [
       { type: 'inside', filterMode: 'none', minSpan: 5 },

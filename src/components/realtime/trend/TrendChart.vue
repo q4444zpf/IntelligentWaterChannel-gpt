@@ -41,7 +41,10 @@ async function renderChart() {
     resizeObserver = new ResizeObserver(() => chart?.resize());
     resizeObserver.observe(chartElement.value);
   }
-  chart.setOption(buildRealtimeTrendOption(props.config, props.snapshot, props.compact), true);
+  chart.setOption(buildRealtimeTrendOption(props.config, props.snapshot, props.compact), {
+    notMerge: false,
+    replaceMerge: ['series'],
+  });
   chart.resize();
 }
 function resetZoom() { chart?.dispatchAction({ type: 'dataZoom', start: 0, end: 100 }); chart?.dispatchAction({ type: 'brush', command: 'clear', areas: [] }); }

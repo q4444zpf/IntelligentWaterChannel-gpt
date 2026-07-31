@@ -7,6 +7,7 @@ export type TrendUnit = 'L/s' | 'm' | 'Hz' | 'MPa';
 export interface TrendDevice {
   id: string;
   name: string;
+  tag: string;
   type: TrendType;
   location: string;
   region: string;
@@ -15,6 +16,13 @@ export interface TrendDevice {
   color: string;
   order: number;
 }
+
+export const TREND_PRODUCT_TYPES: Record<TrendType, number> = {
+  flow: 4,
+  level: 6,
+  pump: 1,
+  siphon: 9,
+};
 
 export interface TrendConfig {
   key: TrendType;
@@ -43,19 +51,51 @@ export interface TrendSeries {
 
 export interface TrendSnapshot {
   timestamp: number;
+  startTime?: number;
+  endTime?: number;
   series: TrendSeries[];
 }
 
 export const TREND_CONFIGS: Record<TrendType, TrendConfig> = {
-  flow: { key: 'flow', label: '流量计趋势分析', shortLabel: '流量计趋势', axisName: '流量', metric: '流量', unit: 'L/s', precision: 2, regionLabel: '区域', supportsRegion: false, showStatistics: false, showRunningState: false },
+  flow: { key: 'flow', label: '流量计趋势分析', shortLabel: '流量计趋势', axisName: '流量', metric: '流量', unit: 'L/s', precision: 2, regionLabel: '区域', supportsRegion: false, showStatistics: true, showRunningState: false },
   level: { key: 'level', label: '水位计趋势分析', shortLabel: '水位计趋势', axisName: '水位高度', metric: '水位', unit: 'm', precision: 3, regionLabel: '渠道/区域', supportsRegion: true, showStatistics: true, showRunningState: false },
   pump: { key: 'pump', label: '泵频率趋势分析', shortLabel: '泵频率', axisName: '运行频率', metric: '频率', unit: 'Hz', precision: 1, regionLabel: '泵站', supportsRegion: false, showStatistics: true, showRunningState: true },
-  siphon: { key: 'siphon', label: '倒虹吸压力', shortLabel: '倒虹吸压力', axisName: '压力', metric: '压力', unit: 'MPa', precision: 3, regionLabel: '区域', supportsRegion: false, showStatistics: false, showRunningState: false }
+  siphon: { key: 'siphon', label: '倒虹吸压力', shortLabel: '倒虹吸压力', axisName: '压力', metric: '压力', unit: 'MPa', precision: 3, regionLabel: '区域', supportsRegion: false, showStatistics: true, showRunningState: false }
 };
 
 const device = (type: TrendType, id: string, name: string, location: string, region: string, state: DeviceState, color: string, order: number): TrendDevice => ({
-  type, id, name, location, region, state, color, order, unit: TREND_CONFIGS[type].unit
+  type, id, name, tag: id, location, region, state, color, order, unit: TREND_CONFIGS[type].unit
 });
+
+const TREND_COLORS = ['#39f6ff', '#4f93ff', '#53d99f', '#f0bd5b', '#ff7f96', '#47c6b3', '#e4a75f', '#7db1ff'];
+
+export interface RealtimeTrendDeviceDto {
+  id?: string | number;
+  name?: string;
+  location?: string;
+  unit?: string;
+  tag?: string;
+}
+
+export function normalizeRealtimeTrendDevices(
+  type: TrendType,
+  rows: readonly RealtimeTrendDeviceDto[],
+): TrendDevice[] {
+  return rows
+    .filter((row) => row.id !== null && row.id !== undefined && row.tag)
+    .map((row, order) => ({
+      id: String(row.id),
+      name: row.name || row.tag || String(row.id),
+      tag: row.tag || '',
+      type,
+      location: row.location || '--',
+      region: row.location || '--',
+      unit: TREND_CONFIGS[type].unit,
+      state: '在线',
+      color: TREND_COLORS[order % TREND_COLORS.length],
+      order,
+    }));
+}
 
 export const TREND_DEVICES: Record<TrendType, readonly TrendDevice[]> = {
   flow: [

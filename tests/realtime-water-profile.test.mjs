@@ -12,7 +12,7 @@ const topology = [
 test('maps the latest MQTT values onto nodes in backend topology order', () => {
   const snapshot = buildWaterProfileSnapshot({
     topology,
-    values: { level_one: '0.321', LEVEL_TWO: 0.456 },
+    values: { Level_One: '0.321', level_two: 0.456 },
     timestamp: 1000,
   });
 
@@ -23,6 +23,15 @@ test('maps the latest MQTT values onto nodes in backend topology order', () => {
   assert.equal(snapshot.nodes[0].state, '在线');
   assert.equal(snapshot.nodes[2].state, '离线');
   assert.ok(snapshot.nodes.every((node) => !('simulated' in node)));
+});
+
+test('matches MQTT topology tags with case sensitivity', () => {
+  const snapshot = buildWaterProfileSnapshot({
+    topology,
+    values: { level_one: '0.321', LEVEL_TWO: 0.456 },
+  });
+
+  assert.ok(snapshot.nodes.every((node) => node.measured === null));
 });
 
 test('keeps topology nodes when MQTT values are missing or invalid', () => {

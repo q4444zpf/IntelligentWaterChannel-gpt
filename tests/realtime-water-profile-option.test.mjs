@@ -25,7 +25,7 @@ test('builds a latest-time profile using the backend topology labels', () => {
   assert.deepEqual(option.legend.data, ['最新水位']);
   assert.equal(option.series.length, 1);
   assert.equal(option.series[0].id, 'latest-water-level');
-  assert.equal(option.series[0].smooth, true);
+  assert.equal(option.series[0].smooth, undefined);
   assert.deepEqual(option.series[0].data, [0.31, 0.35, 0.29]);
 });
 

@@ -24,6 +24,17 @@ export async function getBigWaterChannelHistoryDevices(
   return response.data;
 }
 
+/**
+ * @param {{
+ *   current?: number,
+ *   size?: number,
+ *   groupId?: number,
+ *   start?: string,
+ *   end?: string,
+ *   intervalSeconds?: number,
+ *   deviceIds?: string[]
+ * }} [options]
+ */
 export async function getBigWaterChannelHistory({
   current = 1,
   size = 50,

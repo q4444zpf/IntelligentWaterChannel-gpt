@@ -56,7 +56,6 @@ export function buildCombinedChartModel(results) {
     yAxisIndex: axisIndexByUnit.get(device.unit),
     showSymbol: false,
     connectNulls: false,
-    smooth: 0.16,
     emphasis: { focus: 'series' },
     lineStyle: { width: 2, color: SERIES_COLORS[index % SERIES_COLORS.length] },
     itemStyle: { color: SERIES_COLORS[index % SERIES_COLORS.length] },

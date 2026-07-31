@@ -126,7 +126,6 @@ function chartOption() {
       type: 'line',
       showSymbol: false,
       connectNulls: false,
-      smooth: 0.18,
       lineStyle: { width: 2, color },
       areaStyle: { color, opacity: 0.07 },
       data: points.map((point) => [point.timestamp, point.value])
