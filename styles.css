@@ -234,6 +234,13 @@ button:disabled { opacity: .43; cursor: not-allowed; transform: none; box-shadow
 .alarm-layout > .panel { flex: 1 1 0; min-width: 0; }
 .alarm-layout-full > .panel { flex-basis: 100%; }
 .alarm-query { margin: 0; }
+.alarm-form-fields { grid-template-columns: repeat(5, minmax(150px, 1fr)); }
+.alarm-results-panel { min-height: 0; display: flex; flex: 1; flex-direction: column; padding-bottom: 12px; }
+.alarm-results-head > span { color: #7895b2; font-size: 12px; }
+.alarm-ant-table { padding-top: 10px; }
+.alarm-handling-status, .alarm-table-actions { display: inline-flex; align-items: center; white-space: nowrap; }
+.alarm-handling-status { gap: 5px; }
+.alarm-table-actions .ant-btn { padding-inline: 5px; }
 .alarm-table th, .alarm-table td { padding: 12px 8px; }
 .detail-panel { padding-bottom: 10px; }
 .detail-panel dl { margin: 0 12px 14px; display: grid; grid-template-columns: 110px 1fr; border: 1px solid var(--line-soft); border-radius: 6px; overflow: hidden; }
@@ -302,6 +309,7 @@ textarea { min-height: 72px; resize: vertical; border: 1px solid rgba(113, 171, 
   .history-chart-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .history-query { grid-template-columns: 1fr; }
   .history-form-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .alarm-form-fields { grid-template-columns: repeat(4, minmax(150px, 1fr)); }
   .history-query-actions { justify-content: flex-end; }
 }
 
@@ -310,6 +318,7 @@ textarea { min-height: 72px; resize: vertical; border: 1px solid rgba(113, 171, 
   .topbar { grid-template-columns: auto 1fr auto; height: auto; min-height: 58px; }
   .topbar .status-strip, .topbar .clock { display: none; }
   .history-form-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .alarm-form-fields { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
   .history-chart-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .history-results-head { align-items: flex-start; flex-direction: column; }
   .history-result-tabs { width: 100%; }
@@ -320,6 +329,7 @@ textarea { min-height: 72px; resize: vertical; border: 1px solid rgba(113, 171, 
   .topbar { grid-template-columns: 1fr; padding: 10px; }
   .main-tabs { min-height: 42px; }
   .history-form-fields { grid-template-columns: 1fr; }
+  .alarm-form-fields { grid-template-columns: 1fr; }
   .history-chart-grid { grid-template-columns: 1fr; }
   .history-query-actions { flex-wrap: wrap; }
   .history-query-actions button { flex: 1 1 calc(50% - 4px); width: 100%; }

@@ -1,7 +1,7 @@
 export const PAGE_TABS = Object.freeze([
   { key: 'realtime', label: '实时监控' },
   { key: 'history', label: '历史数据' },
-  { key: 'alarm', label: '报警数据', badge: 3 }
+  { key: 'alarm', label: '报警数据' }
 ]);
 
 export const VIEW_ACTIONS = Object.freeze(['默认视角', '俯视图', '正视图', '左视图', '右视图', '自动漫游', '复位']);

@@ -9,7 +9,8 @@
         :class="{ active: activePage === tab.key }"
         @click="$emit('navigate', tab.key)"
       >
-        {{ tab.label }} <span v-if="tab.badge" class="badge">{{ tab.badge }}</span>
+        {{ tab.label }}
+        <span v-if="tab.key === 'alarm' && unhandledAlarmCount > 0" class="badge">{{ unhandledAlarmCount }}</span>
       </button>
     </nav>
     <div class="meta">工况：明满流混合实验</div>
@@ -31,8 +32,10 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { getBigWaterChannelAlarmStatistics } from '../api/alarm.js';
+import { normalizeAlarmStatistics } from '../alarm-data.js';
 import { PAGE_TABS } from '../data/monitoring-data.js';
 import { authState, signOut } from '../stores/auth.js';
 
@@ -45,6 +48,8 @@ defineProps({
 defineEmits(['navigate']);
 
 const loggingOut = ref(false);
+const unhandledAlarmCount = ref(0);
+let alarmRefreshTimer = null;
 const username = computed(() => {
   const user = authState.user.value;
   return user?.name || user?.username || user?.account || '用户';
@@ -63,4 +68,22 @@ async function handleLogout() {
     loggingOut.value = false;
   }
 }
+
+async function refreshUnhandledAlarmCount() {
+  try {
+    const statistics = normalizeAlarmStatistics(await getBigWaterChannelAlarmStatistics());
+    unhandledAlarmCount.value = statistics.unhandled;
+  } catch (error) {
+    console.error('获取未处理告警数量失败', error);
+  }
+}
+
+onMounted(() => {
+  void refreshUnhandledAlarmCount();
+  alarmRefreshTimer = window.setInterval(refreshUnhandledAlarmCount, 30_000);
+});
+
+onBeforeUnmount(() => {
+  if (alarmRefreshTimer !== null) window.clearInterval(alarmRefreshTimer);
+});
 </script>
