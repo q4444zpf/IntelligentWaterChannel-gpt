@@ -242,51 +242,63 @@ button:disabled { opacity: .43; cursor: not-allowed; transform: none; box-shadow
 .alarm-handling-status { gap: 5px; }
 .alarm-table-actions .ant-btn { padding-inline: 5px; }
 .alarm-table th, .alarm-table td { padding: 12px 8px; }
-.detail-panel { padding-bottom: 10px; }
-.detail-panel dl { margin: 0 12px 14px; display: grid; grid-template-columns: 110px 1fr; border: 1px solid var(--line-soft); border-radius: 6px; overflow: hidden; }
-.detail-panel dt, .detail-panel dd { margin: 0; padding: 9px 10px; border-bottom: 1px solid rgba(82, 147, 209, .18); }
-.detail-panel dt { color: #8ea8c6; background: rgba(4, 25, 45, .6); }
-.danger-tag { color: #ff6258; border: 1px solid rgba(255, 80, 72, .65); background: rgba(142, 24, 27, .35); border-radius: 4px; }
-.textarea-label { display: grid; gap: 8px; margin: 0 12px 12px; color: var(--muted); }
-textarea { min-height: 72px; resize: vertical; border: 1px solid rgba(113, 171, 231, .32); border-radius: 5px; background: rgba(1, 15, 30, .72); padding: 10px; }
-.detail-panel canvas { width: calc(100% - 24px); margin: 0 12px 12px; background: rgba(2, 16, 29, .62); border-radius: 6px; }
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgba(0, 8, 18, .72);
-  backdrop-filter: blur(8px);
+.alarm-handle-modal-wrap .ant-modal-content {
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid rgba(58, 153, 235, .52);
+  background: linear-gradient(180deg, #071f35, #031321);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .62), 0 0 32px rgba(0, 126, 255, .2);
 }
-.alarm-modal {
-  width: min(680px, calc(100vw - 48px));
-  max-height: calc(100dvh - 48px);
-  overflow: auto;
-  box-shadow: 0 0 0 1px rgba(45, 156, 255, .22), 0 28px 90px rgba(0, 0, 0, .62), 0 0 32px rgba(0, 122, 255, .2);
-}
-.modal-head {
+.alarm-handle-modal-wrap .ant-modal-close { top: 14px; color: #a8c2db; }
+.alarm-handle-modal-wrap .ant-modal-close:hover { color: #fff; background: rgba(255, 255, 255, .08); }
+.alarm-handle-modal-wrap .ant-modal-body { max-height: calc(100dvh - 48px); overflow-y: auto; }
+.alarm-modal-title {
+  min-height: 60px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-right: 10px;
+  gap: 16px;
+  padding: 14px 56px 14px 20px;
+  border-bottom: 1px solid rgba(72, 155, 230, .3);
+  background: rgba(9, 47, 78, .72);
 }
-.modal-close {
-  width: 34px;
-  height: 30px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: #9db6cf;
-  font-size: 26px;
-  line-height: 1;
+.alarm-modal-title > div { display: flex; min-width: 0; align-items: baseline; gap: 12px; }
+.alarm-modal-title span { flex: none; color: #f1f8ff; font-size: 18px; font-weight: 700; }
+.alarm-modal-title small { overflow: hidden; color: #82a7ca; text-overflow: ellipsis; white-space: nowrap; }
+.alarm-modal-title .ant-tag { flex: none; margin: 0; }
+.alarm-modal-details { margin: 20px 20px 16px; }
+.alarm-modal-details .ant-descriptions-item-label { width: 92px; color: #8faccc; }
+.alarm-modal-details .ant-descriptions-item-content { color: #e5f2ff; overflow-wrap: anywhere; }
+.alarm-modal-message { margin: 0 20px 16px; }
+.alarm-modal-message > span { display: block; margin-bottom: 7px; color: #8faccc; font-size: 13px; }
+.alarm-modal-message p {
+  min-height: 46px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(72, 155, 230, .24);
+  border-radius: 5px;
+  background: rgba(1, 13, 26, .58);
+  color: #e5f2ff;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
 }
-.modal-close:hover {
-  color: #fff;
-  background: rgba(255, 78, 69, .22);
-  border: 1px solid rgba(255, 78, 69, .45);
+.alarm-modal-status { color: #ff786f; }
+.alarm-modal-status.handled { color: #62e989; }
+.alarm-handle-form { margin: 0 20px; }
+.alarm-handle-form .ant-form-item { margin-bottom: 16px; }
+.alarm-handle-form textarea { resize: vertical; line-height: 1.65; }
+.alarm-handle-modal-wrap .ant-alert { margin: 0 20px 20px; }
+.alarm-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  border-top: 1px solid rgba(72, 155, 230, .24);
+  background: rgba(1, 13, 25, .5);
 }
+.alarm-modal-links, .alarm-modal-commands { display: flex; flex-wrap: wrap; gap: 8px; }
+.alarm-modal-commands { justify-content: flex-end; }
 .legend { display: flex; gap: 32px; color: #bdcde0; font-size: 13px; }
 .limit-red { color: var(--red); }
 .limit-yellow { color: var(--yellow); }
@@ -336,4 +348,13 @@ textarea { min-height: 72px; resize: vertical; border: 1px solid rgba(113, 171, 
   .history-result-tabs { display: grid; grid-template-columns: 1fr; }
   .sub-tabs { height: auto; padding: 6px; align-items: stretch; }
   .sub-tabs button { min-width: 0; height: auto; flex: 1; }
+  .alarm-handle-modal-wrap .ant-modal { max-width: calc(100vw - 24px); margin: 12px auto; padding-bottom: 0; }
+  .alarm-handle-modal-wrap .ant-modal-body { max-height: calc(100dvh - 24px); }
+  .alarm-modal-title { align-items: flex-start; }
+  .alarm-modal-title > div { flex-direction: column; gap: 2px; }
+  .alarm-modal-details { margin-inline: 12px; }
+  .alarm-modal-message, .alarm-handle-form, .alarm-handle-modal-wrap .ant-alert { margin-inline: 12px; }
+  .alarm-modal-footer { align-items: stretch; flex-direction: column; padding-inline: 12px; }
+  .alarm-modal-links, .alarm-modal-commands { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .alarm-modal-footer .ant-btn { width: 100%; margin: 0; }
 }

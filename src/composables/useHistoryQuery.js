@@ -11,6 +11,7 @@ import {
 } from '../history-device-data.js';
 import {
   DEFAULT_DEVICE_IDS,
+  buildAlarmHistoryQuery,
   createTodayHistoryRange,
   validateHistoryQuery
 } from '../history-data.js';
@@ -90,8 +91,16 @@ export function useHistoryQuery() {
     }
   }
 
-  async function initialize() {
+  async function initialize(alarmContext = null) {
     if (!await loadHistoryDevices()) return false;
+    if (alarmContext) {
+      const alarmQuery = buildAlarmHistoryQuery(alarmContext, historyDevices.value);
+      if (!alarmQuery) {
+        error.value = '未找到告警对应的历史设备或告警时间无效';
+        return false;
+      }
+      draft.value = { ...draft.value, ...alarmQuery };
+    }
     return runQuery();
   }
 

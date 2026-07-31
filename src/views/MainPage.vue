@@ -1,16 +1,20 @@
 <template>
   <AppShell :active-page="activePage" @navigate="showPage">
     <RealtimeView v-if="activePage === 'realtime'" @navigate="showPage" />
-    <HistoryView v-else-if="activePage === 'history'" />
-    <AlarmView v-else @navigate="showPage" @open-alarm="openAlarm" />
+    <HistoryView
+      v-else-if="activePage === 'history'"
+      :alarm-context="historyAlarmContext"
+      @alarm-context-consumed="historyAlarmContext = null"
+    />
+    <AlarmView v-else ref="alarmView" @navigate="showPage" @open-alarm="openAlarm" />
 
     <AlarmDetailModal
       v-if="selectedAlarm"
       :alarm="selectedAlarm"
       @close="closeAlarm"
-      @confirm="closeAlarm"
+      @handled="handleAlarmHandled"
       @locate="navigateFromAlarm('realtime')"
-      @view-history="navigateFromAlarm('history')"
+      @view-history="openAlarmHistory"
     />
   </AppShell>
 </template>
@@ -25,6 +29,8 @@ import RealtimeView from './RealtimeView.vue';
 
 const activePage = ref('realtime');
 const selectedAlarm = ref(null);
+const alarmView = ref(null);
+const historyAlarmContext = ref(null);
 
 function showPage(page) {
   activePage.value = page;
@@ -38,8 +44,20 @@ function closeAlarm() {
   selectedAlarm.value = null;
 }
 
+function handleAlarmHandled() {
+  closeAlarm();
+  void alarmView.value?.refresh();
+  window.dispatchEvent(new Event('alarm-status-changed'));
+}
+
 function navigateFromAlarm(page) {
   closeAlarm();
   showPage(page);
+}
+
+function openAlarmHistory() {
+  historyAlarmContext.value = selectedAlarm.value ? { ...selectedAlarm.value } : null;
+  closeAlarm();
+  showPage('history');
 }
 </script>

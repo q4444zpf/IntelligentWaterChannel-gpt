@@ -19,6 +19,8 @@ test('builds shared time axes, zoom, brush, and ordered series', async () => {
   assert.deepEqual(option.dataZoom.map((item) => item.type), ['inside', 'slider']);
   assert.ok(option.toolbox.feature.brush);
   assert.equal(option.tooltip.confine, true);
+  assert.deepEqual(option.series[0].markLine.data.map((line) => line.yAxis), [0.5, 0.2]);
+  assert.equal(option.series[1].markLine, undefined);
 });
 
 test('formats device tooltip values with the configured unit', async () => {
@@ -28,6 +30,7 @@ test('formats device tooltip values with the configured unit', async () => {
   assert.match(html, /进水总管流量计/);
   assert.match(html, /L\/s/);
   assert.match(html, /进水总管/);
+  assert.equal(option.series[0].markLine, undefined);
 });
 
 test('marks stopped pump periods and preserves null gaps', async () => {

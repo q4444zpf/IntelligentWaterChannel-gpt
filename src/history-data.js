@@ -86,6 +86,39 @@ export function createTodayHistoryRange(current = new Date()) {
   };
 }
 
+function formatLocalDateTime(timestamp) {
+  const date = new Date(timestamp);
+  const part = (value) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${part(date.getMonth() + 1)}-${part(date.getDate())}`
+    + `T${part(date.getHours())}:${part(date.getMinutes())}:${part(date.getSeconds())}`;
+}
+
+export function buildAlarmHistoryQuery(alarm, devices, rangeMinutes = 5) {
+  const rawTime = alarm?.warnTime || alarm?.time;
+  const timestamp = new Date(String(rawTime || '').replace(' ', 'T')).getTime();
+  if (!Number.isFinite(timestamp)) return null;
+
+  const availableDevices = Array.isArray(devices) ? devices : [];
+  const alarmUid = String(alarm?.uid || '').trim();
+  const alarmDeviceName = String(alarm?.deviceName || alarm?.device || '').trim();
+  const alarmMessage = String(alarm?.content || alarm?.message || '');
+  const matchedDevice = availableDevices.find((device) => alarmUid && device.id === alarmUid)
+    || availableDevices.find((device) => alarmDeviceName && device.name === alarmDeviceName)
+    || availableDevices.find((device) => device.name && alarmMessage.includes(device.name));
+  if (!matchedDevice) return null;
+
+  const rangeMilliseconds = Math.max(0, Number(rangeMinutes) || 0) * 60_000;
+  return {
+    start: formatLocalDateTime(timestamp - rangeMilliseconds),
+    end: formatLocalDateTime(timestamp + rangeMilliseconds),
+    deviceIds: [matchedDevice.id],
+    deviceType: matchedDevice.type || '全部',
+    channel: matchedDevice.location || '全部',
+    intervalSeconds: 5,
+    status: '全部',
+  };
+}
+
 export function validateHistoryQuery({ start, end, deviceIds }) {
   if (!deviceIds?.length) return '请至少选择一台设备';
   if (!start || !end) return '请选择完整的开始和结束时间';

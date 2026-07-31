@@ -1,4 +1,5 @@
 import type { TrendConfig, TrendSeries, TrendSnapshot } from './config/trendConfig.ts';
+import { createWaterLevelMarkLine } from './water-level-thresholds.js';
 
 function formatTime(timestamp: number): string {
   return new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date(timestamp)).replaceAll('/', '-');
@@ -33,7 +34,7 @@ export function buildRealtimeTrendOption(config: TrendConfig, snapshot: TrendSna
     return `<strong>${formatTime(timestamp)}</strong>${rows.join('')}`;
   };
 
-  const series = snapshot.series.map((item) => ({
+  const series = snapshot.series.map((item, index) => ({
     name: item.device.name,
     type: 'line',
     showSymbol: false,
@@ -42,7 +43,8 @@ export function buildRealtimeTrendOption(config: TrendConfig, snapshot: TrendSna
     lineStyle: { color: item.device.color, width: 2 },
     itemStyle: { color: item.device.color },
     data: item.points.map((point) => [point.timestamp, point.value]),
-    ...(config.showRunningState ? { markArea: { silent: true, label: { color: '#8395a7', fontSize: 9 }, data: stoppedAreas(item) } } : {})
+    ...(config.showRunningState ? { markArea: { silent: true, label: { color: '#8395a7', fontSize: 9 }, data: stoppedAreas(item) } } : {}),
+    ...(config.key === 'level' && index === 0 ? { markLine: createWaterLevelMarkLine() } : {}),
   }));
 
   return {

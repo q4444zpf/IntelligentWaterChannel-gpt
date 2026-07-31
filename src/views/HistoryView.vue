@@ -186,6 +186,10 @@ import { formatReplayValue } from '../history-replay-data.js';
 
 dayjs.locale('zh-cn');
 
+const props = defineProps({
+  alarmContext: { type: Object, default: null },
+});
+const emit = defineEmits(['alarm-context-consumed']);
 const activeTab = ref('analysis');
 const resultTab = ref('combined');
 const tablePage = ref(1);
@@ -313,5 +317,13 @@ watch(replayActiveIndex, (index) => {
   if (index >= 0) replayTablePage.value = Math.floor(index / 50) + 1;
 });
 
-onMounted(initialize);
+onMounted(async () => {
+  const alarmContext = props.alarmContext ? { ...props.alarmContext } : null;
+  if (alarmContext) {
+    activeTab.value = 'analysis';
+    resultTab.value = 'combined';
+  }
+  await initialize(alarmContext);
+  if (alarmContext) emit('alarm-context-consumed');
+});
 </script>

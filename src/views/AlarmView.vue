@@ -83,7 +83,7 @@
               {{ record.handled }}
             </span>
             <span v-else-if="column.key === 'action'" class="alarm-table-actions">
-              <a-button type="link" size="small" @click="emit('open-alarm', record)">处理</a-button>
+              <a-button type="link" size="small" @click="emit('open-alarm', record)">{{ record.handlingStatus === 1 ? '详情' : '处理' }}</a-button>
               <a-button type="link" size="small" @click="emit('navigate', 'realtime')">定位</a-button>
               <a-button type="link" size="small" @click="emit('navigate', 'history')">曲线</a-button>
             </span>
@@ -216,4 +216,5 @@ function gradeColor(grade) {
 }
 
 onMounted(initialize);
+defineExpose({ refresh });
 </script>

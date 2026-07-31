@@ -81,9 +81,11 @@ async function refreshUnhandledAlarmCount() {
 onMounted(() => {
   void refreshUnhandledAlarmCount();
   alarmRefreshTimer = window.setInterval(refreshUnhandledAlarmCount, 30_000);
+  window.addEventListener('alarm-status-changed', refreshUnhandledAlarmCount);
 });
 
 onBeforeUnmount(() => {
   if (alarmRefreshTimer !== null) window.clearInterval(alarmRefreshTimer);
+  window.removeEventListener('alarm-status-changed', refreshUnhandledAlarmCount);
 });
 </script>
