@@ -21,12 +21,23 @@
       @locate="navigateFromAlarm('realtime')"
       @view-history="openAlarmHistory"
     />
+
+    <RealtimeAlarmNotificationModal
+      v-if="realtimeAlarm"
+      :alarm="realtimeAlarm"
+      :queue-length="realtimeAlarmQueue.length"
+      @handled="handleRealtimeAlarmHandled"
+      @ignore="clearRealtimeAlarmQueue"
+      @next="removeCurrentRealtimeAlarm"
+      @view-all="openRealtimeAlarmList"
+    />
   </AppShell>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import AlarmDetailModal from '../components/alarm/AlarmDetailModal.vue';
+import RealtimeAlarmNotificationModal from '../components/alarm/RealtimeAlarmNotificationModal.vue';
 import AppShell from '../layouts/AppShell.vue';
 import AlarmView from './AlarmView.vue';
 import HistoryView from './HistoryView.vue';
@@ -36,6 +47,9 @@ const activePage = ref('realtime');
 const selectedAlarm = ref(null);
 const alarmView = ref(null);
 const historyAlarmContext = ref(null);
+const realtimeAlarmQueue = ref([]);
+const realtimeAlarm = computed(() => realtimeAlarmQueue.value[0] || null);
+let realtimeAlarmSequence = 0;
 
 function showPage(page) {
   activePage.value = page;
@@ -65,4 +79,42 @@ function openAlarmHistory() {
   closeAlarm();
   showPage('history');
 }
+
+function handleRealtimeAlarmNotification(event) {
+  const payload = event.detail;
+  const alarm = payload && typeof payload === 'object'
+    ? { ...payload }
+    : { title: '告警通知', content: String(payload || '收到新的告警通知') };
+  realtimeAlarmQueue.value.push({
+    ...alarm,
+    notificationKey: ++realtimeAlarmSequence,
+  });
+}
+
+function removeCurrentRealtimeAlarm() {
+  realtimeAlarmQueue.value.shift();
+}
+
+function clearRealtimeAlarmQueue() {
+  realtimeAlarmQueue.value = [];
+}
+
+function handleRealtimeAlarmHandled() {
+  removeCurrentRealtimeAlarm();
+  void alarmView.value?.refresh();
+  window.dispatchEvent(new Event('alarm-status-changed'));
+}
+
+function openRealtimeAlarmList() {
+  clearRealtimeAlarmQueue();
+  showPage('alarm');
+}
+
+onMounted(() => {
+  window.addEventListener('alarm-notification', handleRealtimeAlarmNotification);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('alarm-notification', handleRealtimeAlarmNotification);
+});
 </script>
