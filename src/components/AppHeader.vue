@@ -88,17 +88,26 @@ async function refreshUnhandledAlarmCount() {
   }
 }
 
+function scheduleUnhandledAlarmRefresh() {
+  if (alarmRefreshTimer !== null) window.clearTimeout(alarmRefreshTimer);
+  alarmRefreshTimer = window.setTimeout(() => {
+    alarmRefreshTimer = null;
+    void refreshUnhandledAlarmCount();
+  }, 300);
+}
+
 onMounted(() => {
   refreshClock();
   clockTimer = window.setInterval(refreshClock, 1_000);
   void refreshUnhandledAlarmCount();
-  alarmRefreshTimer = window.setInterval(refreshUnhandledAlarmCount, 30_000);
+  window.addEventListener('alarm-notification', scheduleUnhandledAlarmRefresh);
   window.addEventListener('alarm-status-changed', refreshUnhandledAlarmCount);
 });
 
 onBeforeUnmount(() => {
   if (clockTimer !== null) window.clearInterval(clockTimer);
-  if (alarmRefreshTimer !== null) window.clearInterval(alarmRefreshTimer);
+  if (alarmRefreshTimer !== null) window.clearTimeout(alarmRefreshTimer);
+  window.removeEventListener('alarm-notification', scheduleUnhandledAlarmRefresh);
   window.removeEventListener('alarm-status-changed', refreshUnhandledAlarmCount);
 });
 </script>

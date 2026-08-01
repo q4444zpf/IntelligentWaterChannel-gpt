@@ -1,12 +1,17 @@
 <template>
   <AppShell :active-page="activePage" @navigate="showPage">
-    <RealtimeView v-if="activePage === 'realtime'" @navigate="showPage" />
+    <RealtimeView v-show="activePage === 'realtime'" @navigate="showPage" />
     <HistoryView
-      v-else-if="activePage === 'history'"
+      v-if="activePage === 'history'"
       :alarm-context="historyAlarmContext"
       @alarm-context-consumed="historyAlarmContext = null"
     />
-    <AlarmView v-else ref="alarmView" @navigate="showPage" @open-alarm="openAlarm" />
+    <AlarmView
+      v-if="activePage === 'alarm'"
+      ref="alarmView"
+      @navigate="showPage"
+      @open-alarm="openAlarm"
+    />
 
     <AlarmDetailModal
       v-if="selectedAlarm"
