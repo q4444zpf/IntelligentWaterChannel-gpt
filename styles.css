@@ -99,11 +99,11 @@ main { display: flex; flex: 1; flex-direction: column; min-height: 0; padding-to
 .chip-red { background: rgba(193, 26, 26, .42); border-color: rgba(255, 75, 75, .55); }
 .chip-orange { background: rgba(191, 103, 0, .45); border-color: rgba(255, 163, 35, .64); }
 .chip-green { background: rgba(0, 111, 54, .42); border-color: rgba(54, 230, 111, .55); }
-.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; box-shadow: 0 0 10px currentColor; }
-.dot.ok, .ok-text { color: var(--green); }
-.dot.warn { color: var(--orange); }
-.dot.bad { color: var(--red); }
-.dot.off { color: var(--gray); }
+.dot { display: inline-block; width: 9px; height: 9px; border: 1px solid rgba(255, 255, 255, .72); border-radius: 50%; margin-right: 6px; background: currentColor; box-shadow: 0 0 4px currentColor, 0 0 11px currentColor; }
+.dot.ok, .ok-text { color: #43ff86; }
+.dot.warn { color: #ffb52e; }
+.dot.bad { color: #ff5b55; }
+.dot.off { color: #aebdce; }
 
 .sensor-section { margin: 0 9px 10px; border: 1px solid var(--line-soft); border-radius: 6px; overflow: hidden; }
 .sensor-title { padding: 8px 10px; color: #59baff; font-weight: 700; background: rgba(11, 55, 91, .5); }
