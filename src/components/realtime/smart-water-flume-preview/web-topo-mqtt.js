@@ -20,12 +20,28 @@ export function connectWebTopoMqtt(config, onData, onError) {
       if (error) onError?.(error);
     });
   });
-  client.on('message', (_topic, message) => {
+  client.on('message', (receivedTopic, message) => {
     const payload = parseMqttPayload(message);
-    if (payload) onData?.(payload);
+    onData?.(payload, receivedTopic, message?.toString?.() || '');
   });
   client.on('error', (error) => onError?.(error));
   return client;
+}
+
+export function subscribeWebTopoMqtt(client, topic, onError) {
+  const normalizedTopic = topic?.trim();
+  if (!client || !normalizedTopic) return;
+  client.subscribe(normalizedTopic, { qos: 0 }, (error) => {
+    if (error) onError?.(error);
+  });
+}
+
+export function unsubscribeWebTopoMqtt(client, topic, onError) {
+  const normalizedTopic = topic?.trim();
+  if (!client || !normalizedTopic) return;
+  client.unsubscribe(normalizedTopic, (error) => {
+    if (error) onError?.(error);
+  });
 }
 
 export function disconnectWebTopoMqtt(client) {

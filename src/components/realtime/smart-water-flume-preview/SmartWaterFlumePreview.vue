@@ -38,7 +38,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { getWebTopoScene, resolveWebTopoAssetUrl } from './webTopo.js';
@@ -48,7 +48,12 @@ import {
   updateHtmlSpriteData,
   updateHtmlSpriteDirectionArrow,
 } from './web-topo-html-runtime.js';
-import { connectWebTopoMqtt, disconnectWebTopoMqtt } from './web-topo-mqtt.js';
+import {
+  connectWebTopoMqtt,
+  disconnectWebTopoMqtt,
+  subscribeWebTopoMqtt,
+  unsubscribeWebTopoMqtt,
+} from './web-topo-mqtt.js';
 import { loadWebTopoScenePackage } from './web-topo-scene-loader.js';
 
 const props = defineProps({
@@ -56,8 +61,9 @@ const props = defineProps({
     type: String,
     default: WEB_TOPO_CONFIG.webTopoId,
   },
+  alarmTopic: { type: String, default: '' },
 });
-const emit = defineEmits(['mqtt-data']);
+const emit = defineEmits(['mqtt-data', 'alarm-notification']);
 
 const canvasHostRef = ref(null);
 const loading = ref(true);
@@ -77,6 +83,7 @@ let controls;
 let resizeObserver;
 let abortController;
 let mqttClient;
+let realtimeTopic = '';
 let modelCenter = new THREE.Vector3();
 let modelSize = new THREE.Vector3(10, 5, 2);
 let defaultCameraState;
@@ -98,21 +105,33 @@ function triggerDataUpdate(field, value) {
   });
 }
 
-function handleMqttData(payload) {
+function handleMqttData(payload, receivedTopic, rawMessage) {
+  if (receivedTopic === props.alarmTopic.trim()) {
+    emit('alarm-notification', payload ?? rawMessage);
+    return;
+  }
+  if (!payload) return;
   Object.entries(payload).forEach(([field, value]) => triggerDataUpdate(field, value));
   emit('mqtt-data', payload);
+}
+
+function handleMqttError(error) {
+  console.warn('三维组态 MQTT 连接异常:', error);
 }
 
 function stopMqtt() {
   disconnectWebTopoMqtt(mqttClient);
   mqttClient = null;
+  realtimeTopic = '';
 }
 
 function startMqtt(config) {
   stopMqtt();
-  mqttClient = connectWebTopoMqtt(config, handleMqttData, (error) => {
-    console.warn('三维组态 MQTT 连接异常:', error);
-  });
+  realtimeTopic = config?.topic?.trim() || '';
+  mqttClient = connectWebTopoMqtt(config, handleMqttData, handleMqttError);
+  if (props.alarmTopic.trim() && props.alarmTopic.trim() !== realtimeTopic) {
+    subscribeWebTopoMqtt(mqttClient, props.alarmTopic, handleMqttError);
+  }
 }
 
 function createRenderer() {
@@ -351,6 +370,17 @@ function disposeObject(root) {
   if (root?.background?.isTexture && !disposedTextures.has(root.background)) root.background.dispose();
   if (root?.environment?.isTexture && !disposedTextures.has(root.environment)) root.environment.dispose();
 }
+
+watch(() => props.alarmTopic, (nextTopic, previousTopic) => {
+  const previous = previousTopic?.trim();
+  const next = nextTopic?.trim();
+  if (previous && previous !== realtimeTopic) {
+    unsubscribeWebTopoMqtt(mqttClient, previous, handleMqttError);
+  }
+  if (next && next !== realtimeTopic) {
+    subscribeWebTopoMqtt(mqttClient, next, handleMqttError);
+  }
+});
 
 onMounted(async () => {
   await nextTick();

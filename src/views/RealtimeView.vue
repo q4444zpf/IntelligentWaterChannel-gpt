@@ -22,7 +22,12 @@
       <section class="panel twin-panel">
         <div class="panel-head"><h2>三维水槽工艺监控</h2><div class="mini-actions"><button v-for="action in VIEW_ACTIONS" :key="action" type="button" @click="previewRef?.handleAction(action)">{{ action }}</button></div></div>
         <div class="twin-stage">
-          <SmartWaterFlumePreview ref="previewRef" @mqtt-data="handleMqttData" />
+          <SmartWaterFlumePreview
+            ref="previewRef"
+            :alarm-topic="alarmNotificationTopic"
+            @mqtt-data="handleMqttData"
+            @alarm-notification="handleAlarmNotification"
+          />
         </div>
       </section>
       <TrendAnalysis
@@ -41,22 +46,30 @@
         <p class="hint">安全提示：确认设备状态与现场安全后，再执行控制操作。</p>
       </section>
       <section class="panel alarm-mini"><div class="panel-head"><h2>实时报警信息</h2><button class="link-btn" @click="$emit('navigate', 'alarm')">查看全部</button></div>
-        <div v-for="(alarm, index) in ALARMS.slice(0, 3)" :key="alarm.time" class="alarm-item" :class="{ handled: index === 2 }"><span>{{ alarm.time }}</span><div><strong>{{ alarm.device }} {{ alarm.type }}</strong><small>{{ alarm.message }}</small></div><span class="state-pill">{{ alarm.handled }}</span></div>
+        <div v-for="alarm in latestAlarms" :key="alarm.key" class="alarm-item" :class="{ handled: alarm.handlingStatus === 1 }"><span>{{ miniAlarmTime(alarm.warnTime) }}</span><div><strong>{{ alarm.device }} {{ alarm.type }}</strong><small>{{ alarm.message }}</small></div><span class="state-pill">{{ alarm.handled }}</span></div>
+        <div v-if="latestAlarmsLoading" class="realtime-empty">正在加载最新告警...</div>
+        <div v-else-if="latestAlarmsError" class="realtime-empty alarm-mini-error">{{ latestAlarmsError }}</div>
+        <div v-else-if="!latestAlarms.length" class="realtime-empty">暂无告警数据</div>
       </section>
     </aside>
   </section>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+import {
+  getBigWaterChannelAlarmNotificationTopic,
+  getBigWaterChannelAlarms,
+} from '../api/alarm.js';
 import {
   getRealtimeGroupDevices,
   getRealtimeWaterProfileTopology,
 } from '../api/realtime.js';
+import { normalizeAlarmPage } from '../alarm-data.js';
 import StatusText from '../components/common/StatusText.vue';
 import SmartWaterFlumePreview from '../components/realtime/smart-water-flume-preview/SmartWaterFlumePreview.vue';
 import TrendAnalysis from '../components/realtime/trend/TrendAnalysis.vue';
-import { ALARMS, VIEW_ACTIONS } from '../data/monitoring-data.js';
+import { VIEW_ACTIONS } from '../data/monitoring-data.js';
 import { buildRealtimeTableData, mergeRealtimeValues } from '../realtime-device-data.js';
 
 defineEmits(['navigate']);
@@ -70,6 +83,11 @@ const profileNodes = ref([]);
 const profileLoading = ref(true);
 const profileError = ref('');
 const latestMqttAt = ref(null);
+const alarmNotificationTopic = ref('');
+const latestAlarms = ref([]);
+const latestAlarmsLoading = ref(true);
+const latestAlarmsError = ref('');
+let latestAlarmRefreshTimer = null;
 const tableData = computed(() => buildRealtimeTableData(deviceGroups.value, realtimeValues));
 const gates = computed(() => tableData.value.gates);
 const sensorGroups = computed(() => tableData.value.sensorGroups);
@@ -83,6 +101,45 @@ function handleMqttData(payload) {
   if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
     latestMqttAt.value = Date.now();
   }
+}
+
+function miniAlarmTime(value) {
+  const text = String(value || '');
+  return text.length >= 19 ? text.slice(11, 19) : text || '--';
+}
+
+async function loadAlarmNotificationTopic() {
+  try {
+    alarmNotificationTopic.value = await getBigWaterChannelAlarmNotificationTopic();
+  } catch (error) {
+    console.error('获取告警通知主题失败', error);
+  }
+}
+
+async function loadLatestAlarms() {
+  latestAlarmsLoading.value = !latestAlarms.value.length;
+  latestAlarmsError.value = '';
+  try {
+    const page = await getBigWaterChannelAlarms({ current: 1, size: 3 });
+    latestAlarms.value = normalizeAlarmPage(page).rows.slice(0, 3);
+  } catch (error) {
+    latestAlarmsError.value = error?.message || '获取最新告警失败';
+  } finally {
+    latestAlarmsLoading.value = false;
+  }
+}
+
+function scheduleLatestAlarmRefresh() {
+  if (latestAlarmRefreshTimer !== null) window.clearTimeout(latestAlarmRefreshTimer);
+  latestAlarmRefreshTimer = window.setTimeout(() => {
+    latestAlarmRefreshTimer = null;
+    void loadLatestAlarms();
+  }, 300);
+}
+
+function handleAlarmNotification(payload) {
+  scheduleLatestAlarmRefresh();
+  window.dispatchEvent(new CustomEvent('alarm-notification', { detail: payload }));
 }
 
 async function loadRealtimeDevices() {
@@ -112,8 +169,16 @@ async function loadRealtimeProfileTopology() {
 }
 
 onMounted(() => {
+  void loadAlarmNotificationTopic();
+  void loadLatestAlarms();
   void loadRealtimeDevices();
   void loadRealtimeProfileTopology();
+  window.addEventListener('alarm-status-changed', scheduleLatestAlarmRefresh);
+});
+
+onBeforeUnmount(() => {
+  if (latestAlarmRefreshTimer !== null) window.clearTimeout(latestAlarmRefreshTimer);
+  window.removeEventListener('alarm-status-changed', scheduleLatestAlarmRefresh);
 });
 </script>
 
@@ -140,4 +205,6 @@ onMounted(() => {
   color: #7f9db3;
   text-align: center;
 }
+
+.alarm-mini-error { color: #ff918a; }
 </style>
