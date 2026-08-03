@@ -23,7 +23,14 @@
         <div class="panel-head">
           <h2>三维水槽工艺监控</h2>
           <div class="mini-actions">
-            <button v-for="action in VIEW_ACTIONS" :key="action" type="button" @click="previewRef?.handleAction(action)">{{ action }}</button>
+            <button
+              v-for="action in VIEW_ACTIONS"
+              :key="action"
+              type="button"
+              :class="{ active: action === '自动漫游' && autoRoaming }"
+              :aria-pressed="action === '自动漫游' ? autoRoaming : undefined"
+              @click="previewRef?.handleAction(action)"
+            >{{ action }}</button>
           </div>
         </div>
         <div class="twin-stage">
@@ -32,6 +39,7 @@
             :alarm-topic="alarmNotificationTopic"
             @mqtt-data="handleMqttData"
             @alarm-notification="handleAlarmNotification"
+            @auto-roaming-change="autoRoaming = $event"
           />
         </div>
       </section>
@@ -80,6 +88,7 @@ import { buildRealtimeTableData, mergeRealtimeValues } from '../realtime-device-
 defineEmits(['navigate']);
 
 const previewRef = ref(null);
+const autoRoaming = ref(false);
 const deviceGroups = ref([]);
 const deviceLoading = ref(true);
 const deviceError = ref('');
@@ -212,4 +221,11 @@ onBeforeUnmount(() => {
 }
 
 .alarm-mini-error { color: #ff918a; }
+
+.mini-actions button.active {
+  border-color: #7bd4ff;
+  background: #0a5d96;
+  box-shadow: inset 0 0 0 1px rgba(123, 212, 255, 0.35), 0 0 10px rgba(47, 165, 255, 0.24);
+  color: #fff;
+}
 </style>

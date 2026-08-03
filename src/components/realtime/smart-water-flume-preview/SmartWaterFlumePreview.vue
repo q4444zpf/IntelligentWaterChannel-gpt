@@ -250,7 +250,7 @@ const props = defineProps({
   },
   alarmTopic: { type: String, default: '' },
 });
-const emit = defineEmits(['mqtt-data', 'alarm-notification']);
+const emit = defineEmits(['mqtt-data', 'alarm-notification', 'auto-roaming-change']);
 
 const canvasHostRef = ref(null);
 const loading = ref(true);
@@ -946,6 +946,10 @@ watch(() => props.alarmTopic, (nextTopic, previousTopic) => {
   if (next && next !== realtimeTopic) {
     subscribeWebTopoMqtt(mqttClient, next, handleMqttError);
   }
+});
+
+watch(autoRotating, (enabled) => {
+  emit('auto-roaming-change', enabled);
 });
 
 onMounted(async () => {
