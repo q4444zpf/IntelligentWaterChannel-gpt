@@ -90,7 +90,10 @@
                 :aria-level="row.depth + 1"
                 :aria-expanded="row.hasChildren ? row.expanded : undefined"
                 :aria-selected="selectedSceneTreeUuid === row.node.uuid"
-                :class="{ selected: selectedSceneTreeUuid === row.node.uuid }"
+                :class="{
+                  selected: selectedSceneTreeUuid === row.node.uuid,
+                  hidden: !isModelGroupVisible(row.node.uuid),
+                }"
                 :style="{ paddingLeft: `${4 + row.depth * 14}px` }"
               >
                 <button
@@ -111,6 +114,18 @@
                 >
                   <span class="scene-tree-folder" aria-hidden="true"></span>
                   <span class="scene-tree-name">{{ row.node.name }}</span>
+                </button>
+                <button
+                  type="button"
+                  class="scene-tree-visibility"
+                  :class="{ hidden: !isModelGroupVisible(row.node.uuid) }"
+                  :aria-label="`${isModelGroupVisible(row.node.uuid) ? '隐藏' : '显示'}${row.node.name}`"
+                  :aria-pressed="isModelGroupVisible(row.node.uuid)"
+                  :title="isModelGroupVisible(row.node.uuid) ? '隐藏' : '显示'"
+                  @click.stop="toggleModelGroupVisibility(row.node.uuid)"
+                >
+                  <EyeOutlined v-if="isModelGroupVisible(row.node.uuid)" aria-hidden="true" />
+                  <EyeInvisibleOutlined v-else aria-hidden="true" />
                 </button>
               </div>
             </template>
@@ -156,6 +171,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons-vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
@@ -203,6 +219,7 @@ const sceneTreeOpen = ref(false);
 const sceneTreeSearch = ref('');
 const expandedSceneTreeUuids = ref(new Set());
 const selectedSceneTreeUuid = ref('');
+const hiddenModelGroupUuids = ref(new Set());
 const labelElements = [];
 const loadingText = computed(() => sceneName.value ? `正在加载${sceneName.value}` : '正在获取三维场景');
 const allLabelGroupsVisible = computed(() => hiddenLabelGroupUuids.value.size === 0);
@@ -288,6 +305,22 @@ function toggleSceneTreeNode(uuid) {
   if (expanded.has(uuid)) expanded.delete(uuid);
   else expanded.add(uuid);
   expandedSceneTreeUuids.value = expanded;
+}
+
+function isModelGroupVisible(uuid) {
+  return !hiddenModelGroupUuids.value.has(uuid);
+}
+
+function toggleModelGroupVisibility(uuid) {
+  const object = sceneObjectByUuid.get(uuid);
+  if (!object) return;
+
+  const visible = object.visible === false;
+  object.visible = visible;
+  const hiddenGroups = new Set(hiddenModelGroupUuids.value);
+  if (visible) hiddenGroups.delete(uuid);
+  else hiddenGroups.add(uuid);
+  hiddenModelGroupUuids.value = hiddenGroups;
 }
 
 function cancelCameraTransition() {
@@ -494,6 +527,7 @@ async function loadScene() {
   sceneTreeSearch.value = '';
   expandedSceneTreeUuids.value = new Set();
   selectedSceneTreeUuid.value = '';
+  hiddenModelGroupUuids.value = new Set();
   cancelCameraTransition();
   if (outlinePass) outlinePass.selectedObjects = [];
   sceneObjectByUuid = new Map();
@@ -1002,7 +1036,7 @@ defineExpose({ handleAction: setView, reload: loadScene, triggerDataUpdate });
 
 .scene-tree-row {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr);
+  grid-template-columns: 18px minmax(0, 1fr) 24px;
   gap: 4px;
   align-items: center;
   min-height: 28px;
@@ -1017,6 +1051,11 @@ defineExpose({ handleAction: setView, reload: loadScene, triggerDataUpdate });
 
 .scene-tree-row.selected {
   box-shadow: inset 2px 0 #35c8ff;
+}
+
+.scene-tree-row.hidden .scene-tree-folder,
+.scene-tree-row.hidden .scene-tree-name {
+  opacity: 0.5;
 }
 
 .scene-tree-switcher {
@@ -1058,6 +1097,31 @@ defineExpose({ handleAction: setView, reload: loadScene, triggerDataUpdate });
   border-radius: 3px;
   outline: 1px solid #63c4ff;
   outline-offset: 1px;
+}
+
+.scene-tree-visibility {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: #8bcdf5;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.scene-tree-visibility:hover,
+.scene-tree-visibility:focus-visible {
+  outline: none;
+  background: rgba(47, 165, 255, 0.18);
+  color: #fff;
+}
+
+.scene-tree-visibility.hidden {
+  color: #607f94;
 }
 
 .scene-tree-folder {

@@ -50,6 +50,48 @@ test('returns an empty tree when the named group does not exist', () => {
   assert.deepEqual(buildGroupTreeUnder({ type: 'Scene', children: [] }, '模型'), []);
 });
 
+test('excludes initially hidden groups and their descendants', () => {
+  const scene = {
+    type: 'Scene',
+    children: [{
+      type: 'Group',
+      uuid: 'model-root',
+      name: '模型',
+      children: [
+        { type: 'Group', uuid: 'visible', name: '可见分组', children: [] },
+        {
+          type: 'Group',
+          uuid: 'hidden',
+          name: '隐藏分组',
+          visible: false,
+          children: [
+            { type: 'Group', uuid: 'hidden-child', name: '隐藏子分组', children: [] },
+          ],
+        },
+      ],
+    }],
+  };
+
+  assert.deepEqual(buildGroupTreeUnder(scene, '模型'), [
+    { uuid: 'visible', name: '可见分组', children: [] },
+  ]);
+});
+
+test('returns no menu items when the model root group is initially hidden', () => {
+  const scene = {
+    type: 'Scene',
+    children: [{
+      type: 'Group',
+      uuid: 'model-root',
+      name: '模型',
+      visible: false,
+      children: [{ type: 'Group', uuid: 'channel', name: '渠道', children: [] }],
+    }],
+  };
+
+  assert.deepEqual(buildGroupTreeUnder(scene, '模型'), []);
+});
+
 test('filters menu data without changing lights or other scene objects', () => {
   const light = { type: 'DirectionalLight', uuid: 'sun', visible: true, children: [] };
   const environment = { type: 'Group', uuid: 'environment', name: '环境', children: [] };

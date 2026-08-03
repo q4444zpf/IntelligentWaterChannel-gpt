@@ -15,6 +15,7 @@ function findGroupByName(object, name) {
 function collectGroupNodes(object) {
   const nodes = [];
   for (const child of object.children || []) {
+    if (isGroup(child) && child.visible === false) continue;
     const children = collectGroupNodes(child);
     if (isGroup(child)) {
       nodes.push({
@@ -31,5 +32,5 @@ function collectGroupNodes(object) {
 
 export function buildGroupTreeUnder(root, groupName) {
   const group = findGroupByName(root, groupName);
-  return group ? collectGroupNodes(group) : [];
+  return group && group.visible !== false ? collectGroupNodes(group) : [];
 }
