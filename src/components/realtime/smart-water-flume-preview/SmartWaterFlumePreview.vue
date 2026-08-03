@@ -2,6 +2,42 @@
   <div class="flume-preview">
     <div ref="canvasHostRef" class="canvas-host"></div>
 
+    <aside v-if="labelGroups.length" class="label-visibility-card" aria-label="标签分组显隐">
+      <h3>标注分类（点击开关）</h3>
+      <div class="label-group-list">
+        <label
+          v-for="(group, index) in labelGroups"
+          :key="group.uuid"
+          class="label-group-toggle"
+        >
+          <input
+            type="checkbox"
+            :checked="isLabelGroupVisible(group)"
+            :style="{ accentColor: labelGroupColor(index) }"
+            @change="setLabelGroupVisible(group, $event.currentTarget.checked)"
+          >
+          <span
+            class="label-group-swatch"
+            :style="{ backgroundColor: labelGroupColor(index) }"
+            aria-hidden="true"
+          ></span>
+          <span class="label-group-name">{{ group.name }}</span>
+        </label>
+      </div>
+      <div class="label-group-actions">
+        <button
+          type="button"
+          :disabled="allLabelGroupsVisible"
+          @click="setAllLabelGroupsVisible(true)"
+        >全显</button>
+        <button
+          type="button"
+          :disabled="allLabelGroupsHidden"
+          @click="setAllLabelGroupsVisible(false)"
+        >全隐</button>
+      </div>
+    </aside>
+
     <div class="scene-labels" aria-hidden="true">
       <div
         v-for="(sprite, index) in htmlSprites"
@@ -45,6 +81,7 @@ import { getWebTopoScene, resolveWebTopoAssetUrl } from './webTopo.js';
 import { WEB_TOPO_CONFIG } from '../../../config/webTopoConfig.js';
 import {
   applyHtmlSpriteUserData,
+  isHtmlSpriteHierarchyVisible,
   updateHtmlSpriteData,
   updateHtmlSpriteDirectionArrow,
 } from './web-topo-html-runtime.js';
@@ -73,8 +110,16 @@ const sceneName = ref('');
 const autoRotating = ref(false);
 const roamingSpeed = ref(0.8);
 const htmlSprites = ref([]);
+const labelGroups = ref([]);
+const hiddenLabelGroupUuids = ref(new Set());
 const labelElements = [];
 const loadingText = computed(() => sceneName.value ? `正在加载${sceneName.value}` : '正在获取三维场景');
+const allLabelGroupsVisible = computed(() => hiddenLabelGroupUuids.value.size === 0);
+const allLabelGroupsHidden = computed(() => (
+  labelGroups.value.length > 0 && hiddenLabelGroupUuids.value.size === labelGroups.value.length
+));
+
+const LABEL_GROUP_COLORS = ['#77bdf2', '#84c7a8', '#f0b77a', '#df9a7d', '#76c8bf', '#ef8d8d'];
 
 let scene;
 let camera;
@@ -87,6 +132,7 @@ let realtimeTopic = '';
 let modelCenter = new THREE.Vector3();
 let modelSize = new THREE.Vector3(10, 5, 2);
 let defaultCameraState;
+let sceneObjectByUuid = new Map();
 let disposed = false;
 
 function setLabelRef(element, index) {
@@ -96,6 +142,40 @@ function setLabelRef(element, index) {
 function applyLabelUserData() {
   htmlSprites.value.forEach((sprite, index) => {
     applyHtmlSpriteUserData(labelElements[index], sprite);
+  });
+}
+
+function labelGroupColor(index) {
+  return LABEL_GROUP_COLORS[index % LABEL_GROUP_COLORS.length];
+}
+
+function isLabelGroupVisible(group) {
+  return !hiddenLabelGroupUuids.value.has(group.uuid);
+}
+
+function indexSceneObjects(root) {
+  sceneObjectByUuid = new Map();
+  root?.traverse((object) => {
+    if (object.uuid) sceneObjectByUuid.set(object.uuid, object);
+  });
+}
+
+function setLabelGroupVisible(group, visible) {
+  const hiddenGroups = new Set(hiddenLabelGroupUuids.value);
+  if (visible) hiddenGroups.delete(group.uuid);
+  else hiddenGroups.add(group.uuid);
+  hiddenLabelGroupUuids.value = hiddenGroups;
+  const groupObject = sceneObjectByUuid.get(group.uuid);
+  if (groupObject) groupObject.visible = visible;
+}
+
+function setAllLabelGroupsVisible(visible) {
+  hiddenLabelGroupUuids.value = visible
+    ? new Set()
+    : new Set(labelGroups.value.map((group) => group.uuid));
+  labelGroups.value.forEach((group) => {
+    const groupObject = sceneObjectByUuid.get(group.uuid);
+    if (groupObject) groupObject.visible = visible;
   });
 }
 
@@ -203,6 +283,9 @@ async function loadScene() {
   loadProgress.value = 0;
   sceneName.value = '';
   htmlSprites.value = [];
+  labelGroups.value = [];
+  hiddenLabelGroupUuids.value = new Set();
+  sceneObjectByUuid = new Map();
   labelElements.length = 0;
 
   try {
@@ -221,6 +304,7 @@ async function loadScene() {
 
     disposeObject(scene);
     scene = loaded.scene;
+    indexSceneObjects(scene);
     camera = loaded.camera || camera;
     applyRendererConfig(loaded.config);
     createControls(new THREE.Vector3());
@@ -238,6 +322,10 @@ async function loadScene() {
       target: controls.target.clone(),
     };
     htmlSprites.value = loaded.htmlSprites;
+    labelGroups.value = loaded.labelGroups;
+    hiddenLabelGroupUuids.value = new Set(labelGroups.value
+      .filter((group) => sceneObjectByUuid.get(group.uuid)?.visible === false)
+      .map((group) => group.uuid));
     loading.value = false;
     loadProgress.value = 100;
     await nextTick();
@@ -329,6 +417,9 @@ function updateLabels() {
   htmlSprites.value.forEach((sprite, index) => {
     const element = labelElements[index];
     if (!element) return;
+    const hierarchyVisible = isHtmlSpriteHierarchyVisible(sprite, sceneObjectByUuid);
+    element.hidden = !hierarchyVisible;
+    if (!hierarchyVisible) return;
     const worldPosition = new THREE.Vector3().fromArray(sprite.position);
     const towardLabel = worldPosition.clone().sub(camera.position);
     const projected = worldPosition.clone().project(camera);
@@ -441,6 +532,104 @@ defineExpose({ handleAction: setView, reload: loadScene, triggerDataUpdate });
   transform-origin: center;
   transition: opacity 0.16s ease;
   /* will-change: transform; */
+}
+
+.label-visibility-card {
+  position: absolute;
+  z-index: 4;
+  top: 10px;
+  left: 10px;
+  box-sizing: border-box;
+  width: min(130px, calc(100% - 20px));
+  padding: 9px;
+  border: 1px solid rgba(47, 165, 255, 0.55);
+  border-radius: 6px;
+  background: rgba(3, 25, 44, 0.92);
+  box-shadow: 0 7px 20px rgba(0, 8, 16, 0.42);
+  color: #c7eaff;
+  font-size: 11px;
+  backdrop-filter: blur(8px);
+}
+
+.label-visibility-card h3 {
+  margin: 0 0 7px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.label-group-list {
+  display: grid;
+  gap: 4px;
+}
+
+.label-group-toggle {
+  display: grid;
+  grid-template-columns: 13px 7px minmax(0, 1fr);
+  gap: 5px;
+  align-items: center;
+  min-height: 23px;
+  padding: 2px 6px;
+  border: 1px solid rgba(83, 151, 199, 0.38);
+  border-radius: 5px;
+  background: rgba(5, 43, 72, 0.78);
+  cursor: pointer;
+}
+
+.label-group-toggle:hover {
+  border-color: #55b6f5;
+  background: rgba(7, 57, 94, 0.95);
+}
+
+.label-group-toggle input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.label-group-swatch {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+}
+
+.label-group-name {
+  min-width: 0;
+  overflow: hidden;
+  color: #a9d8f5;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.label-group-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.label-group-actions button {
+  min-height: 25px;
+  border: 1px solid #327fad;
+  border-radius: 5px;
+  background: #06365d;
+  color: #dff3ff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.label-group-actions button:hover:not(:disabled) {
+  border-color: #63c4ff;
+  background: #084b7d;
+  color: #fff;
+}
+
+.label-group-actions button:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .scene-state {

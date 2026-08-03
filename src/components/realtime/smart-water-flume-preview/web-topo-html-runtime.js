@@ -18,6 +18,11 @@ const HTML_OBJECT_HANDLERS = [
 
 export { updateHtmlSpriteDirectionArrow };
 
+export function isHtmlSpriteHierarchyVisible(sprite, objectByUuid) {
+  if (!sprite || sprite.visible === false) return false;
+  return (sprite.ancestorUuids || []).every((uuid) => objectByUuid?.get(uuid)?.visible !== false);
+}
+
 export function applyHtmlSpriteUserData(element, sprite) {
   if (!element || !sprite) return;
   const userData = htmlObjectUserData(sprite);

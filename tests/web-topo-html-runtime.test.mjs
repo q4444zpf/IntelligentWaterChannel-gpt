@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   applyHtmlSpriteUserData,
+  isHtmlSpriteHierarchyVisible,
   parseMqttPayload,
   updateHtmlSpriteData,
   updateHtmlSpriteDirectionArrow,
@@ -161,4 +162,21 @@ test('accepts only JSON object MQTT payloads', () => {
   assert.deepEqual(parseMqttPayload('{"wl1":2.6,"temp":18}'), { wl1: 2.6, temp: 18 });
   assert.equal(parseMqttPayload('[1,2]'), null);
   assert.equal(parseMqttPayload('not-json'), null);
+});
+
+test('hides an HtmlSprite when itself or any ancestor is invisible', () => {
+  const ancestors = new Map([
+    ['scene-root', { visible: true }],
+    ['label-group', { visible: false }],
+  ]);
+  const sprite = {
+    visible: true,
+    ancestorUuids: ['scene-root', 'label-group'],
+  };
+
+  assert.equal(isHtmlSpriteHierarchyVisible(sprite, ancestors), false);
+  ancestors.get('label-group').visible = true;
+  assert.equal(isHtmlSpriteHierarchyVisible(sprite, ancestors), true);
+  sprite.visible = false;
+  assert.equal(isHtmlSpriteHierarchyVisible(sprite, ancestors), false);
 });
