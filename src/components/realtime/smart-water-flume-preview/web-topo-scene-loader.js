@@ -126,6 +126,28 @@ function inflateGroups(object, groupMap, lineage = new Set()) {
   return object;
 }
 
+function findGroupByName(object, name) {
+  if (!object || typeof object === 'string') return null;
+  if (object.type === 'Group' && object.name === name) return object;
+  for (const child of object.children || []) {
+    const matched = findGroupByName(child, name);
+    if (matched) return matched;
+  }
+  return null;
+}
+
+export function extractLabelGroups(object) {
+  const labelRoot = findGroupByName(object, '标签');
+  if (!labelRoot) return [];
+
+  return (labelRoot.children || [])
+    .filter((child) => child?.type === 'Group')
+    .map((group, index) => ({
+      uuid: group.uuid || `label-group-${index}`,
+      name: group.name?.trim() || `未命名分组 ${index + 1}`,
+    }));
+}
+
 function localMatrixFromJson(object) {
   if (object.matrix) return new THREE.Matrix4().fromArray(object.matrix);
   const position = new THREE.Vector3().fromArray(object.position || [0, 0, 0]);
@@ -136,11 +158,17 @@ function localMatrixFromJson(object) {
   return new THREE.Matrix4().compose(position, quaternion, scale);
 }
 
-function extractHtmlSprites(object, parentMatrix = new THREE.Matrix4(), sprites = []) {
+export function extractHtmlSprites(
+  object,
+  parentMatrix = new THREE.Matrix4(),
+  sprites = [],
+  parentUuids = [],
+) {
   const worldMatrix = parentMatrix.clone().multiply(localMatrixFromJson(object));
+  const ancestorUuids = object.uuid ? [...parentUuids, object.uuid] : parentUuids;
   object.children = (object.children || []).filter((child) => {
     if (child.type !== 'HtmlSprite') {
-      extractHtmlSprites(child, worldMatrix, sprites);
+      extractHtmlSprites(child, worldMatrix, sprites, ancestorUuids);
       return true;
     }
 
@@ -154,6 +182,8 @@ function extractHtmlSprites(object, parentMatrix = new THREE.Matrix4(), sprites 
       html: child.options?.htmlContent || '',
       position: position.toArray(),
       scale: Math.max(Math.abs(scale.x), Math.abs(scale.y)),
+      visible: child.visible !== false,
+      ancestorUuids,
       userData: {
         ...(child.options?.userData || {}),
         ...(child.userData || {}),
@@ -223,6 +253,7 @@ export async function loadWebTopoScenePackage(url, options = {}) {
 
   throwIfAborted(signal);
   sceneJson.scene.object = inflateGroups(sceneJson.scene.object, groupMap);
+  const labelGroups = extractLabelGroups(sceneJson.scene.object);
   const htmlSprites = extractHtmlSprites(sceneJson.scene.object);
   const resourceMaps = {
     geometries: new Map(),
@@ -249,6 +280,7 @@ export async function loadWebTopoScenePackage(url, options = {}) {
     camera: camera?.isCamera ? camera : null,
     controlsState: parseControlsState(sceneJson),
     htmlSprites,
+    labelGroups,
     config,
   };
 }
