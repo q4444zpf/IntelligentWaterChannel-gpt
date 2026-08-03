@@ -38,6 +38,87 @@
       </div>
     </aside>
 
+    <div
+      v-if="modelGroupTree.length"
+      class="scene-tree-control"
+      @pointerdown.stop
+      @wheel.stop
+    >
+      <Transition name="scene-tree-toggle" mode="out-in">
+        <button
+          v-if="!sceneTreeOpen"
+          key="trigger"
+          type="button"
+          class="scene-tree-trigger"
+          aria-controls="model-scene-tree"
+          :aria-expanded="false"
+          @click="sceneTreeOpen = true"
+        >场景树</button>
+
+        <aside
+          v-else
+          id="model-scene-tree"
+          key="panel"
+          class="scene-tree-panel"
+          aria-label="模型场景树"
+        >
+          <header>
+            <h3>模型场景树</h3>
+            <button
+              type="button"
+              class="scene-tree-close"
+              aria-label="关闭场景树"
+              title="关闭"
+              @click="sceneTreeOpen = false"
+            >×</button>
+          </header>
+          <input
+            v-model="sceneTreeSearch"
+            class="scene-tree-search"
+            type="search"
+            placeholder="搜索分组"
+            aria-label="搜索模型分组"
+          >
+          <div class="scene-tree-body" role="tree" aria-label="模型分组">
+            <p v-if="!sceneTreeRows.length" class="scene-tree-empty">没有匹配的分组</p>
+            <template v-else>
+              <div
+                v-for="row in sceneTreeRows"
+                :key="row.node.uuid"
+                class="scene-tree-row"
+                role="treeitem"
+                :aria-level="row.depth + 1"
+                :aria-expanded="row.hasChildren ? row.expanded : undefined"
+                :aria-selected="selectedSceneTreeUuid === row.node.uuid"
+                :class="{ selected: selectedSceneTreeUuid === row.node.uuid }"
+                :style="{ paddingLeft: `${4 + row.depth * 14}px` }"
+              >
+                <button
+                  v-if="row.hasChildren"
+                  type="button"
+                  class="scene-tree-switcher"
+                  :aria-label="`${row.expanded ? '收起' : '展开'}${row.node.name}`"
+                  @click="toggleSceneTreeNode(row.node.uuid)"
+                >
+                  <span :class="{ expanded: row.expanded }" aria-hidden="true">›</span>
+                </button>
+                <span v-else class="scene-tree-switcher-placeholder" aria-hidden="true"></span>
+                <button
+                  type="button"
+                  class="scene-tree-node"
+                  :title="`定位到${row.node.name}`"
+                  @click="focusSceneTreeNode(row.node.uuid)"
+                >
+                  <span class="scene-tree-folder" aria-hidden="true"></span>
+                  <span class="scene-tree-name">{{ row.node.name }}</span>
+                </button>
+              </div>
+            </template>
+          </div>
+        </aside>
+      </Transition>
+    </div>
+
     <div class="scene-labels" aria-hidden="true">
       <div
         v-for="(sprite, index) in htmlSprites"
@@ -77,6 +158,10 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { getWebTopoScene, resolveWebTopoAssetUrl } from './webTopo.js';
 import { WEB_TOPO_CONFIG } from '../../../config/webTopoConfig.js';
 import {
@@ -92,6 +177,7 @@ import {
   unsubscribeWebTopoMqtt,
 } from './web-topo-mqtt.js';
 import { loadWebTopoScenePackage } from './web-topo-scene-loader.js';
+import { buildGroupTreeUnder } from './web-topo-scene-tree.js';
 
 const props = defineProps({
   webTopoId: {
@@ -112,18 +198,54 @@ const roamingSpeed = ref(0.8);
 const htmlSprites = ref([]);
 const labelGroups = ref([]);
 const hiddenLabelGroupUuids = ref(new Set());
+const modelGroupTree = ref([]);
+const sceneTreeOpen = ref(false);
+const sceneTreeSearch = ref('');
+const expandedSceneTreeUuids = ref(new Set());
+const selectedSceneTreeUuid = ref('');
 const labelElements = [];
 const loadingText = computed(() => sceneName.value ? `正在加载${sceneName.value}` : '正在获取三维场景');
 const allLabelGroupsVisible = computed(() => hiddenLabelGroupUuids.value.size === 0);
 const allLabelGroupsHidden = computed(() => (
   labelGroups.value.length > 0 && hiddenLabelGroupUuids.value.size === labelGroups.value.length
 ));
+const sceneTreeRows = computed(() => {
+  const query = sceneTreeSearch.value.trim().toLocaleLowerCase();
+  const rows = [];
+
+  function filterNodes(nodes) {
+    if (!query) return nodes;
+    return nodes.flatMap((node) => {
+      const children = filterNodes(node.children);
+      return node.name.toLocaleLowerCase().includes(query) || children.length
+        ? [{ ...node, children }]
+        : [];
+    });
+  }
+
+  function appendRows(nodes, depth = 0) {
+    nodes.forEach((node) => {
+      const hasChildren = node.children.length > 0;
+      const expanded = Boolean(query) || expandedSceneTreeUuids.value.has(node.uuid);
+      rows.push({ node, depth, hasChildren, expanded });
+      if (hasChildren && expanded) appendRows(node.children, depth + 1);
+    });
+  }
+
+  appendRows(filterNodes(modelGroupTree.value));
+  return rows;
+});
 
 const LABEL_GROUP_COLORS = ['#77bdf2', '#84c7a8', '#f0b77a', '#df9a7d', '#76c8bf', '#ef8d8d'];
+const CAMERA_FOCUS_DURATION = 800;
 
 let scene;
 let camera;
 let renderer;
+let composer;
+let renderPass;
+let outlinePass;
+let outputPass;
 let controls;
 let resizeObserver;
 let abortController;
@@ -133,6 +255,7 @@ let modelCenter = new THREE.Vector3();
 let modelSize = new THREE.Vector3(10, 5, 2);
 let defaultCameraState;
 let sceneObjectByUuid = new Map();
+let cameraTransition;
 let disposed = false;
 
 function setLabelRef(element, index) {
@@ -158,6 +281,72 @@ function indexSceneObjects(root) {
   root?.traverse((object) => {
     if (object.uuid) sceneObjectByUuid.set(object.uuid, object);
   });
+}
+
+function toggleSceneTreeNode(uuid) {
+  const expanded = new Set(expandedSceneTreeUuids.value);
+  if (expanded.has(uuid)) expanded.delete(uuid);
+  else expanded.add(uuid);
+  expandedSceneTreeUuids.value = expanded;
+}
+
+function cancelCameraTransition() {
+  cameraTransition = undefined;
+}
+
+function focusSceneTreeNode(uuid) {
+  const object = sceneObjectByUuid.get(uuid);
+  if (!object || !camera || !controls || !outlinePass) return;
+
+  const bounds = new THREE.Box3().setFromObject(object);
+  if (bounds.isEmpty()) return;
+
+  const sphere = bounds.getBoundingSphere(new THREE.Sphere());
+  const radius = Math.max(sphere.radius, 0.1);
+  const direction = camera.position.clone().sub(controls.target);
+  let currentDistance = direction.length();
+  if (currentDistance < 1e-3) {
+    camera.getWorldDirection(direction).negate();
+    currentDistance = camera.position.distanceTo(sphere.center);
+  }
+  direction.normalize();
+
+  autoRotating.value = false;
+  controls.autoRotate = false;
+  selectedSceneTreeUuid.value = uuid;
+  outlinePass.selectedObjects = [object];
+
+  let targetPosition = camera.position.clone();
+  let targetZoom = camera.zoom;
+
+  if (camera.isPerspectiveCamera) {
+    const verticalFov = THREE.MathUtils.degToRad(camera.fov);
+    const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * camera.aspect);
+    const distance = radius / Math.sin(Math.min(verticalFov, horizontalFov) / 2) * 1.18;
+    targetPosition = sphere.center.clone().addScaledVector(direction, distance);
+    camera.near = Math.max(distance / 1000, 0.01);
+    camera.far = Math.max(camera.far, distance + radius * 10);
+  } else if (camera.isOrthographicCamera) {
+    const viewWidth = Math.abs(camera.right - camera.left);
+    const viewHeight = Math.abs(camera.top - camera.bottom);
+    targetZoom = Math.min(viewWidth, viewHeight) / (radius * 2 * 1.18);
+    targetPosition = sphere.center.clone()
+      .addScaledVector(direction, Math.max(currentDistance, radius * 2));
+  }
+
+  camera.updateProjectionMatrix();
+  cameraTransition = {
+    startedAt: performance.now(),
+    duration: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      ? 0
+      : CAMERA_FOCUS_DURATION,
+    fromPosition: camera.position.clone(),
+    targetPosition,
+    fromTarget: controls.target.clone(),
+    target: sphere.center.clone(),
+    fromZoom: camera.zoom,
+    targetZoom,
+  };
 }
 
 function setLabelGroupVisible(group, visible) {
@@ -230,6 +419,20 @@ function createRenderer() {
   renderer.domElement.setAttribute('aria-label', '可交互的智能水槽三维组态场景');
   host.appendChild(renderer.domElement);
 
+  composer = new EffectComposer(renderer);
+  renderPass = new RenderPass(scene, camera);
+  outlinePass = new OutlinePass(new THREE.Vector2(1, 1), scene, camera);
+  outlinePass.visibleEdgeColor.set(0x35c8ff);
+  outlinePass.hiddenEdgeColor.set(0x075477);
+  outlinePass.edgeStrength = 5;
+  outlinePass.edgeGlow = 0.35;
+  outlinePass.edgeThickness = 1.2;
+  outlinePass.selectedObjects = [];
+  outputPass = new OutputPass();
+  composer.addPass(renderPass);
+  composer.addPass(outlinePass);
+  composer.addPass(outputPass);
+
   createControls(new THREE.Vector3());
   resizeObserver = new ResizeObserver(resizeScene);
   resizeObserver.observe(host);
@@ -244,6 +447,7 @@ function createControls(target) {
   controls.dampingFactor = 0.07;
   controls.autoRotateSpeed = roamingSpeed.value;
   controls.target.copy(target);
+  controls.addEventListener('start', cancelCameraTransition);
   controls.update();
 }
 
@@ -285,6 +489,13 @@ async function loadScene() {
   htmlSprites.value = [];
   labelGroups.value = [];
   hiddenLabelGroupUuids.value = new Set();
+  modelGroupTree.value = [];
+  sceneTreeOpen.value = false;
+  sceneTreeSearch.value = '';
+  expandedSceneTreeUuids.value = new Set();
+  selectedSceneTreeUuid.value = '';
+  cancelCameraTransition();
+  if (outlinePass) outlinePass.selectedObjects = [];
   sceneObjectByUuid = new Map();
   labelElements.length = 0;
 
@@ -305,7 +516,13 @@ async function loadScene() {
     disposeObject(scene);
     scene = loaded.scene;
     indexSceneObjects(scene);
+    modelGroupTree.value = buildGroupTreeUnder(scene, '模型');
+    expandedSceneTreeUuids.value = new Set(modelGroupTree.value.map((node) => node.uuid));
     camera = loaded.camera || camera;
+    renderPass.scene = scene;
+    renderPass.camera = camera;
+    outlinePass.renderScene = scene;
+    outlinePass.renderCamera = camera;
     applyRendererConfig(loaded.config);
     createControls(new THREE.Vector3());
     applyControlsState(loaded.controlsState);
@@ -347,6 +564,7 @@ function resizeScene() {
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
   renderer.setSize(width, height, false);
+  composer?.setSize(width, height);
 }
 
 function distanceForView(horizontalSize, verticalSize, depthSize) {
@@ -371,6 +589,7 @@ function applyView(direction, horizontalSize, verticalSize, depthSize, up = new 
 
 function setView(action) {
   if (!camera || !controls || !defaultCameraState) return;
+  cancelCameraTransition();
   if (action !== '自动漫游') {
     autoRotating.value = false;
     controls.autoRotate = false;
@@ -433,11 +652,43 @@ function updateLabels() {
   });
 }
 
-function renderScene() {
-  if (!renderer || !scene || !camera) return;
+function updateCameraTransition(timestamp) {
+  if (!cameraTransition || !camera || !controls) return;
+
+  const progress = cameraTransition.duration === 0
+    ? 1
+    : THREE.MathUtils.clamp(
+      (timestamp - cameraTransition.startedAt) / cameraTransition.duration,
+      0,
+      1,
+    );
+  const eased = progress < 0.5
+    ? 4 * progress ** 3
+    : 1 - ((-2 * progress + 2) ** 3) / 2;
+
+  camera.position.lerpVectors(
+    cameraTransition.fromPosition,
+    cameraTransition.targetPosition,
+    eased,
+  );
+  controls.target.lerpVectors(cameraTransition.fromTarget, cameraTransition.target, eased);
+  if (camera.isOrthographicCamera) {
+    camera.zoom = THREE.MathUtils.lerp(
+      cameraTransition.fromZoom,
+      cameraTransition.targetZoom,
+      eased,
+    );
+    camera.updateProjectionMatrix();
+  }
+  if (progress === 1) cancelCameraTransition();
+}
+
+function renderScene(timestamp = performance.now()) {
+  if (!composer || !scene || !camera) return;
+  updateCameraTransition(timestamp);
   controls?.update();
   updateLabels();
-  renderer.render(scene, camera);
+  composer.render();
 }
 
 function disposeObject(root) {
@@ -487,6 +738,9 @@ onBeforeUnmount(() => {
   stopMqtt();
   renderer?.setAnimationLoop(null);
   disposeObject(scene);
+  outlinePass?.dispose();
+  outputPass?.dispose();
+  composer?.dispose();
   renderer?.dispose();
   renderer?.forceContextLoss();
   renderer?.domElement.remove();
@@ -632,6 +886,229 @@ defineExpose({ handleAction: setView, reload: loadScene, triggerDataUpdate });
   cursor: default;
 }
 
+.scene-tree-control {
+  position: absolute;
+  z-index: 4;
+  top: 10px;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  width: min(260px, calc(100% - 20px));
+  pointer-events: none;
+}
+
+.scene-tree-trigger,
+.scene-tree-panel {
+  border: 1px solid rgba(47, 165, 255, 0.58);
+  background: rgba(3, 25, 44, 0.94);
+  box-shadow: 0 7px 20px rgba(0, 8, 16, 0.42);
+  color: #c7eaff;
+  backdrop-filter: blur(8px);
+  pointer-events: auto;
+}
+
+.scene-tree-trigger {
+  width: 70px;
+  height: 34px;
+  border-radius: 5px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.scene-tree-trigger:hover {
+  border-color: #63c4ff;
+  background: #084b7d;
+  color: #fff;
+}
+
+.scene-tree-panel {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  box-sizing: border-box;
+  width: 100%;
+  max-height: min(420px, 100%);
+  padding: 10px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.scene-tree-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 26px;
+  margin-bottom: 8px;
+}
+
+.scene-tree-panel h3 {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.scene-tree-close,
+.scene-tree-switcher {
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #9fd8ff;
+  cursor: pointer;
+}
+
+.scene-tree-close {
+  width: 24px;
+  height: 24px;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.scene-tree-close:hover,
+.scene-tree-switcher:hover {
+  color: #fff;
+}
+
+.scene-tree-search {
+  box-sizing: border-box;
+  width: 100%;
+  height: 30px;
+  margin: 0 0 8px;
+  padding: 0 8px;
+  border: 1px solid rgba(83, 151, 199, 0.5);
+  border-radius: 4px;
+  outline: none;
+  background: rgba(5, 43, 72, 0.82);
+  color: #dff3ff;
+  font: inherit;
+}
+
+.scene-tree-search::placeholder {
+  color: #739bb7;
+}
+
+.scene-tree-search:focus {
+  border-color: #63c4ff;
+  box-shadow: 0 0 0 2px rgba(47, 165, 255, 0.18);
+}
+
+.scene-tree-body {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-color: #327fad rgba(3, 25, 44, 0.6);
+}
+
+.scene-tree-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 4px;
+  align-items: center;
+  min-height: 28px;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.scene-tree-row:hover,
+.scene-tree-row.selected {
+  background: rgba(31, 116, 171, 0.24);
+}
+
+.scene-tree-row.selected {
+  box-shadow: inset 2px 0 #35c8ff;
+}
+
+.scene-tree-switcher {
+  width: 18px;
+  height: 24px;
+}
+
+.scene-tree-switcher span {
+  font-size: 18px;
+  transform: rotate(0deg);
+  transition: transform 0.16s ease;
+}
+
+.scene-tree-switcher span.expanded {
+  transform: rotate(90deg);
+}
+
+.scene-tree-switcher-placeholder {
+  width: 18px;
+}
+
+.scene-tree-node {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+  min-height: 26px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.scene-tree-node:focus-visible {
+  border-radius: 3px;
+  outline: 1px solid #63c4ff;
+  outline-offset: 1px;
+}
+
+.scene-tree-folder {
+  position: relative;
+  width: 13px;
+  height: 9px;
+  border: 1px solid #6fc1f2;
+  border-radius: 2px;
+  background: rgba(47, 165, 255, 0.16);
+}
+
+.scene-tree-folder::before {
+  position: absolute;
+  top: -4px;
+  left: 1px;
+  width: 6px;
+  height: 3px;
+  border: 1px solid #6fc1f2;
+  border-bottom: 0;
+  border-radius: 2px 2px 0 0;
+  content: '';
+}
+
+.scene-tree-name {
+  min-width: 0;
+  overflow: hidden;
+  color: #b9ddf4;
+  font-size: 12px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scene-tree-empty {
+  margin: 18px 0;
+  color: #739bb7;
+  font-size: 12px;
+  text-align: center;
+}
+
+.scene-tree-toggle-enter-active,
+.scene-tree-toggle-leave-active {
+  transition: opacity 0.16s ease, transform 0.2s ease;
+}
+
+.scene-tree-toggle-enter-from,
+.scene-tree-toggle-leave-to {
+  opacity: 0;
+  transform: translateY(8px) scale(0.98);
+}
+
 .scene-state {
   position: absolute;
   z-index: 3;
@@ -709,6 +1186,12 @@ defineExpose({ handleAction: setView, reload: loadScene, triggerDataUpdate });
 @media (prefers-reduced-motion: reduce) {
   .loading-cube {
     animation: none;
+  }
+
+  .scene-tree-switcher span,
+  .scene-tree-toggle-enter-active,
+  .scene-tree-toggle-leave-active {
+    transition: none;
   }
 }
 </style>
