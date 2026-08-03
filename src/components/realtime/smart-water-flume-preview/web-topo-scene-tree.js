@@ -34,3 +34,12 @@ export function buildGroupTreeUnder(root, groupName) {
   const group = findGroupByName(root, groupName);
   return group && group.visible !== false ? collectGroupNodes(group) : [];
 }
+
+export function findNearestSelectableGroup(object, selectableUuids) {
+  let current = object;
+  while (current) {
+    if (isGroup(current) && selectableUuids.has(current.uuid)) return current;
+    current = current.parent;
+  }
+  return null;
+}

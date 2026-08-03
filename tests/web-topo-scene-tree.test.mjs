@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildGroupTreeUnder } from '../src/components/realtime/smart-water-flume-preview/web-topo-scene-tree.js';
+import {
+  buildGroupTreeUnder,
+  findNearestSelectableGroup,
+} from '../src/components/realtime/smart-water-flume-preview/web-topo-scene-tree.js';
 
 test('builds a tree containing only groups below the named model group', () => {
   const scene = {
@@ -109,4 +112,17 @@ test('filters menu data without changing lights or other scene objects', () => {
   ]);
   assert.deepEqual(scene.children, originalChildren);
   assert.equal(light.visible, true);
+});
+
+test('resolves a raycast hit to its nearest selectable parent group', () => {
+  const outerGroup = { type: 'Group', uuid: 'outer' };
+  const innerGroup = { type: 'Group', uuid: 'inner', parent: outerGroup };
+  const mesh = { type: 'Mesh', uuid: 'mesh', parent: innerGroup };
+
+  assert.equal(
+    findNearestSelectableGroup(mesh, new Set(['outer', 'inner'])),
+    innerGroup,
+  );
+  assert.equal(findNearestSelectableGroup(mesh, new Set(['outer'])), outerGroup);
+  assert.equal(findNearestSelectableGroup(mesh, new Set()), null);
 });

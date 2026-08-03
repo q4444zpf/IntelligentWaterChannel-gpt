@@ -193,7 +193,10 @@ import {
   unsubscribeWebTopoMqtt,
 } from './web-topo-mqtt.js';
 import { loadWebTopoScenePackage } from './web-topo-scene-loader.js';
-import { buildGroupTreeUnder } from './web-topo-scene-tree.js';
+import {
+  buildGroupTreeUnder,
+  findNearestSelectableGroup,
+} from './web-topo-scene-tree.js';
 
 const props = defineProps({
   webTopoId: {
@@ -252,9 +255,23 @@ const sceneTreeRows = computed(() => {
   appendRows(filterNodes(modelGroupTree.value));
   return rows;
 });
+const selectableModelGroupUuids = computed(() => {
+  const uuids = new Set();
+  function collectUuids(nodes) {
+    nodes.forEach((node) => {
+      uuids.add(node.uuid);
+      collectUuids(node.children);
+    });
+  }
+  collectUuids(modelGroupTree.value);
+  return uuids;
+});
 
 const LABEL_GROUP_COLORS = ['#77bdf2', '#84c7a8', '#f0b77a', '#df9a7d', '#76c8bf', '#ef8d8d'];
 const CAMERA_FOCUS_DURATION = 800;
+const CANVAS_CLICK_TOLERANCE = 4;
+const raycaster = new THREE.Raycaster();
+const raycastPointer = new THREE.Vector2();
 
 let scene;
 let camera;
@@ -273,6 +290,7 @@ let modelSize = new THREE.Vector3(10, 5, 2);
 let defaultCameraState;
 let sceneObjectByUuid = new Map();
 let cameraTransition;
+let canvasPointerDown;
 let disposed = false;
 
 function setLabelRef(element, index) {
@@ -382,6 +400,81 @@ function focusSceneTreeNode(uuid) {
   };
 }
 
+function isObjectHierarchyPickable(object) {
+  let current = object;
+  while (current) {
+    if (current.visible === false || current.ignore || current.userData?.ignore) return false;
+    current = current.parent;
+  }
+  return true;
+}
+
+function clearModelGroupSelection() {
+  selectedSceneTreeUuid.value = '';
+  cancelCameraTransition();
+  if (outlinePass) outlinePass.selectedObjects = [];
+}
+
+function selectModelGroupAtPointer(event) {
+  if (!scene || !camera || !renderer) return;
+  const bounds = renderer.domElement.getBoundingClientRect();
+  if (!bounds.width || !bounds.height) return;
+
+  raycastPointer.set(
+    ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
+    -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
+  );
+  scene.updateMatrixWorld();
+  camera.updateMatrixWorld();
+  raycaster.setFromCamera(raycastPointer, camera);
+
+  const selectedGroup = raycaster.intersectObject(scene, true)
+    .filter((intersection) => isObjectHierarchyPickable(intersection.object))
+    .map((intersection) => findNearestSelectableGroup(
+      intersection.object,
+      selectableModelGroupUuids.value,
+    ))
+    .find(Boolean);
+
+  if (!selectedGroup) {
+    clearModelGroupSelection();
+    return;
+  }
+
+  const expanded = new Set(expandedSceneTreeUuids.value);
+  let ancestor = selectedGroup.parent;
+  while (ancestor) {
+    if (selectableModelGroupUuids.value.has(ancestor.uuid)) expanded.add(ancestor.uuid);
+    ancestor = ancestor.parent;
+  }
+  expandedSceneTreeUuids.value = expanded;
+  focusSceneTreeNode(selectedGroup.uuid);
+}
+
+function handleCanvasPointerDown(event) {
+  if (event.button !== 0 || !event.isPrimary) {
+    canvasPointerDown = undefined;
+    return;
+  }
+  canvasPointerDown = {
+    pointerId: event.pointerId,
+    x: event.clientX,
+    y: event.clientY,
+  };
+}
+
+function handleCanvasPointerUp(event) {
+  const pointerDown = canvasPointerDown;
+  canvasPointerDown = undefined;
+  if (!pointerDown || pointerDown.pointerId !== event.pointerId) return;
+  if (Math.hypot(event.clientX - pointerDown.x, event.clientY - pointerDown.y) > CANVAS_CLICK_TOLERANCE) return;
+  selectModelGroupAtPointer(event);
+}
+
+function handleCanvasPointerCancel() {
+  canvasPointerDown = undefined;
+}
+
 function setLabelGroupVisible(group, visible) {
   const hiddenGroups = new Set(hiddenLabelGroupUuids.value);
   if (visible) hiddenGroups.delete(group.uuid);
@@ -450,6 +543,9 @@ function createRenderer() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.domElement.setAttribute('role', 'img');
   renderer.domElement.setAttribute('aria-label', '可交互的智能水槽三维组态场景');
+  renderer.domElement.addEventListener('pointerdown', handleCanvasPointerDown);
+  renderer.domElement.addEventListener('pointerup', handleCanvasPointerUp);
+  renderer.domElement.addEventListener('pointercancel', handleCanvasPointerCancel);
   host.appendChild(renderer.domElement);
 
   composer = new EffectComposer(renderer);
@@ -775,6 +871,9 @@ onBeforeUnmount(() => {
   outlinePass?.dispose();
   outputPass?.dispose();
   composer?.dispose();
+  renderer?.domElement.removeEventListener('pointerdown', handleCanvasPointerDown);
+  renderer?.domElement.removeEventListener('pointerup', handleCanvasPointerUp);
+  renderer?.domElement.removeEventListener('pointercancel', handleCanvasPointerCancel);
   renderer?.dispose();
   renderer?.forceContextLoss();
   renderer?.domElement.remove();
