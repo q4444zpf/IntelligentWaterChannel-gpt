@@ -2,41 +2,75 @@
   <div class="flume-preview">
     <div ref="canvasHostRef" class="canvas-host"></div>
 
-    <aside v-if="labelGroups.length" class="label-visibility-card" aria-label="标签分组显隐">
-      <h3>标注分类（点击开关）</h3>
-      <div class="label-group-list">
-        <label
-          v-for="(group, index) in labelGroups"
-          :key="group.uuid"
-          class="label-group-toggle"
+    <div
+      v-if="labelGroups.length"
+      class="label-visibility-control"
+      @pointerdown.stop
+      @wheel.stop
+    >
+      <Transition name="scene-tree-toggle" mode="out-in">
+        <button
+          v-if="!labelVisibilityOpen"
+          key="trigger"
+          type="button"
+          class="label-visibility-trigger"
+          aria-controls="label-visibility-card"
+          :aria-expanded="false"
+          @click="labelVisibilityOpen = true"
+        >标签</button>
+
+        <aside
+          v-else
+          id="label-visibility-card"
+          key="panel"
+          class="label-visibility-card"
+          aria-label="标签分组显隐"
         >
-          <input
-            type="checkbox"
-            :checked="isLabelGroupVisible(group)"
-            :style="{ accentColor: labelGroupColor(index) }"
-            @change="setLabelGroupVisible(group, $event.currentTarget.checked)"
-          >
-          <span
-            class="label-group-swatch"
-            :style="{ backgroundColor: labelGroupColor(index) }"
-            aria-hidden="true"
-          ></span>
-          <span class="label-group-name">{{ group.name }}</span>
-        </label>
-      </div>
-      <div class="label-group-actions">
-        <button
-          type="button"
-          :disabled="allLabelGroupsVisible"
-          @click="setAllLabelGroupsVisible(true)"
-        >全显</button>
-        <button
-          type="button"
-          :disabled="allLabelGroupsHidden"
-          @click="setAllLabelGroupsVisible(false)"
-        >全隐</button>
-      </div>
-    </aside>
+          <header>
+            <h3>标签分组</h3>
+            <button
+              type="button"
+              class="label-visibility-close"
+              aria-label="关闭标签分组显隐"
+              title="关闭"
+              @click="labelVisibilityOpen = false"
+            >×</button>
+          </header>
+          <div class="label-group-list">
+            <label
+              v-for="(group, index) in labelGroups"
+              :key="group.uuid"
+              class="label-group-toggle"
+            >
+              <input
+                type="checkbox"
+                :checked="isLabelGroupVisible(group)"
+                :style="{ accentColor: labelGroupColor(index) }"
+                @change="setLabelGroupVisible(group, $event.currentTarget.checked)"
+              >
+              <span
+                class="label-group-swatch"
+                :style="{ backgroundColor: labelGroupColor(index) }"
+                aria-hidden="true"
+              ></span>
+              <span class="label-group-name">{{ group.name }}</span>
+            </label>
+          </div>
+          <div class="label-group-actions">
+            <button
+              type="button"
+              :disabled="allLabelGroupsVisible"
+              @click="setAllLabelGroupsVisible(true)"
+            >全显</button>
+            <button
+              type="button"
+              :disabled="allLabelGroupsHidden"
+              @click="setAllLabelGroupsVisible(false)"
+            >全隐</button>
+          </div>
+        </aside>
+      </Transition>
+    </div>
 
     <div
       v-if="modelGroupTree.length"
@@ -217,6 +251,7 @@ const roamingSpeed = ref(0.8);
 const htmlSprites = ref([]);
 const labelGroups = ref([]);
 const hiddenLabelGroupUuids = ref(new Set());
+const labelVisibilityOpen = ref(false);
 const modelGroupTree = ref([]);
 const sceneTreeOpen = ref(false);
 const sceneTreeSearch = ref('');
@@ -619,6 +654,7 @@ async function loadScene() {
   htmlSprites.value = [];
   labelGroups.value = [];
   hiddenLabelGroupUuids.value = new Set();
+  labelVisibilityOpen.value = false;
   modelGroupTree.value = [];
   sceneTreeOpen.value = false;
   sceneTreeSearch.value = '';
@@ -922,29 +958,83 @@ defineExpose({ handleAction: setView, reload: loadScene, triggerDataUpdate });
   /* will-change: transform; */
 }
 
-.label-visibility-card {
+.label-visibility-control {
   position: absolute;
   z-index: 4;
   top: 10px;
   left: 10px;
+  display: flex;
+  align-items: flex-start;
   box-sizing: border-box;
   width: min(130px, calc(100% - 20px));
-  padding: 9px;
+  pointer-events: none;
+}
+
+.label-visibility-trigger,
+.label-visibility-card {
   border: 1px solid rgba(47, 165, 255, 0.55);
-  border-radius: 6px;
   background: rgba(3, 25, 44, 0.92);
   box-shadow: 0 7px 20px rgba(0, 8, 16, 0.42);
   color: #c7eaff;
-  font-size: 11px;
   backdrop-filter: blur(8px);
+  pointer-events: auto;
+}
+
+.label-visibility-trigger {
+  width: 70px;
+  height: 34px;
+  border-radius: 5px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.label-visibility-trigger:hover {
+  border-color: #63c4ff;
+  background: #084b7d;
+  color: #fff;
+}
+
+.label-visibility-card {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 9px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.label-visibility-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 24px;
+  margin-bottom: 7px;
 }
 
 .label-visibility-card h3 {
-  margin: 0 0 7px;
+  margin: 0;
   font-size: 12px;
   font-weight: 700;
   line-height: 1.3;
   white-space: nowrap;
+}
+
+.label-visibility-close {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #9fd8ff;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.label-visibility-close:hover {
+  color: #fff;
 }
 
 .label-group-list {
