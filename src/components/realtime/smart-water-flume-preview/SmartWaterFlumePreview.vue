@@ -401,6 +401,7 @@ function focusSceneTreeNode(uuid) {
 }
 
 function isObjectHierarchyPickable(object) {
+  if (object.isLineSegments || object.type === 'LineSegments') return false;
   let current = object;
   while (current) {
     if (current.visible === false || current.ignore || current.userData?.ignore) return false;
