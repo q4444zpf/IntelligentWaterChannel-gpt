@@ -20,7 +20,12 @@
 
     <section class="center-stack">
       <section class="panel twin-panel">
-        <div class="panel-head"><h2>三维水槽工艺监控</h2><div class="mini-actions"><button v-for="action in VIEW_ACTIONS" :key="action" type="button" @click="previewRef?.handleAction(action)">{{ action }}</button></div></div>
+        <div class="panel-head">
+          <h2>三维水槽工艺监控</h2>
+          <div class="mini-actions">
+            <button v-for="action in VIEW_ACTIONS" :key="action" type="button" @click="previewRef?.handleAction(action)">{{ action }}</button>
+          </div>
+        </div>
         <div class="twin-stage">
           <SmartWaterFlumePreview
             ref="previewRef"
