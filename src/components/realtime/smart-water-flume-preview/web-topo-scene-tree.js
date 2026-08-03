@@ -43,3 +43,38 @@ export function findNearestSelectableGroup(object, selectableUuids) {
   }
   return null;
 }
+
+function isDescendantOf(object, ancestor) {
+  let current = object?.parent;
+  while (current) {
+    if (current === ancestor) return true;
+    current = current.parent;
+  }
+  return false;
+}
+
+export function isolateSelectableGroup(selectedGroup, selectableUuids, objectByUuid) {
+  const visibilitySnapshot = new Map();
+  const selectedPathUuids = new Set();
+  let current = selectedGroup;
+  while (current) {
+    if (current.uuid) selectedPathUuids.add(current.uuid);
+    current = current.parent;
+  }
+
+  selectableUuids.forEach((uuid) => {
+    const object = objectByUuid.get(uuid);
+    if (!object) return;
+    visibilitySnapshot.set(uuid, object.visible);
+    if (selectedPathUuids.has(uuid)) object.visible = true;
+    else if (!isDescendantOf(object, selectedGroup)) object.visible = false;
+  });
+  return visibilitySnapshot;
+}
+
+export function restoreSelectableGroupVisibility(visibilitySnapshot, objectByUuid) {
+  visibilitySnapshot?.forEach((visible, uuid) => {
+    const object = objectByUuid.get(uuid);
+    if (object) object.visible = visible;
+  });
+}

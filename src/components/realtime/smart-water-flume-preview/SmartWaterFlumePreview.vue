@@ -78,6 +78,14 @@
       @pointerdown.stop
       @wheel.stop
     >
+      <button
+        type="button"
+        class="selected-model-isolation"
+        :class="{ active: selectedModelIsolationEnabled }"
+        :aria-pressed="selectedModelIsolationEnabled"
+        title="只显示选中对象"
+        @click="setSelectedModelIsolation(!selectedModelIsolationEnabled)"
+      >只显示选中对象</button>
       <Transition name="scene-tree-toggle" mode="out-in">
         <button
           v-if="!sceneTreeOpen"
@@ -156,6 +164,7 @@
                   :aria-label="`${isModelGroupVisible(row.node.uuid) ? '隐藏' : '显示'}${row.node.name}`"
                   :aria-pressed="isModelGroupVisible(row.node.uuid)"
                   :title="isModelGroupVisible(row.node.uuid) ? '隐藏' : '显示'"
+                  :disabled="Boolean(isolatedModelGroupUuid)"
                   @click.stop="toggleModelGroupVisibility(row.node.uuid)"
                 >
                   <EyeOutlined v-if="isModelGroupVisible(row.node.uuid)" aria-hidden="true" />
@@ -230,6 +239,8 @@ import { loadWebTopoScenePackage } from './web-topo-scene-loader.js';
 import {
   buildGroupTreeUnder,
   findNearestSelectableGroup,
+  isolateSelectableGroup,
+  restoreSelectableGroupVisibility,
 } from './web-topo-scene-tree.js';
 
 const props = defineProps({
@@ -258,6 +269,8 @@ const sceneTreeSearch = ref('');
 const expandedSceneTreeUuids = ref(new Set());
 const selectedSceneTreeUuid = ref('');
 const hiddenModelGroupUuids = ref(new Set());
+const selectedModelIsolationEnabled = ref(false);
+const isolatedModelGroupUuid = ref('');
 const labelElements = [];
 const loadingText = computed(() => sceneName.value ? `正在加载${sceneName.value}` : '正在获取三维场景');
 const allLabelGroupsVisible = computed(() => hiddenLabelGroupUuids.value.size === 0);
@@ -324,6 +337,7 @@ let modelCenter = new THREE.Vector3();
 let modelSize = new THREE.Vector3(10, 5, 2);
 let defaultCameraState;
 let sceneObjectByUuid = new Map();
+let isolatedModelVisibilitySnapshot;
 let cameraTransition;
 let canvasPointerDown;
 let disposed = false;
@@ -365,6 +379,7 @@ function isModelGroupVisible(uuid) {
 }
 
 function toggleModelGroupVisibility(uuid) {
+  if (isolatedModelGroupUuid.value) return;
   const object = sceneObjectByUuid.get(uuid);
   if (!object) return;
 
@@ -374,6 +389,44 @@ function toggleModelGroupVisibility(uuid) {
   if (visible) hiddenGroups.delete(uuid);
   else hiddenGroups.add(uuid);
   hiddenModelGroupUuids.value = hiddenGroups;
+}
+
+function syncHiddenModelGroupsFromScene() {
+  const hiddenGroups = new Set();
+  selectableModelGroupUuids.value.forEach((uuid) => {
+    if (sceneObjectByUuid.get(uuid)?.visible === false) hiddenGroups.add(uuid);
+  });
+  hiddenModelGroupUuids.value = hiddenGroups;
+}
+
+function restoreIsolatedModelVisibility() {
+  restoreSelectableGroupVisibility(isolatedModelVisibilitySnapshot, sceneObjectByUuid);
+  isolatedModelVisibilitySnapshot = undefined;
+  isolatedModelGroupUuid.value = '';
+  syncHiddenModelGroupsFromScene();
+}
+
+function applySelectedModelIsolation(uuid) {
+  if (!selectedModelIsolationEnabled.value) return;
+  const selectedGroup = sceneObjectByUuid.get(uuid);
+  if (!selectedGroup) return;
+  restoreIsolatedModelVisibility();
+  isolatedModelVisibilitySnapshot = isolateSelectableGroup(
+    selectedGroup,
+    selectableModelGroupUuids.value,
+    sceneObjectByUuid,
+  );
+  isolatedModelGroupUuid.value = uuid;
+  syncHiddenModelGroupsFromScene();
+}
+
+function setSelectedModelIsolation(enabled) {
+  selectedModelIsolationEnabled.value = enabled;
+  if (!enabled) {
+    restoreIsolatedModelVisibility();
+    return;
+  }
+  if (selectedSceneTreeUuid.value) applySelectedModelIsolation(selectedSceneTreeUuid.value);
 }
 
 function cancelCameraTransition() {
@@ -386,6 +439,7 @@ function focusSceneTreeNode(uuid) {
 
   const bounds = new THREE.Box3().setFromObject(object);
   if (bounds.isEmpty()) return;
+  applySelectedModelIsolation(uuid);
 
   const sphere = bounds.getBoundingSphere(new THREE.Sphere());
   const radius = Math.max(sphere.radius, 0.1);
@@ -446,6 +500,7 @@ function isObjectHierarchyPickable(object) {
 }
 
 function clearModelGroupSelection() {
+  restoreIsolatedModelVisibility();
   selectedSceneTreeUuid.value = '';
   cancelCameraTransition();
   if (outlinePass) outlinePass.selectedObjects = [];
@@ -644,6 +699,7 @@ function applyControlsState(state) {
 }
 
 async function loadScene() {
+  restoreIsolatedModelVisibility();
   abortController?.abort();
   stopMqtt();
   abortController = new AbortController();
@@ -661,6 +717,7 @@ async function loadScene() {
   expandedSceneTreeUuids.value = new Set();
   selectedSceneTreeUuid.value = '';
   hiddenModelGroupUuids.value = new Set();
+  selectedModelIsolationEnabled.value = false;
   cancelCameraTransition();
   if (outlinePass) outlinePass.selectedObjects = [];
   sceneObjectByUuid = new Map();
@@ -1117,10 +1174,51 @@ defineExpose({ handleAction: setView, reload: loadScene, triggerDataUpdate });
   right: 10px;
   bottom: 10px;
   display: flex;
+  gap: 8px;
   align-items: flex-start;
   justify-content: flex-end;
-  width: min(260px, calc(100% - 20px));
+  width: min(396px, calc(100% - 20px));
   pointer-events: none;
+}
+
+.selected-model-isolation {
+  display: flex;
+  flex: 0 0 128px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 34px;
+  padding: 0 5px;
+  border: 1px solid rgba(47, 165, 255, 0.58);
+  border-radius: 5px;
+  background: rgba(3, 25, 44, 0.94);
+  box-shadow: 0 7px 20px rgba(0, 8, 16, 0.42);
+  color: #9fcde9;
+  font-family: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  pointer-events: auto;
+  transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease;
+}
+
+.selected-model-isolation:hover {
+  border-color: #63c4ff;
+  background: #084b7d;
+  color: #fff;
+}
+
+.selected-model-isolation.active {
+  border-color: #7bd4ff;
+  background: #0a5d96;
+  box-shadow: 0 7px 20px rgba(0, 8, 16, 0.42), inset 0 0 0 1px rgba(123, 212, 255, 0.35);
+  color: #fff;
+}
+
+.selected-model-isolation:focus-visible {
+  outline: 2px solid #63c4ff;
+  outline-offset: 2px;
 }
 
 .scene-tree-trigger,
@@ -1151,7 +1249,7 @@ defineExpose({ handleAction: setView, reload: loadScene, triggerDataUpdate });
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   box-sizing: border-box;
-  width: 100%;
+  width: min(260px, calc(100% - 136px));
   max-height: min(420px, 100%);
   padding: 10px;
   border-radius: 6px;
@@ -1312,6 +1410,11 @@ defineExpose({ handleAction: setView, reload: loadScene, triggerDataUpdate });
 
 .scene-tree-visibility.hidden {
   color: #607f94;
+}
+
+.scene-tree-visibility:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .scene-tree-folder {

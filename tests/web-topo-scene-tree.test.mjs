@@ -3,6 +3,8 @@ import test from 'node:test';
 import {
   buildGroupTreeUnder,
   findNearestSelectableGroup,
+  isolateSelectableGroup,
+  restoreSelectableGroupVisibility,
 } from '../src/components/realtime/smart-water-flume-preview/web-topo-scene-tree.js';
 
 test('builds a tree containing only groups below the named model group', () => {
@@ -125,4 +127,63 @@ test('resolves a raycast hit to its nearest selectable parent group', () => {
   );
   assert.equal(findNearestSelectableGroup(mesh, new Set(['outer'])), outerGroup);
   assert.equal(findNearestSelectableGroup(mesh, new Set()), null);
+});
+
+test('isolates a selected group branch and restores every prior visibility state', () => {
+  const modelRoot = { type: 'Group', uuid: 'model-root', visible: true };
+  const channel = { type: 'Group', uuid: 'channel', visible: true, parent: modelRoot };
+  const gate = { type: 'Group', uuid: 'gate', visible: true, parent: channel };
+  const hiddenSensor = { type: 'Group', uuid: 'sensor', visible: false, parent: channel };
+  const pump = { type: 'Group', uuid: 'pump', visible: true, parent: modelRoot };
+  const light = { type: 'DirectionalLight', uuid: 'sun', visible: true };
+  const objects = new Map([
+    ['channel', channel],
+    ['gate', gate],
+    ['sensor', hiddenSensor],
+    ['pump', pump],
+    ['sun', light],
+  ]);
+  const selectableUuids = new Set(['channel', 'gate', 'sensor', 'pump']);
+
+  const snapshot = isolateSelectableGroup(channel, selectableUuids, objects);
+
+  assert.equal(channel.visible, true);
+  assert.equal(gate.visible, true);
+  assert.equal(hiddenSensor.visible, false);
+  assert.equal(pump.visible, false);
+  assert.equal(light.visible, true);
+
+  restoreSelectableGroupVisibility(snapshot, objects);
+  assert.equal(channel.visible, true);
+  assert.equal(gate.visible, true);
+  assert.equal(hiddenSensor.visible, false);
+  assert.equal(pump.visible, true);
+  assert.equal(light.visible, true);
+});
+
+test('keeps selectable ancestors visible when isolating a nested group', () => {
+  const modelRoot = { type: 'Group', uuid: 'model-root', visible: true };
+  const channel = { type: 'Group', uuid: 'channel', visible: false, parent: modelRoot };
+  const gate = { type: 'Group', uuid: 'gate', visible: true, parent: channel };
+  const pump = { type: 'Group', uuid: 'pump', visible: true, parent: modelRoot };
+  const objects = new Map([
+    ['channel', channel],
+    ['gate', gate],
+    ['pump', pump],
+  ]);
+
+  const snapshot = isolateSelectableGroup(
+    gate,
+    new Set(['channel', 'gate', 'pump']),
+    objects,
+  );
+
+  assert.equal(channel.visible, true);
+  assert.equal(gate.visible, true);
+  assert.equal(pump.visible, false);
+
+  restoreSelectableGroupVisibility(snapshot, objects);
+  assert.equal(channel.visible, false);
+  assert.equal(gate.visible, true);
+  assert.equal(pump.visible, true);
 });
