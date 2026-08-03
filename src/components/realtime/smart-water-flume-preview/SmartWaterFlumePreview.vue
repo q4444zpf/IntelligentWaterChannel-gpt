@@ -177,6 +177,35 @@
       </Transition>
     </div>
 
+    <div
+      v-if="modelGroupTree.length"
+      class="model-expansion-controls"
+      @pointerdown.stop
+      @wheel.stop
+    >
+      <button
+        type="button"
+        class="model-expansion-control"
+        :class="{ active: modelExpanded }"
+        :aria-pressed="modelExpanded"
+        @click.stop="toggleModelExpansion"
+      >{{ modelExpanded ? '收起' : '展开' }}</button>
+      <Transition name="model-expansion-slider">
+        <div v-if="modelExpanded" class="model-expansion-slider">
+          <input
+            :value="modelExpansionProgress"
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            aria-label="模型展开程度"
+            title="模型展开程度"
+            @input="setModelExpansionProgress"
+          >
+        </div>
+      </Transition>
+    </div>
+
     <div class="scene-labels" aria-hidden="true">
       <div
         v-for="(sprite, index) in htmlSprites"
@@ -237,6 +266,11 @@ import {
 } from './web-topo-mqtt.js';
 import { loadWebTopoScenePackage } from './web-topo-scene-loader.js';
 import {
+  applyModelExpansionProgress,
+  createHtmlSpriteExpansionLayout,
+  createTopLevelGroupExpansionLayout,
+} from './web-topo-model-expansion.js';
+import {
   buildGroupTreeUnder,
   findNearestSelectableGroup,
   isolateSelectableGroup,
@@ -271,6 +305,7 @@ const selectedSceneTreeUuid = ref('');
 const hiddenModelGroupUuids = ref(new Set());
 const selectedModelIsolationEnabled = ref(false);
 const isolatedModelGroupUuid = ref('');
+const modelExpanded = ref(false);
 const labelElements = [];
 const loadingText = computed(() => sceneName.value ? `正在加载${sceneName.value}` : '正在获取三维场景');
 const allLabelGroupsVisible = computed(() => hiddenLabelGroupUuids.value.size === 0);
@@ -317,6 +352,7 @@ const selectableModelGroupUuids = computed(() => {
 
 const LABEL_GROUP_COLORS = ['#77bdf2', '#84c7a8', '#f0b77a', '#df9a7d', '#76c8bf', '#ef8d8d'];
 const CAMERA_FOCUS_DURATION = 800;
+const MODEL_EXPANSION_DURATION = 650;
 const CANVAS_CLICK_TOLERANCE = 4;
 const raycaster = new THREE.Raycaster();
 const raycastPointer = new THREE.Vector2();
@@ -338,6 +374,9 @@ let modelSize = new THREE.Vector3(10, 5, 2);
 let defaultCameraState;
 let sceneObjectByUuid = new Map();
 let isolatedModelVisibilitySnapshot;
+let modelExpansionLayout = new Map();
+const modelExpansionProgress = ref(0);
+let modelExpansionTransition;
 let cameraTransition;
 let canvasPointerDown;
 let disposed = false;
@@ -427,6 +466,74 @@ function setSelectedModelIsolation(enabled) {
     return;
   }
   if (selectedSceneTreeUuid.value) applySelectedModelIsolation(selectedSceneTreeUuid.value);
+}
+
+function resetModelExpansion() {
+  modelExpansionTransition = undefined;
+  applyModelExpansionProgress(modelExpansionLayout, 0);
+  modelExpansionLayout = new Map();
+  modelExpansionProgress.value = 0;
+  modelExpanded.value = false;
+}
+
+function toggleModelExpansion() {
+  if (!modelExpansionLayout.size) {
+    const modelRoot = scene?.getObjectByName('模型');
+    const labelRoot = scene?.getObjectByName('标签');
+    const topLevelGroups = modelGroupTree.value
+      .map((node) => sceneObjectByUuid.get(node.uuid))
+      .filter(Boolean);
+    const labels = labelRoot
+      ? htmlSprites.value.filter((sprite) => sprite.ancestorUuids?.includes(labelRoot.uuid))
+      : [];
+    modelExpansionLayout = new Map([
+      ...createTopLevelGroupExpansionLayout(modelRoot, topLevelGroups),
+      ...createHtmlSpriteExpansionLayout(modelRoot, labels),
+    ]);
+  }
+  if (!modelExpansionLayout.size) return;
+
+  modelExpanded.value = !modelExpanded.value;
+  modelExpansionTransition = {
+    startedAt: performance.now(),
+    duration: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      ? 0
+      : MODEL_EXPANSION_DURATION,
+    fromProgress: modelExpansionProgress.value,
+    targetProgress: modelExpanded.value ? 1 : 0,
+  };
+}
+
+function setModelExpansionProgress(event) {
+  if (!modelExpansionLayout.size) return;
+  modelExpansionTransition = undefined;
+  modelExpansionProgress.value = THREE.MathUtils.clamp(
+    Number(event.currentTarget.value),
+    0,
+    1,
+  );
+  applyModelExpansionProgress(modelExpansionLayout, modelExpansionProgress.value);
+}
+
+function updateModelExpansionTransition(timestamp) {
+  if (!modelExpansionTransition) return;
+  const progress = modelExpansionTransition.duration === 0
+    ? 1
+    : THREE.MathUtils.clamp(
+      (timestamp - modelExpansionTransition.startedAt) / modelExpansionTransition.duration,
+      0,
+      1,
+    );
+  const eased = progress < 0.5
+    ? 4 * progress ** 3
+    : 1 - ((-2 * progress + 2) ** 3) / 2;
+  modelExpansionProgress.value = THREE.MathUtils.lerp(
+    modelExpansionTransition.fromProgress,
+    modelExpansionTransition.targetProgress,
+    eased,
+  );
+  applyModelExpansionProgress(modelExpansionLayout, modelExpansionProgress.value);
+  if (progress === 1) modelExpansionTransition = undefined;
 }
 
 function cancelCameraTransition() {
@@ -699,6 +806,7 @@ function applyControlsState(state) {
 }
 
 async function loadScene() {
+  resetModelExpansion();
   restoreIsolatedModelVisibility();
   abortController?.abort();
   stopMqtt();
@@ -909,6 +1017,7 @@ function updateCameraTransition(timestamp) {
 
 function renderScene(timestamp = performance.now()) {
   if (!composer || !scene || !camera) return;
+  updateModelExpansionTransition(timestamp);
   updateCameraTransition(timestamp);
   controls?.update();
   updateLabels();
@@ -1017,6 +1126,82 @@ defineExpose({ handleAction: setView, reload: loadScene, triggerDataUpdate });
   transform-origin: center;
   transition: opacity 0.16s ease;
   /* will-change: transform; */
+}
+
+.model-expansion-controls {
+  position: absolute;
+  z-index: 4;
+  bottom: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  pointer-events: none;
+}
+
+.model-expansion-control {
+  flex: 0 0 70px;
+  width: 70px;
+  height: 34px;
+  border: 1px solid rgba(47, 165, 255, 0.58);
+  border-radius: 5px;
+  background: rgba(3, 25, 44, 0.94);
+  box-shadow: 0 7px 20px rgba(0, 8, 16, 0.42);
+  color: #c7eaff;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  pointer-events: auto;
+}
+
+.model-expansion-control:hover,
+.model-expansion-control.active {
+  border-color: #7bd4ff;
+  background: #0a5d96;
+  color: #fff;
+}
+
+.model-expansion-control.active {
+  box-shadow: 0 7px 20px rgba(0, 8, 16, 0.42), inset 0 0 0 1px rgba(123, 212, 255, 0.35);
+}
+
+.model-expansion-slider {
+  display: flex;
+  flex: 0 1 180px;
+  align-items: center;
+  box-sizing: border-box;
+  min-width: 96px;
+  max-width: 180px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgba(47, 165, 255, 0.58);
+  border-radius: 5px;
+  background: rgba(3, 25, 44, 0.94);
+  box-shadow: 0 7px 20px rgba(0, 8, 16, 0.42);
+  backdrop-filter: blur(8px);
+  pointer-events: auto;
+}
+
+.model-expansion-slider input {
+  min-width: 0;
+  width: 100%;
+  height: 14px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: #2fa5ff;
+}
+
+.model-expansion-slider-enter-active,
+.model-expansion-slider-leave-active {
+  transition: opacity 0.16s ease, transform 0.2s ease;
+}
+
+.model-expansion-slider-enter-from,
+.model-expansion-slider-leave-to {
+  opacity: 0;
+  transform: translateX(-6px);
 }
 
 .label-visibility-control {
@@ -1551,7 +1736,9 @@ defineExpose({ handleAction: setView, reload: loadScene, triggerDataUpdate });
 
   .scene-tree-switcher span,
   .scene-tree-toggle-enter-active,
-  .scene-tree-toggle-leave-active {
+  .scene-tree-toggle-leave-active,
+  .model-expansion-slider-enter-active,
+  .model-expansion-slider-leave-active {
     transition: none;
   }
 }
