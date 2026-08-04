@@ -324,7 +324,6 @@ async function handleLogin() {
   left: 156px;
   top: 12px;
   width: 418px;
-  height: 70px;
   opacity: 1;
 }
 
@@ -565,9 +564,9 @@ async function handleLogin() {
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: 5px;
-  background: #228cea;
-  box-shadow: 0 8px 14px rgba(33, 126, 220, 0.24);
+  border-radius: 4px;
+  background: linear-gradient(273deg, #2196f3 32%, #3c7be8 70%);
+  box-shadow: 0 4px 10px 0 rgba(0, 0, 0, 0.2);
   color: #fff;
   font-size: 17px;
   font-weight: 700;
@@ -577,7 +576,7 @@ async function handleLogin() {
 }
 
 .login-button:hover:not(:disabled) {
-  background: #0d76db;
+  background: linear-gradient(273deg, #0d8df1 32%, #246be6 70%);
   box-shadow: 0 10px 20px rgba(33, 126, 220, 0.3);
   transform: translateY(-1px);
 }
@@ -624,15 +623,17 @@ async function handleLogin() {
 .feature-nav ul {
   display: flex;
   align-items: center;
-  gap: clamp(18px, 2vw, 38px);
+  gap: 16px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .feature-nav li {
+  width: 136px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
   color: #243443;
   font-size: 14px;
@@ -744,7 +745,7 @@ async function handleLogin() {
     position: relative;
     right: auto;
     bottom: auto;
-    width: 16px;
+    width: min(100% - 32px, 620px);
     margin: 24px auto;
   }
 
@@ -755,6 +756,7 @@ async function handleLogin() {
   }
 
   .feature-nav li {
+    width: auto;
     justify-content: space-between;
     min-width: 0;
     padding: 7px 9px 7px 12px;
