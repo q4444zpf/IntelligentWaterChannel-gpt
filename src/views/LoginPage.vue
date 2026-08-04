@@ -1,125 +1,184 @@
 <template>
-  <div class="login-screen">
-    <!-- 背景装饰 -->
-    <div class="login-bg">
-      <div class="login-grid"></div>
-      <div class="login-glow login-glow-1"></div>
-      <div class="login-glow login-glow-2"></div>
-    </div>
+  <div class="login-page">
+    <img class="page-background" :src="backgroundImage" alt="" aria-hidden="true" />
+    <div class="background-mask" aria-hidden="true"></div>
 
-    <!-- 环形装饰 -->
-    <div class="deco-ring deco-ring-1"></div>
-    <div class="deco-ring deco-ring-2"></div>
+    <header class="brand-header" aria-label="智能水槽监控系统">
+      <img class="brand-logo" :src="logoImage" alt="" />
+      <img class="brand-title" :src="titleImage" alt="智能水槽监控系统" />
+    </header>
 
-    <!-- 登录卡片 -->
-    <div class="login-card" :class="{ shaking: shake }">
-      <!-- 头部 -->
-      <div class="login-header">
-        <div class="login-brand">智能水槽监控系统</div>
-        <p class="login-desc">请登录以访问系统</p>
-      </div>
+    <main class="login-main">
+      <section class="product-intro" aria-label="智能水槽三维实时监控系统">
+        <img
+          class="product-slogan"
+          :src="sloganImage"
+          alt="智能水槽三维实时监控系统，融合三维数字孪生与实时感知，集中呈现水槽工况、设备状态、实验数据与运行预警"
+        />
+        <img class="product-model" :src="sloganModelImage" alt="" aria-hidden="true" />
+      </section>
 
-      <!-- 表单 -->
-      <form class="login-form" @submit.prevent="handleLogin">
-        <div class="form-group">
-          <label class="form-label">
-            <svg class="form-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <circle cx="12" cy="8" r="4"/>
-              <path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/>
-            </svg>
-            用户名
-          </label>
-          <input
-            v-model="username"
-            type="text"
-            class="form-input"
-            placeholder="请输入用户名"
-            autocomplete="username"
-            :disabled="loading"
-            @focus="shake = false"
-          />
-        </div>
+      <section class="login-card" :class="{ shaking: shake }" aria-labelledby="login-title">
+        <div class="login-card-content">
+          <header class="login-header">
+            <h1 id="login-title">欢迎登录</h1>
+            <p>数字孪生监控平台</p>
+          </header>
 
-        <div class="form-group">
-          <label class="form-label">
-            <svg class="form-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <rect x="3" y="11" width="18" height="11" rx="2"/>
-              <path d="M7 11V7a5 5 0 0110 0v4"/>
-            </svg>
-            密码
-          </label>
-          <div class="password-wrap">
-            <input
-              v-model="password"
-              :type="showPassword ? 'text' : 'password'"
-              class="form-input"
-              placeholder="请输入密码"
-              autocomplete="current-password"
-              :disabled="loading"
-              @focus="shake = false"
-            />
-            <button type="button" class="password-toggle" @click="showPassword = !showPassword" tabindex="-1">
-              <svg v-if="!showPassword" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-              <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/>
-                <line x1="1" y1="1" x2="23" y2="23"/>
-              </svg>
+          <form class="login-form" @submit.prevent="handleLogin">
+            <div class="field-row">
+              <label for="login-username">账&nbsp;&nbsp;&nbsp;号</label>
+              <div class="input-area">
+                <UserOutlined aria-hidden="true" />
+                <input
+                  id="login-username"
+                  v-model="username"
+                  type="text"
+                  placeholder="请输入用户名"
+                  autocomplete="username"
+                  :disabled="loading"
+                  @focus="shake = false"
+                />
+              </div>
+            </div>
+
+            <div class="field-row">
+              <label for="login-password">密&nbsp;&nbsp;&nbsp;码</label>
+              <div class="input-area">
+                <LockOutlined aria-hidden="true" />
+                <input
+                  id="login-password"
+                  v-model="password"
+                  :type="showPassword ? 'text' : 'password'"
+                  placeholder="请输入密码"
+                  autocomplete="current-password"
+                  :disabled="loading"
+                  @focus="shake = false"
+                />
+                <button
+                  class="password-toggle"
+                  type="button"
+                  :aria-label="showPassword ? '隐藏密码' : '显示密码'"
+                  :title="showPassword ? '隐藏密码' : '显示密码'"
+                  @click="showPassword = !showPassword"
+                >
+                  <EyeInvisibleOutlined v-if="showPassword" />
+                  <EyeOutlined v-else />
+                </button>
+              </div>
+            </div>
+
+            <div class="field-row captcha-row">
+              <label for="login-captcha">验证码</label>
+              <div class="captcha-control">
+                <div class="input-area">
+                  <SafetyCertificateOutlined aria-hidden="true" />
+                  <input
+                    id="login-captcha"
+                    v-model="captchaInput"
+                    type="text"
+                    placeholder="请输入验证码"
+                    maxlength="4"
+                    :disabled="loading"
+                    @focus="shake = false"
+                  />
+                </div>
+                <button
+                  class="captcha-button"
+                  type="button"
+                  title="点击刷新验证码"
+                  aria-label="刷新验证码"
+                  :disabled="loading"
+                  @click="refreshCaptcha"
+                >
+                  <img v-if="captchaUrl" :src="captchaUrl" alt="验证码" />
+                  <ReloadOutlined v-else />
+                </button>
+              </div>
+            </div>
+
+            <p class="login-error" :class="{ visible: errorMsg }" aria-live="polite">
+              {{ errorMsg || '\u00a0' }}
+            </p>
+
+            <button
+              class="login-button"
+              type="submit"
+              :disabled="loading || !username || !password || !captchaInput"
+            >
+              <LoadingOutlined v-if="loading" class="loading-icon" />
+              <span v-else>登录</span>
             </button>
-          </div>
-        </div>
+          </form>
 
-        <!-- 验证码 -->
-        <div class="form-group">
-          <label class="form-label">
-            <svg class="form-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          <p class="support-text">若遇登录问题，请联系管理员</p>
+        </div>
+        <div class="card-wave card-wave-back" aria-hidden="true"></div>
+        <div class="card-wave card-wave-front" aria-hidden="true"></div>
+      </section>
+    </main>
+
+    <nav class="feature-nav" aria-label="平台功能">
+      <ul>
+        <li>
+          <span>三维数字孪生</span>
+          <span class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" />
+              <path d="M3 7l9 5 9-5" />
+              <path d="M12 12v10" />
             </svg>
-            验证码
-          </label>
-          <div class="captcha-row">
-            <input
-              v-model="captchaInput"
-              type="text"
-              class="form-input captcha-input"
-              placeholder="请输入验证码"
-              maxlength="4"
-              :disabled="loading"
-              @focus="shake = false"
-            />
-            <img
-              class="captcha-image"
-              :src="captchaUrl"
-              alt="验证码"
-              @click="refreshCaptcha"
-              title="点击刷新验证码"
-            />
-          </div>
-        </div>
-
-        <!-- 错误提示 -->
-        <p class="login-error" v-if="errorMsg">{{ errorMsg }}</p>
-
-        <!-- 登录按钮 -->
-        <button type="submit" class="login-btn" :disabled="loading || !username || !password || !captchaInput">
-          <span v-if="!loading">登 录</span>
-          <span v-else class="btn-loading">
-            <span class="loading-dot"></span>
-            <span class="loading-dot"></span>
-            <span class="loading-dot"></span>
           </span>
-        </button>
-      </form>
-
-    </div>
+        </li>
+        <li>
+          <span>实时监控</span>
+          <span class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+            </svg>
+          </span>
+        </li>
+        <li>
+          <span>报警管理</span>
+          <span class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+              <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+            </svg>
+          </span>
+        </li>
+        <li>
+          <span>历史数据分析</span>
+          <span class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="20" x2="12" y2="10" />
+              <line x1="18" y1="20" x2="18" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="16" />
+            </svg>
+          </span>
+        </li>
+      </ul>
+    </nav>
   </div>
 </template>
 
 <script setup>
+import {
+  EyeInvisibleOutlined,
+  EyeOutlined,
+  LoadingOutlined,
+  LockOutlined,
+  ReloadOutlined,
+  SafetyCertificateOutlined,
+  UserOutlined,
+} from '@ant-design/icons-vue';
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import backgroundImage from '../assets/login/bg.jpg';
+import logoImage from '../assets/login/logo.png';
+import sloganModelImage from '../assets/login/slogan-img.png';
+import sloganImage from '../assets/login/slogan.png';
+import titleImage from '../assets/login/title.png';
 import { getCaptchaUrl, getCode } from '../api/auth.js';
 import { SUCCESS_CODE } from '../constants/auth.js';
 import { authenticate } from '../stores/auth.js';
@@ -205,327 +264,616 @@ async function handleLogin() {
 </script>
 
 <style scoped>
-.login-screen {
+.login-page {
   position: fixed;
   inset: 0;
   z-index: 9998;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #010a15;
+  min-height: 100svh;
   overflow: hidden;
+  background: #dcecf7;
+  color: #17314a;
 }
 
-/* 背景装饰 */
-.login-bg {
+.page-background {
   position: absolute;
   inset: 0;
-}
-.login-grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(21, 147, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(21, 147, 255, 0.03) 1px, transparent 1px);
-  background-size: 60px 60px;
-}
-.login-glow {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(120px);
-}
-.login-glow-1 {
-  width: 500px;
-  height: 500px;
-  top: -200px;
-  right: -150px;
-  background: rgba(0, 100, 220, 0.15);
-  animation: glowFloat1 8s ease-in-out infinite;
-}
-.login-glow-2 {
-  width: 400px;
-  height: 400px;
-  bottom: -150px;
-  left: -100px;
-  background: rgba(0, 160, 255, 0.1);
-  animation: glowFloat2 10s ease-in-out infinite;
-}
-@keyframes glowFloat1 {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(-60px, 40px); }
-}
-@keyframes glowFloat2 {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(50px, -30px); }
+  width: 100%;
+  height: 100%;
+  mix-blend-mode: overlay;
+  opacity: 1;
+  object-fit: cover;
+  object-position: center;
 }
 
-/* 环形装饰 */
-.deco-ring {
+.background-mask {
   position: absolute;
-  border-radius: 50%;
-  border: 1px solid rgba(0, 140, 240, 0.12);
-}
-.deco-ring-1 {
-  width: 600px;
-  height: 600px;
-  animation: ringRotate 20s linear infinite;
-}
-.deco-ring-2 {
-  width: 750px;
-  height: 750px;
-  border-color: rgba(0, 140, 240, 0.06);
-  animation: ringRotate 30s linear infinite reverse;
-}
-@keyframes ringRotate {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  width: 100%;
+  height: 100%;
+  opacity: 0.5;
+  background: linear-gradient(197deg, #197cfd 18%, #e5eff3 46%, #e9f2fb 82%);
+  pointer-events: none;
 }
 
-/* 登录卡片 */
+.brand-header {
+  position: absolute;
+  left: 16px;
+  top: 22px;
+  width: 755px;
+  height: 90px;
+  z-index: 2;
+  opacity: 1;
+  background: linear-gradient(270deg, #d8d8d800 0%, #ffffffb3 60%, #ffffff00 94%);
+}
+
+.brand-logo {
+  position: absolute;
+  left: 35px;
+  top: -10px;
+  width: 94px;
+  height: 117px;
+  opacity: 1;
+  object-fit: cover;
+  object-position: center;
+}
+
+.brand-title {
+  position: absolute;
+  left: 156px;
+  top: 12px;
+  width: 418px;
+  height: 70px;
+  opacity: 1;
+}
+
+.login-main {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(420px, 25vw, 480px);
+  align-items: center;
+  gap: clamp(40px, 7vw, 130px);
+  width: 100%;
+  min-height: 100%;
+  padding: clamp(178px, 20vh, 220px) clamp(56px, 6.9vw, 132px) clamp(170px, 17vh, 184px) clamp(72px, 8.3vw, 160px);
+}
+
+.product-intro {
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.product-slogan {
+  position: absolute;
+  left: 163px;
+  top: 20vh;
+  opacity: 1;
+  width: 629px;
+  height: auto;
+}
+
+.product-model {
+  position: absolute;
+  left: 30px;
+  bottom: 60px;
+  width: auto;
+  opacity: 1;
+  height: 56vh;
+  object-fit: contain;
+  filter: drop-shadow(0 28px 30px rgba(23, 111, 183, 0.16));
+}
+
 .login-card {
+  position: absolute;
+  right: 145px;
+  top: 20vh;
+  width: 479px;
+  height: 588px;
+  border-radius: 12px;
+  opacity: 1;
+
+  background: rgba(255, 255, 255, 0.85);
+
+  box-shadow: 0 8px 12px 0 rgba(162, 203, 236, 0.6);
+}
+
+.login-card.shaking {
+  animation: card-shake 0.5s ease;
+}
+
+.login-card-content {
   position: relative;
   z-index: 2;
-  width: 420px;
-  padding: 48px 44px 40px;
-  background: linear-gradient(
-    160deg,
-    rgba(5, 31, 54, 0.9),
-    rgba(3, 16, 32, 0.95)
-  );
-  border: 1px solid rgba(44, 150, 255, 0.25);
-  border-radius: 12px;
-  backdrop-filter: blur(16px);
-  box-shadow:
-    0 0 60px rgba(0, 100, 220, 0.12),
-    inset 0 1px rgba(255, 255, 255, 0.04);
-  transition: transform 0.3s ease;
-}
-.login-card.shaking {
-  animation: cardShake 0.5s ease;
-}
-@keyframes cardShake {
-  0%, 100% { transform: translateX(0); }
-  10% { transform: translateX(-8px); }
-  30% { transform: translateX(8px); }
-  50% { transform: translateX(-5px); }
-  70% { transform: translateX(5px); }
-  90% { transform: translateX(-2px); }
+  padding: 48px 42px 88px;
 }
 
-/* 头部 */
 .login-header {
+  margin-bottom: 50px;
   text-align: center;
-  margin-bottom: 36px;
-}
-.login-brand {
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: 2px;
-  color: #eaf5ff;
-  text-shadow: 0 0 20px rgba(0, 140, 255, 0.4);
-  margin-bottom: 8px;
-}
-.login-desc {
-  margin: 0;
-  font-size: 13px;
-  color: rgba(150, 195, 235, 0.6);
-  letter-spacing: 1px;
 }
 
-/* 表单 */
+.login-header h1 {
+  margin: 0;
+  color: #0a70d8;
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+
+.login-header p {
+  margin: 28px 0 0;
+  color: #6f7882;
+  font-size: 16px;
+}
+
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-}
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.form-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: rgba(170, 205, 235, 0.75);
-  letter-spacing: 0.5px;
-}
-.form-icon {
-  width: 16px;
-  height: 16px;
-  color: rgba(100, 175, 230, 0.6);
-}
-.form-input {
-  height: 44px;
-  padding: 0 14px;
-  background: rgba(1, 15, 30, 0.7);
-  border: 1px solid rgba(70, 150, 220, 0.25);
-  border-radius: 6px;
-  color: #eaf5ff;
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.3s, box-shadow 0.3s;
-}
-.form-input::placeholder {
-  color: rgba(130, 175, 210, 0.35);
-}
-.form-input:focus {
-  border-color: rgba(40, 150, 255, 0.6);
-  box-shadow: 0 0 0 3px rgba(0, 120, 255, 0.08),
-              0 0 16px rgba(0, 100, 220, 0.1);
-}
-.form-input:disabled {
-  opacity: 0.5;
+  gap: 24px;
 }
 
-/* 密码框 */
-.password-wrap {
-  position: relative;
-}
-.password-wrap .form-input {
-  width: 100%;
-  padding-right: 44px;
-}
-.password-toggle {
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: rgba(130, 180, 210, 0.5);
-  cursor: pointer;
+.field-row {
   display: grid;
-  place-items: center;
-  box-shadow: none;
-}
-.password-toggle:hover {
-  color: rgba(170, 210, 240, 0.8);
-  background: transparent;
-  border: none;
-  box-shadow: none;
-}
-.password-toggle svg {
-  width: 18px;
-  height: 18px;
+  grid-template-columns: 82px minmax(0, 1fr);
+  min-height: 44px;
+  overflow: hidden;
+  border: 1px solid #c4cbd1;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.84);
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-/* 验证码 */
-.captcha-row {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-.captcha-input {
-  flex: 1;
-  min-width: 0;
-  text-transform: uppercase;
-  letter-spacing: 4px;
-}
-.captcha-image {
-  flex: 0 0 auto;
-  width: 110px;
-  height: 44px;
-  border-radius: 6px;
-  cursor: pointer;
-  border: 1px solid rgba(70, 150, 220, 0.25);
-  background: #051a30;
-  transition: border-color 0.3s, box-shadow 0.3s;
-}
-.captcha-canvas:hover {
-  border-color: rgba(40, 150, 255, 0.6);
-  box-shadow: 0 0 0 3px rgba(0, 120, 255, 0.08), 0 0 16px rgba(0, 100, 220, 0.1);
+.field-row:focus-within {
+  border-color: #2187ea;
+  box-shadow: 0 0 0 3px rgba(33, 135, 234, 0.12);
 }
 
-/* 错误 */
-.login-error {
-  margin: -8px 0 0;
-  font-size: 13px;
-  color: #ff5e52;
-  text-align: center;
-}
-
-/* 登录按钮 */
-.login-btn {
-  height: 46px;
-  margin-top: 4px;
-  border: 1px solid rgba(30, 140, 255, 0.5);
-  border-radius: 6px;
-  background: linear-gradient(135deg, #0b6dd4, #06429e);
-  color: #eaf5ff;
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: 4px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow:
-    0 4px 20px rgba(0, 100, 220, 0.25),
-    inset 0 1px rgba(255, 255, 255, 0.1);
+.field-row > label {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-.login-btn:hover:not(:disabled) {
-  border-color: rgba(60, 170, 255, 0.7);
-  background: linear-gradient(135deg, #127be8, #0752b5);
-  box-shadow:
-    0 4px 28px rgba(0, 120, 240, 0.4),
-    inset 0 1px rgba(255, 255, 255, 0.15);
-  transform: translateY(-1px);
-}
-.login-btn:active:not(:disabled) {
-  transform: translateY(0);
-}
-.login-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none;
+  border-right: 1px solid #c4cbd1;
+  background: rgba(239, 247, 251, 0.92);
+  color: #313a43;
+  font-size: 14px;
+  white-space: nowrap;
 }
 
-/* 加载动画 */
-.btn-loading {
+.input-area {
   display: flex;
-  gap: 6px;
+  min-width: 0;
   align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  color: #9ca4ab;
 }
-.loading-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.8);
-  animation: dotBounce 1.2s ease infinite;
+
+.input-area > svg {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
 }
-.loading-dot:nth-child(1) { animation-delay: 0s; }
-.loading-dot:nth-child(2) { animation-delay: 0.15s; }
-.loading-dot:nth-child(3) { animation-delay: 0.3s; }
-@keyframes dotBounce {
-  0%, 80%, 100% { transform: scale(0.4); opacity: 0.3; }
-  40% { transform: scale(1); opacity: 1; }
+
+.input-area input {
+  min-width: 0;
+  flex: 1;
+  height: 42px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #24374a;
+  font-size: 14px;
+}
+
+.input-area input::placeholder {
+  color: #a8adb2;
+}
+
+.input-area input:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.password-toggle,
+.captcha-button {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #7d8a94;
+  cursor: pointer;
+}
+
+.password-toggle {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
+.password-toggle:hover,
+.password-toggle:focus-visible,
+.captcha-button:hover,
+.captcha-button:focus-visible {
+  color: #0a70d8;
+  outline: 0;
+}
+
+.captcha-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 112px;
+  min-width: 0;
+}
+
+.captcha-button {
+  width: 112px;
+  height: 42px;
+  padding: 2px;
+  border-left: 1px solid #d4d9dd;
+  overflow: hidden;
+}
+
+.captcha-button img {
+  width: 100%;
+  height: 100%;
+  border-radius: 5px;
+  object-fit: fill;
+}
+
+.captcha-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.login-error {
+  min-height: 18px;
+  margin: -12px 0 -8px;
+  color: transparent;
+  font-size: 13px;
+  text-align: center;
+}
+
+.login-error.visible {
+  color: #d83b34;
+}
+
+.login-button {
+  width: 100%;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 5px;
+  background: #228cea;
+  box-shadow: 0 8px 14px rgba(33, 126, 220, 0.24);
+  color: #fff;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.login-button:hover:not(:disabled) {
+  background: #0d76db;
+  box-shadow: 0 10px 20px rgba(33, 126, 220, 0.3);
+  transform: translateY(-1px);
+}
+
+.login-button:focus-visible {
+  outline: 3px solid rgba(24, 125, 225, 0.28);
+  outline-offset: 2px;
+}
+
+.login-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.loading-icon {
+  animation: loading-spin 0.9s linear infinite;
+}
+
+.support-text {
+  margin: 34px 0 0;
+  color: #9aacc3;
+  font-size: 13px;
+  text-align: center;
+}
+
+.card-wave {
+  position: absolute;
+  left: -8%;
+  bottom: -62px;
+  width: 116%;
+  height: 108px;
+  border-radius: 50% 50% 0 0;
+  pointer-events: none;
+}
+
+.card-wave-back {
+  bottom: -52px;
+  background: rgba(51, 217, 234, 0.25);
+  transform: rotate(2deg);
+}
+
+.card-wave-front {
+  left: 18%;
+  bottom: -70px;
+  width: 96%;
+  background: rgba(26, 137, 237, 0.35);
+  transform: rotate(-4deg);
+}
+
+.feature-nav {
+  position: absolute;
+  right: clamp(56px, 6.9vw, 132px);
+  bottom: clamp(32px, 7.2vh, 78px);
+  z-index: 3;
+}
+
+.feature-nav ul {
+  display: flex;
+  align-items: center;
+  gap: clamp(18px, 2vw, 38px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feature-nav li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #243443;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.feature-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #268cf1;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.54);
+  color: #0878e9;
+}
+
+.feature-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+@keyframes card-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-7px); }
+  40%, 80% { transform: translateX(7px); }
+}
+
+@keyframes loading-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 1280px) {
+  .login-main {
+    grid-template-columns: minmax(0, 1fr) 420px;
+    gap: 40px;
+    padding-right: 48px;
+    padding-left: 64px;
+  }
+
+  .product-model {
+    width: min(92%, 650px);
+  }
+
+  .feature-nav {
+    right: 48px;
+  }
+
+  .feature-nav ul {
+    gap: 16px;
+  }
+
+  .feature-nav li {
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  .feature-icon {
+    width: 38px;
+    height: 38px;
+  }
+}
+
+@media (max-width: 980px) {
+  .login-page {
+    position: fixed;
+    overflow-y: auto;
+  }
+
+  .page-background {
+    position: fixed;
+    object-position: 62% center;
+  }
+
+  .background-mask {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .brand-header {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: min(100% - 32px, 520px);
+    margin: 22px auto 0;
+  }
+
+  .brand-logo {
+    width: 58px;
+  }
+
+  .brand-title {
+    width: min(72vw, 360px);
+  }
+
+  .login-main {
+    display: block;
+    width: min(100% - 32px, 520px);
+    min-height: auto;
+    margin: 56px auto 0;
+    padding: 0;
+  }
+
+  .product-intro {
+    display: none;
+  }
+
+  .login-card {
+    min-height: 0;
+  }
+
+  .login-card-content {
+    padding: 36px 28px 78px;
+  }
+
+  .login-header {
+    margin-bottom: 32px;
+  }
+
+  .feature-nav {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    width: min(100% - 32px, 620px);
+    margin: 24px auto;
+  }
+
+  .feature-nav ul {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .feature-nav li {
+    justify-content: space-between;
+    min-width: 0;
+    padding: 7px 9px 7px 12px;
+    border: 1px solid rgba(38, 140, 241, 0.22);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.62);
+    font-size: 13px;
+  }
 }
 
 @media (max-width: 520px) {
-  .login-card {
-    width: calc(100% - 32px);
-    padding: 36px 24px 32px;
+  .brand-header {
+    gap: 10px;
   }
 
-  .login-brand {
-    font-size: 21px;
+  .brand-logo {
+    width: 48px;
   }
 
-  .deco-ring-1 {
-    width: 460px;
-    height: 460px;
+  .brand-title {
+    width: min(72vw, 290px);
   }
 
-  .deco-ring-2 {
-    width: 580px;
-    height: 580px;
+  .login-main {
+    margin-top: 34px;
+  }
+
+  .login-card-content {
+    padding: 30px 18px 70px;
+  }
+
+  .login-header h1 {
+    font-size: 25px;
+  }
+
+  .login-header p {
+    margin-top: 12px;
+    font-size: 14px;
+  }
+
+  .login-form {
+    gap: 18px;
+  }
+
+  .field-row {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+
+  .captcha-control {
+    grid-template-columns: minmax(0, 1fr) 88px;
+  }
+
+  .captcha-button {
+    width: 88px;
+  }
+
+  .input-area {
+    gap: 7px;
+    padding: 0 8px;
+  }
+
+  .feature-nav ul {
+    grid-template-columns: 1fr;
   }
 }
 
+@media (max-height: 820px) and (min-width: 981px) {
+  .login-main {
+    padding-top: 120px;
+    padding-bottom: 104px;
+  }
+
+  .login-card {
+    min-height: 520px;
+  }
+
+  .login-card-content {
+    padding-top: 30px;
+  }
+
+  .login-header {
+    margin-bottom: 28px;
+  }
+
+  .login-header p {
+    margin-top: 12px;
+  }
+
+  .login-form {
+    gap: 16px;
+  }
+
+  .support-text {
+    margin-top: 20px;
+  }
+
+  .feature-nav {
+    bottom: 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
 </style>
