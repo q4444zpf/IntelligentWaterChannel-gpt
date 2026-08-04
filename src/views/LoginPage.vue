@@ -1,14 +1,13 @@
 <template>
   <div class="login-page">
-    <img class="page-background" :src="backgroundImage" alt="" aria-hidden="true" />
     <div class="background-mask" aria-hidden="true"></div>
+    <img class="page-background" :src="backgroundImage" alt="" aria-hidden="true" />
 
     <header class="brand-header" aria-label="智能水槽监控系统">
       <img class="brand-logo" :src="logoImage" alt="" />
       <img class="brand-title" :src="titleImage" alt="智能水槽监控系统" />
     </header>
 
-    <main class="login-main">
       <section class="product-intro" aria-label="智能水槽三维实时监控系统">
         <img
           class="product-slogan"
@@ -22,6 +21,11 @@
         <div class="login-card-content">
           <header class="login-header">
             <h1 id="login-title">欢迎登录</h1>
+            <div class="line">
+              <div class="line-inner1"/>
+              <div class="line-inner2"/>
+              <div class="line-inner3"/>
+            </div>
             <p>数字孪生监控平台</p>
           </header>
 
@@ -113,10 +117,8 @@
 
           <p class="support-text">若遇登录问题，请联系管理员</p>
         </div>
-        <div class="card-wave card-wave-back" aria-hidden="true"></div>
-        <div class="card-wave card-wave-front" aria-hidden="true"></div>
+        <img class="form-bottom" :src="formBottomImage" alt="" aria-hidden="true" />
       </section>
-    </main>
 
     <nav class="feature-nav" aria-label="平台功能">
       <ul>
@@ -175,6 +177,7 @@ import {
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import backgroundImage from '../assets/login/bg.jpg';
+import formBottomImage from '../assets/login/form-bottom.png';
 import logoImage from '../assets/login/logo.png';
 import sloganModelImage from '../assets/login/slogan-img.png';
 import sloganImage from '../assets/login/slogan.png';
@@ -270,7 +273,7 @@ async function handleLogin() {
   z-index: 9998;
   min-height: 100svh;
   overflow: hidden;
-  background: #dcecf7;
+  background: #ffffff;
   color: #17314a;
 }
 
@@ -325,18 +328,6 @@ async function handleLogin() {
   opacity: 1;
 }
 
-.login-main {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(420px, 25vw, 480px);
-  align-items: center;
-  gap: clamp(40px, 7vw, 130px);
-  width: 100%;
-  min-height: 100%;
-  padding: clamp(178px, 20vh, 220px) clamp(56px, 6.9vw, 132px) clamp(170px, 17vh, 184px) clamp(72px, 8.3vw, 160px);
-}
-
 .product-intro {
   min-width: 0;
   align-self: stretch;
@@ -368,9 +359,10 @@ async function handleLogin() {
 .login-card {
   position: absolute;
   right: 145px;
-  top: 20vh;
+  top: 15vh;
   width: 479px;
   height: 588px;
+  overflow: hidden;
   border-radius: 12px;
   opacity: 1;
 
@@ -396,11 +388,36 @@ async function handleLogin() {
 
 .login-header h1 {
   margin: 0;
-  color: #0a70d8;
+  color: #226CEC;
   font-size: 30px;
   font-weight: 800;
   line-height: 1.3;
   letter-spacing: 0;
+}
+
+.line {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.line-inner1,
+.line-inner2,
+.line-inner3 {
+  width: 20px;
+  height: 4px;
+}
+
+.line-inner1 {
+  background: #074BC2;
+}
+
+.line-inner2 {
+  background: #0A84CF;
+}
+
+.line-inner3 {
+  background: #60BAFF;
 }
 
 .login-header p {
@@ -586,28 +603,15 @@ async function handleLogin() {
   text-align: center;
 }
 
-.card-wave {
+.form-bottom {
   position: absolute;
-  left: -8%;
-  bottom: -62px;
-  width: 116%;
-  height: 108px;
-  border-radius: 50% 50% 0 0;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: auto;
   pointer-events: none;
-}
-
-.card-wave-back {
-  bottom: -52px;
-  background: rgba(51, 217, 234, 0.25);
-  transform: rotate(2deg);
-}
-
-.card-wave-front {
-  left: 18%;
-  bottom: -70px;
-  width: 96%;
-  background: rgba(26, 137, 237, 0.35);
-  transform: rotate(-4deg);
 }
 
 .feature-nav {
@@ -662,13 +666,6 @@ async function handleLogin() {
 }
 
 @media (max-width: 1280px) {
-  .login-main {
-    grid-template-columns: minmax(0, 1fr) 420px;
-    gap: 40px;
-    padding-right: 48px;
-    padding-left: 64px;
-  }
-
   .product-model {
     width: min(92%, 650px);
   }
@@ -727,14 +724,6 @@ async function handleLogin() {
     width: min(72vw, 360px);
   }
 
-  .login-main {
-    display: block;
-    width: min(100% - 32px, 520px);
-    min-height: auto;
-    margin: 56px auto 0;
-    padding: 0;
-  }
-
   .product-intro {
     display: none;
   }
@@ -755,7 +744,7 @@ async function handleLogin() {
     position: relative;
     right: auto;
     bottom: auto;
-    width: min(100% - 32px, 620px);
+    width: 16px;
     margin: 24px auto;
   }
 
@@ -787,10 +776,6 @@ async function handleLogin() {
 
   .brand-title {
     width: min(72vw, 290px);
-  }
-
-  .login-main {
-    margin-top: 34px;
   }
 
   .login-card-content {
@@ -833,11 +818,6 @@ async function handleLogin() {
 }
 
 @media (max-height: 820px) and (min-width: 981px) {
-  .login-main {
-    padding-top: 120px;
-    padding-bottom: 104px;
-  }
-
   .login-card {
     min-height: 520px;
   }
