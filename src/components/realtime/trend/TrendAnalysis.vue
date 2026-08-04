@@ -5,12 +5,10 @@
       <TrendTabs v-model:active-key="activeTab" />
       <div v-if="isNode" class="mini-actions profile-actions">
         <span class="refresh-status" :title="nodeUpdatedLabel">MQTT 实时更新</span>
-        <button type="button" @click="profileChart?.resetZoom()">复位</button>
       </div>
       <div v-else class="trend-live-status">
         <span class="refresh-status" :title="trendUpdatedLabel">MQTT 实时更新</span>
         <button type="button" @click="toggleTrendPolling">{{ trendPaused ? '继续' : '暂停' }}</button>
-        <button type="button" @click="trendChart?.resetZoom()">复位</button>
       </div>
     </div>
 

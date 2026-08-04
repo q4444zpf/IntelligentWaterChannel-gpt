@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { nextTick, ref } from 'vue';
 
+import { useMqttRealtimeTrends } from '../src/composables/useMqttRealtimeTrends.ts';
 import { createRealtimeMqttTrendBuffer } from '../src/realtime-mqtt-trend-buffer.ts';
 
 const devicesByType = {
@@ -72,4 +74,31 @@ test('uses the latest point from each display granularity bucket', () => {
     buffer.snapshot('flow', devicesByType.flow[0], 0, 300_000, 300_000, 120_000).series[0].points,
     [{ timestamp: 150_000, value: 11 }, { timestamp: 240_000, value: 12 }],
   );
+});
+
+test('continues collecting MQTT data while the trend display is paused and catches up on resume', async () => {
+  const timestamp = ref(Date.now());
+  const values = ref({ Flow_1: 10 });
+  const trends = useMqttRealtimeTrends({
+    devicesByType,
+    realtimeValues: values,
+    mqttTimestamp: timestamp,
+    loadInitial: async () => [],
+  });
+
+  await Promise.resolve();
+  await nextTick();
+  timestamp.value += 1_000;
+  const pausedPoints = trends.snapshot.value.series[0].points;
+  trends.pause();
+
+  values.value = { Flow_1: 15 };
+  timestamp.value += 1_000;
+
+  assert.equal(trends.lastUpdated.value, timestamp.value);
+  assert.deepEqual(trends.snapshot.value.series[0].points, pausedPoints);
+
+  trends.resume();
+
+  assert.equal(trends.snapshot.value.series[0].points.at(-1).value, 15);
 });
