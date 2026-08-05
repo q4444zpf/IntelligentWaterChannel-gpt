@@ -3,6 +3,7 @@ import {
   TREND_CONFIGS,
   type TimeRangeKey,
   type TrendDevice,
+  type TrendSnapshot,
   type TrendType,
 } from '../config/trendConfig.ts';
 import {
@@ -42,6 +43,7 @@ export function useMqttRealtimeTrends({
   });
   const customByType = reactive<Partial<Record<TrendType, CustomTimeRange>>>({});
   const paused = ref(false);
+  const frozenSnapshot = ref<TrendSnapshot | null>(null);
   const lastUpdated = ref<number | null>(null);
   const revision = ref(0);
   const initialLoading = ref(false);
@@ -66,7 +68,7 @@ export function useMqttRealtimeTrends({
   }
 
   function recordCurrent(timestamp = mqttTimestamp.value) {
-    if (paused.value || !timestamp) return;
+    if (!timestamp) return;
     if (buffer.record(devicesByType, realtimeValues.value, timestamp)) {
       lastUpdated.value = timestamp;
       revision.value += 1;
@@ -132,7 +134,7 @@ export function useMqttRealtimeTrends({
   }
 
   watch(initialQueryKey, () => { void reloadInitial(); }, { immediate: true });
-  const snapshot = computed(() => {
+  const liveSnapshot = computed(() => {
     revision.value;
     const type = trendType.value;
     const timestamp = Math.max(queryEndByType[type], mqttTimestamp.value || 0);
@@ -147,6 +149,7 @@ export function useMqttRealtimeTrends({
       range.sampleInterval,
     );
   });
+  const snapshot = computed(() => (paused.value && frozenSnapshot.value ? frozenSnapshot.value : liveSnapshot.value));
   const statistics = computed(() => snapshot.value.series.map((series) => ({
     device: series.device,
     ...summarizeSeries(series),
@@ -168,11 +171,13 @@ export function useMqttRealtimeTrends({
   }
 
   function pause() {
+    frozenSnapshot.value = liveSnapshot.value;
     paused.value = true;
   }
 
   function resume() {
     paused.value = false;
+    frozenSnapshot.value = null;
     recordCurrent();
   }
 
