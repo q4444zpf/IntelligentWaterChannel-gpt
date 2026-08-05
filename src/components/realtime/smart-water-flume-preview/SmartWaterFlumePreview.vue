@@ -276,6 +276,7 @@ import {
   isolateSelectableGroup,
   restoreSelectableGroupVisibility,
 } from './web-topo-scene-tree.js';
+import { createWebTopoScriptRuntime } from './web-topo-script-runtime.js';
 
 const props = defineProps({
   webTopoId: {
@@ -379,6 +380,7 @@ const modelExpansionProgress = ref(0);
 let modelExpansionTransition;
 let cameraTransition;
 let canvasPointerDown;
+let scriptRuntime;
 let disposed = false;
 
 function setLabelRef(element, index) {
@@ -650,6 +652,7 @@ function selectModelGroupAtPointer(event) {
 }
 
 function handleCanvasPointerDown(event) {
+  scriptRuntime?.dispatch('onPointerdown', event);
   if (event.button !== 0 || !event.isPrimary) {
     canvasPointerDown = undefined;
     return;
@@ -662,6 +665,7 @@ function handleCanvasPointerDown(event) {
 }
 
 function handleCanvasPointerUp(event) {
+  scriptRuntime?.dispatch('onPointerup', event);
   const pointerDown = canvasPointerDown;
   canvasPointerDown = undefined;
   if (!pointerDown || pointerDown.pointerId !== event.pointerId) return;
@@ -671,6 +675,18 @@ function handleCanvasPointerUp(event) {
 
 function handleCanvasPointerCancel() {
   canvasPointerDown = undefined;
+}
+
+function handleCanvasPointerMove(event) {
+  scriptRuntime?.dispatch('onPointermove', event);
+}
+
+function handleWindowKeyDown(event) {
+  scriptRuntime?.dispatch('onKeydown', event);
+}
+
+function handleWindowKeyUp(event) {
+  scriptRuntime?.dispatch('onKeyup', event);
 }
 
 function setLabelGroupVisible(group, visible) {
@@ -704,7 +720,11 @@ function handleMqttData(payload, receivedTopic, rawMessage) {
     return;
   }
   if (!payload) return;
-  Object.entries(payload).forEach(([field, value]) => triggerDataUpdate(field, value));
+  Object.entries(payload).forEach(([field, value]) => {
+    triggerDataUpdate(field, value);
+    scriptRuntime?.emit(field, value);
+  });
+  scriptRuntime?.emit('mqttMessage', payload);
   emit('mqtt-data', payload);
 }
 
@@ -744,6 +764,9 @@ function createRenderer() {
   renderer.domElement.addEventListener('pointerdown', handleCanvasPointerDown);
   renderer.domElement.addEventListener('pointerup', handleCanvasPointerUp);
   renderer.domElement.addEventListener('pointercancel', handleCanvasPointerCancel);
+  renderer.domElement.addEventListener('pointermove', handleCanvasPointerMove);
+  window.addEventListener('keydown', handleWindowKeyDown);
+  window.addEventListener('keyup', handleWindowKeyUp);
   host.appendChild(renderer.domElement);
 
   composer = new EffectComposer(renderer);
@@ -806,6 +829,8 @@ function applyControlsState(state) {
 }
 
 async function loadScene() {
+  scriptRuntime?.dispose();
+  scriptRuntime = undefined;
   resetModelExpansion();
   restoreIsolatedModelVisibility();
   abortController?.abort();
@@ -879,6 +904,23 @@ async function loadScene() {
     loadProgress.value = 100;
     await nextTick();
     applyLabelUserData();
+    scriptRuntime = createWebTopoScriptRuntime({
+      camera,
+      controls,
+      renderer,
+      scene,
+      scripts: loaded.scripts,
+      viewer: {
+        camera,
+        controls,
+        modules: { controls },
+        render: renderCurrentScene,
+        renderer,
+        scene,
+      },
+      onError: ({ message, error }) => console.warn(message, error),
+    });
+    scriptRuntime.start();
     startMqtt(loaded.config?.mqtt);
     resizeScene();
   } catch (error) {
@@ -1015,13 +1057,19 @@ function updateCameraTransition(timestamp) {
   if (progress === 1) cancelCameraTransition();
 }
 
+function renderCurrentScene() {
+  if (!composer || !scene || !camera) return;
+  updateLabels();
+  composer.render();
+}
+
 function renderScene(timestamp = performance.now()) {
   if (!composer || !scene || !camera) return;
   updateModelExpansionTransition(timestamp);
   updateCameraTransition(timestamp);
+  scriptRuntime?.update();
   controls?.update();
-  updateLabels();
-  composer.render();
+  renderCurrentScene();
 }
 
 function disposeObject(root) {
@@ -1069,6 +1117,8 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   disposed = true;
+  scriptRuntime?.dispose();
+  scriptRuntime = undefined;
   abortController?.abort();
   resizeObserver?.disconnect();
   controls?.dispose();
@@ -1081,6 +1131,9 @@ onBeforeUnmount(() => {
   renderer?.domElement.removeEventListener('pointerdown', handleCanvasPointerDown);
   renderer?.domElement.removeEventListener('pointerup', handleCanvasPointerUp);
   renderer?.domElement.removeEventListener('pointercancel', handleCanvasPointerCancel);
+  renderer?.domElement.removeEventListener('pointermove', handleCanvasPointerMove);
+  window.removeEventListener('keydown', handleWindowKeyDown);
+  window.removeEventListener('keyup', handleWindowKeyUp);
   renderer?.dispose();
   renderer?.forceContextLoss();
   renderer?.domElement.remove();

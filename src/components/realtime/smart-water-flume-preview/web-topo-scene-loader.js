@@ -210,6 +210,14 @@ function parseControlsState(sceneJson) {
   }
 }
 
+export function extractSceneScripts(scenePackage) {
+  if (!scenePackage?.scripts || typeof scenePackage.scripts !== 'object') return {};
+
+  return Object.fromEntries(Object.entries(scenePackage.scripts)
+    .filter(([, scripts]) => Array.isArray(scripts))
+    .map(([uuid, scripts]) => [uuid, scripts.filter((script) => typeof script?.source === 'string')]));
+}
+
 export async function loadWebTopoScenePackage(url, options = {}) {
   const { onProgress, signal } = options;
   throwIfAborted(signal);
@@ -282,5 +290,6 @@ export async function loadWebTopoScenePackage(url, options = {}) {
     htmlSprites,
     labelGroups,
     config,
+    scripts: extractSceneScripts(sceneJson),
   };
 }
