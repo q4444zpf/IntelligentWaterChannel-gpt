@@ -9,13 +9,17 @@ import { setUnauthorizedHandler } from '../utils/request.js';
 const routes = [
   {
     path: '/',
+    name: 'login',
+    component: LoginPage,
+  },
+  {
+    path: '/welcome',
     name: 'welcome',
     component: WelcomePage,
   },
   {
     path: '/login',
-    name: 'login',
-    component: LoginPage,
+    redirect: { name: 'login' },
   },
   {
     path: '/main',
