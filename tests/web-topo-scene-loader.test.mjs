@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   extractHtmlSprites,
   extractLabelGroups,
+  extractSceneScripts,
 } from '../src/components/realtime/smart-water-flume-preview/web-topo-scene-loader.js';
 
 test('extracts only direct subgroup metadata from the label group', () => {
@@ -76,4 +77,17 @@ test('keeps the HtmlSprite visibility and ancestor chain when extracting it from
   const [sprite] = extractHtmlSprites(project);
   assert.equal(sprite.visible, false);
   assert.deepEqual(sprite.ancestorUuids, ['scene-root', 'parent-group']);
+});
+
+test('retains only executable object scripts from the scene package', () => {
+  assert.deepEqual(extractSceneScripts({
+    scripts: {
+      gate: [{ name: 'open', source: 'function start() {}' }, { name: 'invalid' }],
+      channel: [],
+      invalid: 'not an array',
+    },
+  }), {
+    gate: [{ name: 'open', source: 'function start() {}' }],
+    channel: [],
+  });
 });

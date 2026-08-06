@@ -222,7 +222,7 @@
     </div>
     <div v-else-if="loadError" class="scene-state scene-error" role="alert">
       <span>{{ loadError }}</span>
-      <button type="button" @click="loadScene">重试</button>
+      <button type="button" @click="() => loadScene()">重试</button>
     </div>
 
     <label v-if="autoRotating" class="roaming-control">
@@ -272,10 +272,12 @@ import {
 } from './web-topo-model-expansion.js';
 import {
   buildGroupTreeUnder,
+  findGroupNodeByName,
   findNearestSelectableGroup,
   isolateSelectableGroup,
   restoreSelectableGroupVisibility,
 } from './web-topo-scene-tree.js';
+import { createWebTopoScriptRuntime } from './web-topo-script-runtime.js';
 
 const props = defineProps({
   webTopoId: {
@@ -379,6 +381,8 @@ const modelExpansionProgress = ref(0);
 let modelExpansionTransition;
 let cameraTransition;
 let canvasPointerDown;
+let scriptRuntime;
+let pendingSceneTreeGroupName = '';
 let disposed = false;
 
 function setLabelRef(element, index) {
@@ -596,6 +600,30 @@ function focusSceneTreeNode(uuid) {
   };
 }
 
+function focusSceneTreeGroupByName(groupName) {
+  const name = String(groupName || '').trim();
+  if (!name) return false;
+
+  const node = findGroupNodeByName(modelGroupTree.value, name);
+  if (!node) {
+    pendingSceneTreeGroupName = loading.value ? name : '';
+    return false;
+  }
+
+  pendingSceneTreeGroupName = '';
+  const expanded = new Set(expandedSceneTreeUuids.value);
+  let ancestor = sceneObjectByUuid.get(node.uuid)?.parent;
+  while (ancestor) {
+    if (selectableModelGroupUuids.value.has(ancestor.uuid)) expanded.add(ancestor.uuid);
+    ancestor = ancestor.parent;
+  }
+  expandedSceneTreeUuids.value = expanded;
+  sceneTreeSearch.value = '';
+  sceneTreeOpen.value = true;
+  focusSceneTreeNode(node.uuid);
+  return true;
+}
+
 function isObjectHierarchyPickable(object) {
   if (object.isLineSegments || object.type === 'LineSegments') return false;
   let current = object;
@@ -650,6 +678,7 @@ function selectModelGroupAtPointer(event) {
 }
 
 function handleCanvasPointerDown(event) {
+  scriptRuntime?.dispatch('onPointerdown', event);
   if (event.button !== 0 || !event.isPrimary) {
     canvasPointerDown = undefined;
     return;
@@ -662,6 +691,7 @@ function handleCanvasPointerDown(event) {
 }
 
 function handleCanvasPointerUp(event) {
+  scriptRuntime?.dispatch('onPointerup', event);
   const pointerDown = canvasPointerDown;
   canvasPointerDown = undefined;
   if (!pointerDown || pointerDown.pointerId !== event.pointerId) return;
@@ -671,6 +701,18 @@ function handleCanvasPointerUp(event) {
 
 function handleCanvasPointerCancel() {
   canvasPointerDown = undefined;
+}
+
+function handleCanvasPointerMove(event) {
+  scriptRuntime?.dispatch('onPointermove', event);
+}
+
+function handleWindowKeyDown(event) {
+  scriptRuntime?.dispatch('onKeydown', event);
+}
+
+function handleWindowKeyUp(event) {
+  scriptRuntime?.dispatch('onKeyup', event);
 }
 
 function setLabelGroupVisible(group, visible) {
@@ -704,7 +746,11 @@ function handleMqttData(payload, receivedTopic, rawMessage) {
     return;
   }
   if (!payload) return;
-  Object.entries(payload).forEach(([field, value]) => triggerDataUpdate(field, value));
+  Object.entries(payload).forEach(([field, value]) => {
+    triggerDataUpdate(field, value);
+    scriptRuntime?.emit(field, value);
+  });
+  scriptRuntime?.emit('mqttMessage', payload);
   emit('mqtt-data', payload);
 }
 
@@ -744,6 +790,9 @@ function createRenderer() {
   renderer.domElement.addEventListener('pointerdown', handleCanvasPointerDown);
   renderer.domElement.addEventListener('pointerup', handleCanvasPointerUp);
   renderer.domElement.addEventListener('pointercancel', handleCanvasPointerCancel);
+  renderer.domElement.addEventListener('pointermove', handleCanvasPointerMove);
+  window.addEventListener('keydown', handleWindowKeyDown);
+  window.addEventListener('keyup', handleWindowKeyUp);
   host.appendChild(renderer.domElement);
 
   composer = new EffectComposer(renderer);
@@ -805,7 +854,9 @@ function applyControlsState(state) {
   controls.update();
 }
 
-async function loadScene() {
+async function loadScene({ forceReload = false } = {}) {
+  scriptRuntime?.dispose();
+  scriptRuntime = undefined;
   resetModelExpansion();
   restoreIsolatedModelVisibility();
   abortController?.abort();
@@ -832,12 +883,13 @@ async function loadScene() {
   labelElements.length = 0;
 
   try {
-    const info = await getWebTopoScene(props.webTopoId);
+    const info = await getWebTopoScene(props.webTopoId, { forceReload });
     if (!info.zipUrl) throw new Error('该三维组态场景没有场景包');
     sceneName.value = info.sceneName || '';
     loadProgress.value = 1;
 
     const loaded = await loadWebTopoScenePackage(resolveWebTopoAssetUrl(info.zipUrl), {
+      forceReload,
       signal: abortController.signal,
       onProgress: (progress) => {
         loadProgress.value = Math.max(1, Math.round(progress * 100));
@@ -879,8 +931,26 @@ async function loadScene() {
     loadProgress.value = 100;
     await nextTick();
     applyLabelUserData();
+    scriptRuntime = createWebTopoScriptRuntime({
+      camera,
+      controls,
+      renderer,
+      scene,
+      scripts: loaded.scripts,
+      viewer: {
+        camera,
+        controls,
+        modules: { controls },
+        render: renderCurrentScene,
+        renderer,
+        scene,
+      },
+      onError: ({ message, error }) => console.warn(message, error),
+    });
+    scriptRuntime.start();
     startMqtt(loaded.config?.mqtt);
     resizeScene();
+    if (pendingSceneTreeGroupName) focusSceneTreeGroupByName(pendingSceneTreeGroupName);
   } catch (error) {
     if (error?.name === 'AbortError' || disposed) return;
     loading.value = false;
@@ -1015,13 +1085,23 @@ function updateCameraTransition(timestamp) {
   if (progress === 1) cancelCameraTransition();
 }
 
+function renderCurrentScene() {
+  if (!composer || !scene || !camera) return;
+  updateLabels();
+  composer.render();
+}
+
+function reloadScene() {
+  return loadScene({ forceReload: true });
+}
+
 function renderScene(timestamp = performance.now()) {
   if (!composer || !scene || !camera) return;
   updateModelExpansionTransition(timestamp);
   updateCameraTransition(timestamp);
+  scriptRuntime?.update();
   controls?.update();
-  updateLabels();
-  composer.render();
+  renderCurrentScene();
 }
 
 function disposeObject(root) {
@@ -1069,6 +1149,8 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   disposed = true;
+  scriptRuntime?.dispose();
+  scriptRuntime = undefined;
   abortController?.abort();
   resizeObserver?.disconnect();
   controls?.dispose();
@@ -1081,12 +1163,20 @@ onBeforeUnmount(() => {
   renderer?.domElement.removeEventListener('pointerdown', handleCanvasPointerDown);
   renderer?.domElement.removeEventListener('pointerup', handleCanvasPointerUp);
   renderer?.domElement.removeEventListener('pointercancel', handleCanvasPointerCancel);
+  renderer?.domElement.removeEventListener('pointermove', handleCanvasPointerMove);
+  window.removeEventListener('keydown', handleWindowKeyDown);
+  window.removeEventListener('keyup', handleWindowKeyUp);
   renderer?.dispose();
   renderer?.forceContextLoss();
   renderer?.domElement.remove();
 });
 
-defineExpose({ handleAction: setView, reload: loadScene, triggerDataUpdate });
+defineExpose({
+  focusSceneTreeGroupByName,
+  handleAction: setView,
+  reload: reloadScene,
+  triggerDataUpdate,
+});
 </script>
 
 <style scoped>

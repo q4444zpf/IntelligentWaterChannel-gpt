@@ -6,11 +6,14 @@ import {
   GATES,
   PAGE_TABS,
   REPLAY_ROWS,
-  SENSOR_GROUPS
+  SENSOR_GROUPS,
+  VIEW_ACTIONS,
 } from '../src/data/monitoring-data.js';
 
 test('exports complete monitoring fixtures', () => {
   assert.equal(PAGE_TABS.length, 3);
+  assert.ok(VIEW_ACTIONS.includes('刷新'));
+  assert.ok(!VIEW_ACTIONS.includes('复位'));
   assert.equal(GATES.length, 7);
   assert.equal(SENSOR_GROUPS[0].name, '水位计');
   assert.equal(SENSOR_GROUPS[0].rows.length, 6);
