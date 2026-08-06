@@ -782,11 +782,16 @@ function createRenderer() {
   if (!host) return;
 
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x03101d);
+  scene.background = null;
   camera = new THREE.PerspectiveCamera(50, 1, 0.01, 100000);
   camera.position.set(0, 5, 10);
 
-  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  renderer = new THREE.WebGLRenderer({
+    alpha: true,
+    antialias: true,
+    powerPreference: 'high-performance',
+  });
+  renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.domElement.setAttribute('role', 'img');
@@ -848,6 +853,15 @@ function applyRendererConfig(config) {
   }
 }
 
+function applySceneBackgroundColor(value) {
+  const match = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(String(value || '').trim());
+  const color = match ? `#${match[1]}` : '#000000';
+  const alpha = match?.[2] ? parseInt(match[2], 16) / 255 : 0;
+  renderer.setClearColor(color, alpha);
+  renderPass.clearColor = new THREE.Color(color);
+  renderPass.clearAlpha = alpha;
+}
+
 function applyControlsState(state) {
   if (!state) return;
   if (Array.isArray(state.position)) camera.position.fromArray(state.position);
@@ -868,6 +882,7 @@ async function loadScene({ forceReload = false } = {}) {
   abortController = new AbortController();
   loading.value = true;
   loadError.value = '';
+  applySceneBackgroundColor();
   loadProgress.value = 0;
   sceneName.value = '';
   htmlSprites.value = [];
@@ -903,6 +918,8 @@ async function loadScene({ forceReload = false } = {}) {
 
     disposeObject(scene);
     scene = loaded.scene;
+    scene.background = null;
+    applySceneBackgroundColor(loaded.backgroundColor);
     indexSceneObjects(scene);
     modelGroupTree.value = buildGroupTreeUnder(scene, '模型');
     expandedSceneTreeUuids.value = new Set(modelGroupTree.value.map((node) => node.uuid));
@@ -1194,7 +1211,6 @@ defineExpose({
 
 .flume-preview {
   overflow: hidden;
-  background: #03101d;
 }
 
 .canvas-host {

@@ -200,6 +200,22 @@ export function extractHtmlSprites(
   return sprites;
 }
 
+export function extractSceneBackgroundColor(sceneJson) {
+  const value = sceneJson?.scene?.object?.userData?.__webtopoBackgroundColor
+    ?? sceneJson?.scene?.userData?.__webtopoBackgroundColor
+    ?? sceneJson?.scene?.object?.background
+    ?? sceneJson?.scene?.background;
+  if (typeof value === 'string') return value.trim() || null;
+  if (Number.isFinite(value)) return `#${Math.max(0, value).toString(16).padStart(6, '0')}`;
+  if (!value || typeof value !== 'object') return null;
+
+  const channels = ['r', 'g', 'b'].map((channel) => Number(value[channel]));
+  if (!channels.every(Number.isFinite)) return null;
+  const scale = channels.every((channel) => channel >= 0 && channel <= 1) ? 255 : 1;
+  const alpha = Number(value.a ?? value.alpha ?? 1);
+  return `rgba(${channels.map((channel) => Math.round(channel * scale)).join(', ')}, ${Number.isFinite(alpha) ? alpha : 1})`;
+}
+
 function parseControlsState(sceneJson) {
   try {
     return typeof sceneJson.controls?.state === 'string'
@@ -286,6 +302,7 @@ export async function loadWebTopoScenePackage(url, options = {}) {
 
   return {
     scene,
+    backgroundColor: extractSceneBackgroundColor(sceneJson),
     camera: camera?.isCamera ? camera : null,
     controlsState: parseControlsState(sceneJson),
     htmlSprites,
