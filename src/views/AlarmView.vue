@@ -85,7 +85,7 @@
             <span v-else-if="column.key === 'action'" class="alarm-table-actions">
               <a-button type="link" size="small" @click="emit('open-alarm', record)">{{ record.handlingStatus === 1 ? '详情' : '处理' }}</a-button>
               <a-button type="link" size="small" @click="locateAlarm(record)">定位</a-button>
-              <a-button type="link" size="small" @click="emit('navigate', 'history')">曲线</a-button>
+              <a-button type="link" size="small" @click="emit('view-history', record)">曲线</a-button>
             </span>
           </template>
         </a-table>
@@ -117,7 +117,7 @@ import { useAlarmQuery } from '../composables/useAlarmQuery.js';
 
 dayjs.locale('zh-cn');
 
-const emit = defineEmits(['navigate', 'open-alarm']);
+const emit = defineEmits(['navigate', 'open-alarm', 'view-history']);
 const alarmGrades = [
   { value: 'fatal', label: '严重' },
   { value: 'urgent', label: '紧急' },

@@ -15,6 +15,7 @@
       ref="alarmView"
       @navigate="showPage"
       @open-alarm="openAlarm"
+      @view-history="openAlarmHistory"
     />
 
     <AlarmDetailModal
@@ -83,12 +84,16 @@ function handleAlarmHandled() {
 }
 
 function navigateFromAlarm(page) {
+  const alarm = selectedAlarm.value;
   closeAlarm();
-  showPage(page);
+  const channelName = typeof alarm?.location === 'string' ? alarm.location.trim() : '';
+  showPage(page, page === 'realtime' && channelName && channelName !== '--'
+    ? { channelName }
+    : undefined);
 }
 
-function openAlarmHistory() {
-  historyAlarmContext.value = selectedAlarm.value ? { ...selectedAlarm.value } : null;
+function openAlarmHistory(alarm = selectedAlarm.value) {
+  historyAlarmContext.value = alarm ? { ...alarm } : null;
   closeAlarm();
   showPage('history');
 }
