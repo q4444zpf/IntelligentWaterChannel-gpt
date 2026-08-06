@@ -358,6 +358,10 @@ const MODEL_EXPANSION_DURATION = 650;
 const CANVAS_CLICK_TOLERANCE = 4;
 const raycaster = new THREE.Raycaster();
 const raycastPointer = new THREE.Vector2();
+const labelCameraDirection = new THREE.Vector3();
+const labelWorldPosition = new THREE.Vector3();
+const labelTowardCamera = new THREE.Vector3();
+const labelProjectedPosition = new THREE.Vector3();
 
 let scene;
 let camera;
@@ -1031,9 +1035,8 @@ function updateLabels() {
   if (!camera || !canvasHostRef.value || loading.value) return;
   const width = canvasHostRef.value.clientWidth;
   const height = canvasHostRef.value.clientHeight;
-  const cameraDirection = new THREE.Vector3();
   camera.updateMatrixWorld();
-  camera.getWorldDirection(cameraDirection);
+  camera.getWorldDirection(labelCameraDirection);
 
   htmlSprites.value.forEach((sprite, index) => {
     const element = labelElements[index];
@@ -1041,15 +1044,17 @@ function updateLabels() {
     const hierarchyVisible = isHtmlSpriteHierarchyVisible(sprite, sceneObjectByUuid);
     element.hidden = !hierarchyVisible;
     if (!hierarchyVisible) return;
-    const worldPosition = new THREE.Vector3().fromArray(sprite.position);
-    const towardLabel = worldPosition.clone().sub(camera.position);
-    const projected = worldPosition.clone().project(camera);
-    const visible = cameraDirection.dot(towardLabel) > 0 && projected.z > -1 && projected.z < 1;
-    const distance = Math.max(camera.position.distanceTo(worldPosition), 0.01);
+    labelWorldPosition.fromArray(sprite.position);
+    labelTowardCamera.copy(labelWorldPosition).sub(camera.position);
+    labelProjectedPosition.copy(labelWorldPosition).project(camera);
+    const visible = labelCameraDirection.dot(labelTowardCamera) > 0
+      && labelProjectedPosition.z > -1
+      && labelProjectedPosition.z < 1;
+    const distance = Math.max(camera.position.distanceTo(labelWorldPosition), 0.01);
     const pixelsPerUnit = height / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * distance);
     const scale = THREE.MathUtils.clamp(sprite.scale * pixelsPerUnit, 0.35, 1.5);
     element.style.opacity = visible ? '1' : '0';
-    element.style.transform = `translate(-50%, -50%) translate(${(projected.x * 0.5 + 0.5) * width}px, ${(-projected.y * 0.5 + 0.5) * height}px) scale(${scale})`;
+    element.style.transform = `translate(-50%, -50%) translate(${(labelProjectedPosition.x * 0.5 + 0.5) * width}px, ${(-labelProjectedPosition.y * 0.5 + 0.5) * height}px) scale(${scale})`;
     updateHtmlSpriteDirectionArrow(element, sprite, camera, width, height);
   });
 }
