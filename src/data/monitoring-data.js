@@ -4,7 +4,8 @@ export const PAGE_TABS = Object.freeze([
   { key: 'alarm', label: '报警数据' }
 ]);
 
-export const VIEW_ACTIONS = Object.freeze(['默认视角', '俯视图', '正视图', '左视图', '右视图', '自动漫游', '刷新']);
+export const VIEW_ACTIONS = Object.freeze(['默认视角', '俯视图', '正视图', '左视图', '右视图', '刷新']);
+// export const VIEW_ACTIONS = Object.freeze(['默认视角', '俯视图', '正视图', '左视图', '右视图', '自动漫游', '刷新']);
 export const GATES = Object.freeze([
   { id: 'G0', open: '60%', before: '0.42', after: '0.40', state: '在线', color: 'red' },
   { id: 'G1', open: '100%', before: '0.40', after: '0.38', state: '在线', color: 'red' },

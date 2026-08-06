@@ -177,34 +177,34 @@
       </Transition>
     </div>
 
-    <div
-      v-if="modelGroupTree.length"
-      class="model-expansion-controls"
-      @pointerdown.stop
-      @wheel.stop
-    >
-      <button
-        type="button"
-        class="model-expansion-control"
-        :class="{ active: modelExpanded }"
-        :aria-pressed="modelExpanded"
-        @click.stop="toggleModelExpansion"
-      >{{ modelExpanded ? '收起' : '展开' }}</button>
-      <Transition name="model-expansion-slider">
-        <div v-if="modelExpanded" class="model-expansion-slider">
-          <input
-            :value="modelExpansionProgress"
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            aria-label="模型展开程度"
-            title="模型展开程度"
-            @input="setModelExpansionProgress"
-          >
-        </div>
-      </Transition>
-    </div>
+<!--    <div-->
+<!--      v-if="modelGroupTree.length"-->
+<!--      class="model-expansion-controls"-->
+<!--      @pointerdown.stop-->
+<!--      @wheel.stop-->
+<!--    >-->
+<!--      <button-->
+<!--        type="button"-->
+<!--        class="model-expansion-control"-->
+<!--        :class="{ active: modelExpanded }"-->
+<!--        :aria-pressed="modelExpanded"-->
+<!--        @click.stop="toggleModelExpansion"-->
+<!--      >{{ modelExpanded ? '收起' : '展开' }}</button>-->
+<!--      <Transition name="model-expansion-slider">-->
+<!--        <div v-if="modelExpanded" class="model-expansion-slider">-->
+<!--          <input-->
+<!--            :value="modelExpansionProgress"-->
+<!--            type="range"-->
+<!--            min="0"-->
+<!--            max="1"-->
+<!--            step="0.01"-->
+<!--            aria-label="模型展开程度"-->
+<!--            title="模型展开程度"-->
+<!--            @input="setModelExpansionProgress"-->
+<!--          >-->
+<!--        </div>-->
+<!--      </Transition>-->
+<!--    </div>-->
 
     <div class="scene-labels" aria-hidden="true">
       <div
