@@ -35,6 +35,18 @@ export function buildGroupTreeUnder(root, groupName) {
   return group && group.visible !== false ? collectGroupNodes(group) : [];
 }
 
+export function findGroupNodeByName(nodes, groupName) {
+  const name = String(groupName || '').trim();
+  if (!name) return null;
+
+  for (const node of nodes || []) {
+    if (node.name?.trim() === name) return node;
+    const match = findGroupNodeByName(node.children, name);
+    if (match) return match;
+  }
+  return null;
+}
+
 export function findNearestSelectableGroup(object, selectableUuids) {
   let current = object;
   while (current) {

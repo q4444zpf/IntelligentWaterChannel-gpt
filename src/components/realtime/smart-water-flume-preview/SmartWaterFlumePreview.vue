@@ -222,7 +222,7 @@
     </div>
     <div v-else-if="loadError" class="scene-state scene-error" role="alert">
       <span>{{ loadError }}</span>
-      <button type="button" @click="loadScene">重试</button>
+      <button type="button" @click="() => loadScene()">重试</button>
     </div>
 
     <label v-if="autoRotating" class="roaming-control">
@@ -272,6 +272,7 @@ import {
 } from './web-topo-model-expansion.js';
 import {
   buildGroupTreeUnder,
+  findGroupNodeByName,
   findNearestSelectableGroup,
   isolateSelectableGroup,
   restoreSelectableGroupVisibility,
@@ -381,6 +382,7 @@ let modelExpansionTransition;
 let cameraTransition;
 let canvasPointerDown;
 let scriptRuntime;
+let pendingSceneTreeGroupName = '';
 let disposed = false;
 
 function setLabelRef(element, index) {
@@ -596,6 +598,30 @@ function focusSceneTreeNode(uuid) {
     fromZoom: camera.zoom,
     targetZoom,
   };
+}
+
+function focusSceneTreeGroupByName(groupName) {
+  const name = String(groupName || '').trim();
+  if (!name) return false;
+
+  const node = findGroupNodeByName(modelGroupTree.value, name);
+  if (!node) {
+    pendingSceneTreeGroupName = loading.value ? name : '';
+    return false;
+  }
+
+  pendingSceneTreeGroupName = '';
+  const expanded = new Set(expandedSceneTreeUuids.value);
+  let ancestor = sceneObjectByUuid.get(node.uuid)?.parent;
+  while (ancestor) {
+    if (selectableModelGroupUuids.value.has(ancestor.uuid)) expanded.add(ancestor.uuid);
+    ancestor = ancestor.parent;
+  }
+  expandedSceneTreeUuids.value = expanded;
+  sceneTreeSearch.value = '';
+  sceneTreeOpen.value = true;
+  focusSceneTreeNode(node.uuid);
+  return true;
 }
 
 function isObjectHierarchyPickable(object) {
@@ -828,7 +854,7 @@ function applyControlsState(state) {
   controls.update();
 }
 
-async function loadScene() {
+async function loadScene({ forceReload = false } = {}) {
   scriptRuntime?.dispose();
   scriptRuntime = undefined;
   resetModelExpansion();
@@ -857,12 +883,13 @@ async function loadScene() {
   labelElements.length = 0;
 
   try {
-    const info = await getWebTopoScene(props.webTopoId);
+    const info = await getWebTopoScene(props.webTopoId, { forceReload });
     if (!info.zipUrl) throw new Error('该三维组态场景没有场景包');
     sceneName.value = info.sceneName || '';
     loadProgress.value = 1;
 
     const loaded = await loadWebTopoScenePackage(resolveWebTopoAssetUrl(info.zipUrl), {
+      forceReload,
       signal: abortController.signal,
       onProgress: (progress) => {
         loadProgress.value = Math.max(1, Math.round(progress * 100));
@@ -923,6 +950,7 @@ async function loadScene() {
     scriptRuntime.start();
     startMqtt(loaded.config?.mqtt);
     resizeScene();
+    if (pendingSceneTreeGroupName) focusSceneTreeGroupByName(pendingSceneTreeGroupName);
   } catch (error) {
     if (error?.name === 'AbortError' || disposed) return;
     loading.value = false;
@@ -1063,6 +1091,10 @@ function renderCurrentScene() {
   composer.render();
 }
 
+function reloadScene() {
+  return loadScene({ forceReload: true });
+}
+
 function renderScene(timestamp = performance.now()) {
   if (!composer || !scene || !camera) return;
   updateModelExpansionTransition(timestamp);
@@ -1139,7 +1171,12 @@ onBeforeUnmount(() => {
   renderer?.domElement.remove();
 });
 
-defineExpose({ handleAction: setView, reload: loadScene, triggerDataUpdate });
+defineExpose({
+  focusSceneTreeGroupByName,
+  handleAction: setView,
+  reload: reloadScene,
+  triggerDataUpdate,
+});
 </script>
 
 <style scoped>

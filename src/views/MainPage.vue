@@ -1,6 +1,10 @@
 <template>
   <AppShell :active-page="activePage" @navigate="showPage">
-    <RealtimeView v-show="activePage === 'realtime'" @navigate="showPage" />
+    <RealtimeView
+      v-show="activePage === 'realtime'"
+      :scene-target="realtimeSceneTarget"
+      @navigate="showPage"
+    />
     <HistoryView
       v-if="activePage === 'history'"
       :alarm-context="historyAlarmContext"
@@ -47,12 +51,21 @@ const activePage = ref('realtime');
 const selectedAlarm = ref(null);
 const alarmView = ref(null);
 const historyAlarmContext = ref(null);
+const realtimeSceneTarget = ref(null);
 const realtimeAlarmQueue = ref([]);
 const realtimeAlarm = computed(() => realtimeAlarmQueue.value[0] || null);
 let realtimeAlarmSequence = 0;
+let realtimeSceneTargetSequence = 0;
 
-function showPage(page) {
+function showPage(page, options) {
   activePage.value = page;
+  const channelName = typeof options?.channelName === 'string' ? options.channelName.trim() : '';
+  if (page === 'realtime' && channelName) {
+    realtimeSceneTarget.value = {
+      channelName,
+      sequence: ++realtimeSceneTargetSequence,
+    };
+  }
 }
 
 function openAlarm(alarm) {

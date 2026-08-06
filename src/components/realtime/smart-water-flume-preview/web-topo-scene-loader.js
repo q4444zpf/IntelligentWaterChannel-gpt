@@ -8,8 +8,8 @@ function throwIfAborted(signal) {
   if (signal?.aborted) throw new DOMException('场景加载已取消', 'AbortError');
 }
 
-async function fetchZip(url, signal) {
-  const response = await fetch(url, { signal });
+async function fetchZip(url, signal, cache) {
+  const response = await fetch(url, { cache, signal });
   if (!response.ok) throw new Error(`场景包请求失败 (${response.status})`);
   return JSZip.loadAsync(await response.arrayBuffer());
 }
@@ -219,11 +219,12 @@ export function extractSceneScripts(scenePackage) {
 }
 
 export async function loadWebTopoScenePackage(url, options = {}) {
-  const { onProgress, signal } = options;
+  const { forceReload = false, onProgress, signal } = options;
+  const cache = forceReload ? 'no-store' : 'default';
   throwIfAborted(signal);
 
   const imageMap = new Map();
-  const firstZip = await fetchZip(url, signal);
+  const firstZip = await fetchZip(url, signal, cache);
   const sceneJson = await hydratePackage(firstZip, 'scene.json', imageMap);
   const configEntry = firstZip.file('config.json');
   const config = configEntry ? JSON.parse(await configEntry.async('string')) : {};
@@ -241,7 +242,7 @@ export async function loadWebTopoScenePackage(url, options = {}) {
     throwIfAborted(signal);
     const batch = pending.splice(0, GROUP_FETCH_CONCURRENCY);
     const groups = await Promise.all(batch.map(async (uuid) => {
-      const zip = await fetchZip(`${packageBaseUrl}/${uuid}.zip`, signal);
+      const zip = await fetchZip(`${packageBaseUrl}/${uuid}.zip`, signal, cache);
       const group = await hydratePackage(zip, `${uuid}.json`, imageMap);
       return [uuid, group];
     }));

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   buildGroupTreeUnder,
+  findGroupNodeByName,
   findNearestSelectableGroup,
   isolateSelectableGroup,
   restoreSelectableGroupVisibility,
@@ -53,6 +54,17 @@ test('builds a tree containing only groups below the named model group', () => {
 
 test('returns an empty tree when the named group does not exist', () => {
   assert.deepEqual(buildGroupTreeUnder({ type: 'Scene', children: [] }, '模型'), []);
+});
+
+test('finds the first scene group with an exact trimmed name', () => {
+  const nodes = [{
+    uuid: 'upper',
+    name: '上游渠道',
+    children: [{ uuid: 'gate', name: '闸门', children: [] }],
+  }];
+
+  assert.equal(findGroupNodeByName(nodes, ' 上游渠道 '), nodes[0]);
+  assert.equal(findGroupNodeByName(nodes, '上游'), null);
 });
 
 test('excludes initially hidden groups and their descendants', () => {

@@ -84,7 +84,7 @@
             </span>
             <span v-else-if="column.key === 'action'" class="alarm-table-actions">
               <a-button type="link" size="small" @click="emit('open-alarm', record)">{{ record.handlingStatus === 1 ? '详情' : '处理' }}</a-button>
-              <a-button type="link" size="small" @click="emit('navigate', 'realtime')">定位</a-button>
+              <a-button type="link" size="small" @click="locateAlarm(record)">定位</a-button>
               <a-button type="link" size="small" @click="emit('navigate', 'history')">曲线</a-button>
             </span>
           </template>
@@ -213,6 +213,11 @@ function gradeColor(grade) {
     normal: 'green',
     status: 'cyan',
   }[grade] || 'default';
+}
+
+function locateAlarm(record) {
+  const channelName = typeof record?.location === 'string' ? record.location.trim() : '';
+  emit('navigate', 'realtime', channelName && channelName !== '--' ? { channelName } : undefined);
 }
 
 onMounted(initialize);

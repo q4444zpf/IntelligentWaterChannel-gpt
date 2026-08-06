@@ -29,7 +29,7 @@
               type="button"
               :class="{ active: action === '自动漫游' && autoRoaming }"
               :aria-pressed="action === '自动漫游' ? autoRoaming : undefined"
-              @click="previewRef?.handleAction(action)"
+              @click="handleViewAction(action)"
             >{{ action }}</button>
           </div>
         </div>
@@ -69,7 +69,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import {
   getBigWaterChannelAlarmNotificationTopic,
   getBigWaterChannelAlarms,
@@ -84,6 +84,10 @@ import SmartWaterFlumePreview from '../components/realtime/smart-water-flume-pre
 import TrendAnalysis from '../components/realtime/trend/TrendAnalysis.vue';
 import { VIEW_ACTIONS } from '../data/monitoring-data.js';
 import { buildRealtimeTableData, mergeRealtimeValues } from '../realtime-device-data.js';
+
+const props = defineProps({
+  sceneTarget: { type: Object, default: null },
+});
 
 defineEmits(['navigate']);
 
@@ -116,6 +120,21 @@ function handleMqttData(payload) {
     latestMqttAt.value = Date.now();
   }
 }
+
+function handleViewAction(action) {
+  if (action === '刷新') {
+    void previewRef.value?.reload();
+    return;
+  }
+  previewRef.value?.handleAction(action);
+}
+
+watch(() => props.sceneTarget, async (target) => {
+  const channelName = typeof target?.channelName === 'string' ? target.channelName.trim() : '';
+  if (!channelName) return;
+  await nextTick();
+  previewRef.value?.focusSceneTreeGroupByName(channelName);
+});
 
 function miniAlarmTime(value) {
   const text = String(value || '');
