@@ -96,41 +96,53 @@ function playAlarmSound() {
     const lowFrequency = 650;
     const highFrequency = 1550;
     const riseDuration = 0.16;
-    const highFrequencyHoldDuration = 0;
+    const highFrequencyHoldDuration = 0.02;
     const fallDuration = 0.16;
-    const lowFrequencyHoldDuration = 0;
+    const lowFrequencyHoldDuration = 0.02;
     const cycleDuration = riseDuration + highFrequencyHoldDuration
       + fallDuration + lowFrequencyHoldDuration;
-    const oscillator = context.createOscillator();
-    const waveformGain = context.createGain();
+    const squareOscillator = context.createOscillator();
+    const sineOscillator = context.createOscillator();
+    const squareWaveformGain = context.createGain();
+    const sineWaveformGain = context.createGain();
     const lowPassFilter = context.createBiquadFilter();
     const masterGain = context.createGain();
 
-    oscillator.type = 'square';
-    waveformGain.gain.setValueAtTime(0.18, startTime);
+    squareOscillator.type = 'square';
+    sineOscillator.type = 'sine';
+    squareWaveformGain.gain.setValueAtTime(0.18, startTime);
+    sineWaveformGain.gain.setValueAtTime(0.18, startTime);
     lowPassFilter.type = 'lowpass';
     lowPassFilter.frequency.setValueAtTime(4300, startTime);
     masterGain.gain.setValueAtTime(0.22, startTime);
 
-    for (let cycleIndex = 0; cycleIndex < cycleCount; cycleIndex += 1) {
-      const cycleStartTime = startTime + cycleIndex * cycleDuration;
-      const highFrequencyStartTime = cycleStartTime + riseDuration;
-      const fallStartTime = highFrequencyStartTime + highFrequencyHoldDuration;
-      const lowFrequencyStartTime = fallStartTime + fallDuration;
-      const cycleEndTime = lowFrequencyStartTime + lowFrequencyHoldDuration;
-      oscillator.frequency.setValueAtTime(lowFrequency, cycleStartTime);
-      oscillator.frequency.linearRampToValueAtTime(highFrequency, highFrequencyStartTime);
-      oscillator.frequency.setValueAtTime(highFrequency, fallStartTime);
-      oscillator.frequency.linearRampToValueAtTime(lowFrequency, lowFrequencyStartTime);
-      oscillator.frequency.setValueAtTime(lowFrequency, cycleEndTime);
-    }
+    const scheduleFrequencySweep = (oscillator) => {
+      for (let cycleIndex = 0; cycleIndex < cycleCount; cycleIndex += 1) {
+        const cycleStartTime = startTime + cycleIndex * cycleDuration;
+        const highFrequencyStartTime = cycleStartTime + riseDuration;
+        const fallStartTime = highFrequencyStartTime + highFrequencyHoldDuration;
+        const lowFrequencyStartTime = fallStartTime + fallDuration;
+        const cycleEndTime = lowFrequencyStartTime + lowFrequencyHoldDuration;
+        oscillator.frequency.setValueAtTime(lowFrequency, cycleStartTime);
+        oscillator.frequency.linearRampToValueAtTime(highFrequency, highFrequencyStartTime);
+        oscillator.frequency.setValueAtTime(highFrequency, fallStartTime);
+        oscillator.frequency.linearRampToValueAtTime(lowFrequency, lowFrequencyStartTime);
+        oscillator.frequency.setValueAtTime(lowFrequency, cycleEndTime);
+      }
+    };
 
-    oscillator.connect(waveformGain);
-    waveformGain.connect(lowPassFilter);
+    scheduleFrequencySweep(squareOscillator);
+    scheduleFrequencySweep(sineOscillator);
+    squareOscillator.connect(squareWaveformGain);
+    squareWaveformGain.connect(lowPassFilter);
+    sineOscillator.connect(sineWaveformGain);
+    sineWaveformGain.connect(lowPassFilter);
     lowPassFilter.connect(masterGain);
     masterGain.connect(context.destination);
-    oscillator.start(startTime);
-    oscillator.stop(startTime + cycleCount * cycleDuration);
+    squareOscillator.start(startTime);
+    sineOscillator.start(startTime);
+    squareOscillator.stop(startTime + cycleCount * cycleDuration);
+    sineOscillator.stop(startTime + cycleCount * cycleDuration);
   };
 
   if (context.state === 'suspended') {
