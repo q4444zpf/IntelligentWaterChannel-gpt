@@ -177,34 +177,34 @@
       </Transition>
     </div>
 
-    <div
-      v-if="modelGroupTree.length"
-      class="model-expansion-controls"
-      @pointerdown.stop
-      @wheel.stop
-    >
-      <button
-        type="button"
-        class="model-expansion-control"
-        :class="{ active: modelExpanded }"
-        :aria-pressed="modelExpanded"
-        @click.stop="toggleModelExpansion"
-      >{{ modelExpanded ? '收起' : '展开' }}</button>
-      <Transition name="model-expansion-slider">
-        <div v-if="modelExpanded" class="model-expansion-slider">
-          <input
-            :value="modelExpansionProgress"
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            aria-label="模型展开程度"
-            title="模型展开程度"
-            @input="setModelExpansionProgress"
-          >
-        </div>
-      </Transition>
-    </div>
+<!--    <div-->
+<!--      v-if="modelGroupTree.length"-->
+<!--      class="model-expansion-controls"-->
+<!--      @pointerdown.stop-->
+<!--      @wheel.stop-->
+<!--    >-->
+<!--      <button-->
+<!--        type="button"-->
+<!--        class="model-expansion-control"-->
+<!--        :class="{ active: modelExpanded }"-->
+<!--        :aria-pressed="modelExpanded"-->
+<!--        @click.stop="toggleModelExpansion"-->
+<!--      >{{ modelExpanded ? '收起' : '展开' }}</button>-->
+<!--      <Transition name="model-expansion-slider">-->
+<!--        <div v-if="modelExpanded" class="model-expansion-slider">-->
+<!--          <input-->
+<!--            :value="modelExpansionProgress"-->
+<!--            type="range"-->
+<!--            min="0"-->
+<!--            max="1"-->
+<!--            step="0.01"-->
+<!--            aria-label="模型展开程度"-->
+<!--            title="模型展开程度"-->
+<!--            @input="setModelExpansionProgress"-->
+<!--          >-->
+<!--        </div>-->
+<!--      </Transition>-->
+<!--    </div>-->
 
     <div class="scene-labels" aria-hidden="true">
       <div
@@ -358,6 +358,10 @@ const MODEL_EXPANSION_DURATION = 650;
 const CANVAS_CLICK_TOLERANCE = 4;
 const raycaster = new THREE.Raycaster();
 const raycastPointer = new THREE.Vector2();
+const labelCameraDirection = new THREE.Vector3();
+const labelWorldPosition = new THREE.Vector3();
+const labelTowardCamera = new THREE.Vector3();
+const labelProjectedPosition = new THREE.Vector3();
 
 let scene;
 let camera;
@@ -778,11 +782,16 @@ function createRenderer() {
   if (!host) return;
 
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x03101d);
+  scene.background = null;
   camera = new THREE.PerspectiveCamera(50, 1, 0.01, 100000);
   camera.position.set(0, 5, 10);
 
-  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  renderer = new THREE.WebGLRenderer({
+    alpha: true,
+    antialias: true,
+    powerPreference: 'high-performance',
+  });
+  renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.domElement.setAttribute('role', 'img');
@@ -844,6 +853,15 @@ function applyRendererConfig(config) {
   }
 }
 
+function applySceneBackgroundColor(value) {
+  const match = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(String(value || '').trim());
+  const color = match ? `#${match[1]}` : '#000000';
+  const alpha = match?.[2] ? parseInt(match[2], 16) / 255 : 0;
+  renderer.setClearColor(color, alpha);
+  renderPass.clearColor = new THREE.Color(color);
+  renderPass.clearAlpha = alpha;
+}
+
 function applyControlsState(state) {
   if (!state) return;
   if (Array.isArray(state.position)) camera.position.fromArray(state.position);
@@ -864,6 +882,7 @@ async function loadScene({ forceReload = false } = {}) {
   abortController = new AbortController();
   loading.value = true;
   loadError.value = '';
+  applySceneBackgroundColor();
   loadProgress.value = 0;
   sceneName.value = '';
   htmlSprites.value = [];
@@ -899,6 +918,8 @@ async function loadScene({ forceReload = false } = {}) {
 
     disposeObject(scene);
     scene = loaded.scene;
+    scene.background = null;
+    applySceneBackgroundColor(loaded.backgroundColor);
     indexSceneObjects(scene);
     modelGroupTree.value = buildGroupTreeUnder(scene, '模型');
     expandedSceneTreeUuids.value = new Set(modelGroupTree.value.map((node) => node.uuid));
@@ -1031,9 +1052,8 @@ function updateLabels() {
   if (!camera || !canvasHostRef.value || loading.value) return;
   const width = canvasHostRef.value.clientWidth;
   const height = canvasHostRef.value.clientHeight;
-  const cameraDirection = new THREE.Vector3();
   camera.updateMatrixWorld();
-  camera.getWorldDirection(cameraDirection);
+  camera.getWorldDirection(labelCameraDirection);
 
   htmlSprites.value.forEach((sprite, index) => {
     const element = labelElements[index];
@@ -1041,15 +1061,17 @@ function updateLabels() {
     const hierarchyVisible = isHtmlSpriteHierarchyVisible(sprite, sceneObjectByUuid);
     element.hidden = !hierarchyVisible;
     if (!hierarchyVisible) return;
-    const worldPosition = new THREE.Vector3().fromArray(sprite.position);
-    const towardLabel = worldPosition.clone().sub(camera.position);
-    const projected = worldPosition.clone().project(camera);
-    const visible = cameraDirection.dot(towardLabel) > 0 && projected.z > -1 && projected.z < 1;
-    const distance = Math.max(camera.position.distanceTo(worldPosition), 0.01);
+    labelWorldPosition.fromArray(sprite.position);
+    labelTowardCamera.copy(labelWorldPosition).sub(camera.position);
+    labelProjectedPosition.copy(labelWorldPosition).project(camera);
+    const visible = labelCameraDirection.dot(labelTowardCamera) > 0
+      && labelProjectedPosition.z > -1
+      && labelProjectedPosition.z < 1;
+    const distance = Math.max(camera.position.distanceTo(labelWorldPosition), 0.01);
     const pixelsPerUnit = height / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * distance);
     const scale = THREE.MathUtils.clamp(sprite.scale * pixelsPerUnit, 0.35, 1.5);
     element.style.opacity = visible ? '1' : '0';
-    element.style.transform = `translate(-50%, -50%) translate(${(projected.x * 0.5 + 0.5) * width}px, ${(-projected.y * 0.5 + 0.5) * height}px) scale(${scale})`;
+    element.style.transform = `translate(-50%, -50%) translate(${(labelProjectedPosition.x * 0.5 + 0.5) * width}px, ${(-labelProjectedPosition.y * 0.5 + 0.5) * height}px) scale(${scale})`;
     updateHtmlSpriteDirectionArrow(element, sprite, camera, width, height);
   });
 }
@@ -1189,7 +1211,6 @@ defineExpose({
 
 .flume-preview {
   overflow: hidden;
-  background: #03101d;
 }
 
 .canvas-host {

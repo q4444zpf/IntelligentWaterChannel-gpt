@@ -106,6 +106,8 @@ const latestAlarms = ref([]);
 const latestAlarmsLoading = ref(true);
 const latestAlarmsError = ref('');
 let latestAlarmRefreshTimer = null;
+let realtimeUpdateTimer = null;
+let pendingRealtimePayload = null;
 const tableData = computed(() => buildRealtimeTableData(deviceGroups.value, realtimeValues));
 const gates = computed(() => tableData.value.gates);
 const sensorGroups = computed(() => tableData.value.sensorGroups);
@@ -114,10 +116,20 @@ const deviceMessage = computed(() => {
   return deviceError.value || '暂无设备配置';
 });
 
-function handleMqttData(payload) {
+function flushRealtimePayload() {
+  realtimeUpdateTimer = null;
+  const payload = pendingRealtimePayload;
+  pendingRealtimePayload = null;
+  if (!payload) return;
   mergeRealtimeValues(realtimeValues, payload);
-  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
-    latestMqttAt.value = Date.now();
+  latestMqttAt.value = Date.now();
+}
+
+function handleMqttData(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return;
+  pendingRealtimePayload = { ...(pendingRealtimePayload || {}), ...payload };
+  if (realtimeUpdateTimer === null) {
+    realtimeUpdateTimer = window.setTimeout(flushRealtimePayload, 100);
   }
 }
 
@@ -211,6 +223,9 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   if (latestAlarmRefreshTimer !== null) window.clearTimeout(latestAlarmRefreshTimer);
+  if (realtimeUpdateTimer !== null) window.clearTimeout(realtimeUpdateTimer);
+  realtimeUpdateTimer = null;
+  pendingRealtimePayload = null;
   window.removeEventListener('alarm-status-changed', scheduleLatestAlarmRefresh);
 });
 </script>

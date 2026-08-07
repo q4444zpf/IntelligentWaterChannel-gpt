@@ -3,8 +3,15 @@ import test from 'node:test';
 import {
   extractHtmlSprites,
   extractLabelGroups,
+  extractSceneBackgroundColor,
   extractSceneScripts,
 } from '../src/components/realtime/smart-water-flume-preview/web-topo-scene-loader.js';
+
+test('preserves an eight-digit package background color for renderer clearing', () => {
+  assert.equal(extractSceneBackgroundColor({
+    scene: { object: { userData: { __webtopoBackgroundColor: '#13E00038' } } },
+  }), '#13E00038');
+});
 
 test('extracts only direct subgroup metadata from the label group', () => {
   const project = {
