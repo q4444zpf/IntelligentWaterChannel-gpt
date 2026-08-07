@@ -590,18 +590,7 @@ function focusSceneTreeNode(uuid) {
   }
 
   camera.updateProjectionMatrix();
-  cameraTransition = {
-    startedAt: performance.now(),
-    duration: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-      ? 0
-      : CAMERA_FOCUS_DURATION,
-    fromPosition: camera.position.clone(),
-    targetPosition,
-    fromTarget: controls.target.clone(),
-    target: sphere.center.clone(),
-    fromZoom: camera.zoom,
-    targetZoom,
-  };
+  startCameraTransition(targetPosition, sphere.center, targetZoom);
 }
 
 function focusSceneTreeGroupByName(groupName) {
@@ -997,17 +986,69 @@ function distanceForView(horizontalSize, verticalSize, depthSize) {
   return depthSize / 2 + Math.max(verticalDistance, horizontalDistance) * 1.12;
 }
 
+function startCameraTransition(targetPosition, targetTarget, targetZoom = camera?.zoom ?? 1) {
+  if (!camera || !controls) return;
+  const fromTarget = controls.target.clone();
+  const fromOffset = camera.position.clone().sub(fromTarget);
+  const targetOffset = targetPosition.clone().sub(targetTarget);
+  const fromDistance = fromOffset.length();
+  const targetDistance = targetOffset.length();
+  const fromDirection = fromDistance > 1e-3
+    ? fromOffset.clone().multiplyScalar(1 / fromDistance)
+    : new THREE.Vector3(0, 0, 1);
+  const targetDirection = targetDistance > 1e-3
+    ? targetOffset.clone().multiplyScalar(1 / targetDistance)
+    : fromDirection.clone();
+  const directionRotation = new THREE.Quaternion();
+  const directionDot = THREE.MathUtils.clamp(fromDirection.dot(targetDirection), -1, 1);
+
+  if (directionDot < -0.9995) {
+    // Slerp has no unique shortest path for opposite directions. Use the
+    // camera up axis so left/right changes arc around the model instead of
+    // crossing its center.
+    const rotationAxis = camera.up.clone().normalize();
+    if (Math.abs(rotationAxis.dot(fromDirection)) > 0.95) {
+      rotationAxis.set(0, 1, 0);
+      if (Math.abs(rotationAxis.dot(fromDirection)) > 0.95) rotationAxis.set(1, 0, 0);
+    }
+    directionRotation.setFromAxisAngle(rotationAxis, Math.PI);
+  } else {
+    directionRotation.setFromUnitVectors(fromDirection, targetDirection);
+  }
+
+  const modelRadius = modelSize.length() * 0.5;
+  const transitionClearance = Math.max(modelRadius * 0.08, 0.25);
+  // Add a small mid-arc clearance when a view change passes the model.
+  const safeDistance = modelRadius + transitionClearance;
+  cameraTransition = {
+    startedAt: performance.now(),
+    duration: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      ? 0
+      : CAMERA_FOCUS_DURATION,
+    fromPosition: camera.position.clone(),
+    targetPosition: targetPosition.clone(),
+    fromTarget,
+    target: targetTarget.clone(),
+    fromZoom: camera.zoom,
+    targetZoom,
+    fromDirection,
+    targetDirection,
+    directionRotation,
+    fromDistance,
+    targetDistance,
+    safeDistance,
+  };
+}
+
 function applyView(direction, horizontalSize, verticalSize, depthSize, up = new THREE.Vector3(0, 1, 0)) {
   if (!camera || !controls || !defaultCameraState) return;
   const distance = distanceForView(horizontalSize, verticalSize, depthSize);
+  const targetPosition = modelCenter.clone().add(direction.clone().normalize().multiplyScalar(distance));
   camera.up.copy(up);
-  camera.position.copy(modelCenter).add(direction.clone().normalize().multiplyScalar(distance));
   camera.near = Math.max(distance / 1000, 0.01);
   camera.far = Math.max(distance * 100, 1000);
-  camera.lookAt(modelCenter);
   camera.updateProjectionMatrix();
-  controls.target.copy(modelCenter);
-  controls.update();
+  startCameraTransition(targetPosition, modelCenter, camera.zoom);
 }
 
 function setView(action) {
@@ -1039,11 +1080,7 @@ function setView(action) {
     case '复位':
     case '默认视角':
     default:
-      camera.position.copy(defaultCameraState.position);
-      camera.quaternion.copy(defaultCameraState.quaternion);
-      camera.up.copy(defaultCameraState.up);
-      controls.target.copy(defaultCameraState.target);
-      controls.update();
+      startCameraTransition(defaultCameraState.position, defaultCameraState.target, camera.zoom);
       break;
   }
 }
@@ -1090,12 +1127,23 @@ function updateCameraTransition(timestamp) {
     ? 4 * progress ** 3
     : 1 - ((-2 * progress + 2) ** 3) / 2;
 
-  camera.position.lerpVectors(
-    cameraTransition.fromPosition,
-    cameraTransition.targetPosition,
+  controls.target.lerpVectors(cameraTransition.fromTarget, cameraTransition.target, eased);
+  const radius = THREE.MathUtils.lerp(
+    cameraTransition.fromDistance,
+    cameraTransition.targetDistance,
     eased,
   );
-  controls.target.lerpVectors(cameraTransition.fromTarget, cameraTransition.target, eased);
+  const detour = Math.sin(progress * Math.PI)
+    * Math.max(0, cameraTransition.safeDistance - radius);
+  const direction = cameraTransition.fromDirection.clone();
+  direction.applyQuaternion(
+    new THREE.Quaternion().slerpQuaternions(
+      new THREE.Quaternion(),
+      cameraTransition.directionRotation,
+      eased,
+    ),
+  );
+  camera.position.copy(controls.target).addScaledVector(direction, radius + detour);
   if (camera.isOrthographicCamera) {
     camera.zoom = THREE.MathUtils.lerp(
       cameraTransition.fromZoom,
@@ -1104,7 +1152,11 @@ function updateCameraTransition(timestamp) {
     );
     camera.updateProjectionMatrix();
   }
-  if (progress === 1) cancelCameraTransition();
+  if (progress === 1) {
+    camera.position.copy(cameraTransition.targetPosition);
+    controls.target.copy(cameraTransition.target);
+    cancelCameraTransition();
+  }
 }
 
 function renderCurrentScene() {
