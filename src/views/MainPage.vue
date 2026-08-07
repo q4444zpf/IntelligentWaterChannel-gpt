@@ -107,6 +107,7 @@ function handleRealtimeAlarmNotification(event) {
     ...alarm,
     notificationKey: ++realtimeAlarmSequence,
   });
+  window.dispatchEvent(new Event('realtime-alarm-arrived'));
 }
 
 function removeCurrentRealtimeAlarm() {

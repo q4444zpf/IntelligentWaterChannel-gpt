@@ -40,7 +40,10 @@
 
       <template #footer>
         <div class="alarm-modal-footer">
-          <span>{{ queueDescription }}</span>
+          <span class="queue-description">
+            <template v-if="queueLength > 1">队列中还有 <strong>{{ queueLength - 1 }}</strong> 条告警</template>
+            <template v-else>当前为最后一条告警</template>
+          </span>
           <div class="alarm-modal-actions">
             <a-button :disabled="submitting" @click="emit('ignore')">忽略</a-button>
             <a-button :disabled="submitting" @click="emit('view-all')">查看全部告警</a-button>
@@ -67,7 +70,7 @@ import {
   theme as antTheme,
 } from 'ant-design-vue';
 import zhCN from 'ant-design-vue/es/locale/zh_CN';
-import { computed, ref, watch } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { handleAlarm } from '../../api/alarm.js';
 
 const props = defineProps({
@@ -77,13 +80,81 @@ const props = defineProps({
 const emit = defineEmits(['handled', 'ignore', 'next', 'view-all']);
 const submitting = ref(false);
 const error = ref('');
-const queueDescription = computed(() => props.queueLength > 1
-  ? `队列中还有 ${props.queueLength - 1} 条告警`
-  : '当前为最后一条告警');
+let alarmAudioContext;
+
+function playAlarmSound() {
+  if (typeof window === 'undefined') return;
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return;
+  alarmAudioContext ??= new AudioContextClass();
+
+  const context = alarmAudioContext;
+  const playTone = () => {
+    const startTime = context.currentTime;
+    const cycleCount = 4;
+    const lowFrequency = 650;
+    const highFrequency = 1550;
+    const riseDuration = 0.16;
+    const highFrequencyHoldDuration = 0;
+    const fallDuration = 0.16;
+    const lowFrequencyHoldDuration = 0;
+    const cycleDuration = riseDuration + highFrequencyHoldDuration
+      + fallDuration + lowFrequencyHoldDuration;
+    const oscillator = context.createOscillator();
+    const waveformGain = context.createGain();
+    const lowPassFilter = context.createBiquadFilter();
+    const masterGain = context.createGain();
+
+    oscillator.type = 'square';
+    waveformGain.gain.setValueAtTime(0.18, startTime);
+    lowPassFilter.type = 'lowpass';
+    lowPassFilter.frequency.setValueAtTime(4300, startTime);
+    masterGain.gain.setValueAtTime(0.22, startTime);
+
+    for (let cycleIndex = 0; cycleIndex < cycleCount; cycleIndex += 1) {
+      const cycleStartTime = startTime + cycleIndex * cycleDuration;
+      const highFrequencyStartTime = cycleStartTime + riseDuration;
+      const fallStartTime = highFrequencyStartTime + highFrequencyHoldDuration;
+      const lowFrequencyStartTime = fallStartTime + fallDuration;
+      const cycleEndTime = lowFrequencyStartTime + lowFrequencyHoldDuration;
+      oscillator.frequency.setValueAtTime(lowFrequency, cycleStartTime);
+      oscillator.frequency.linearRampToValueAtTime(highFrequency, highFrequencyStartTime);
+      oscillator.frequency.setValueAtTime(highFrequency, fallStartTime);
+      oscillator.frequency.linearRampToValueAtTime(lowFrequency, lowFrequencyStartTime);
+      oscillator.frequency.setValueAtTime(lowFrequency, cycleEndTime);
+    }
+
+    oscillator.connect(waveformGain);
+    waveformGain.connect(lowPassFilter);
+    lowPassFilter.connect(masterGain);
+    masterGain.connect(context.destination);
+    oscillator.start(startTime);
+    oscillator.stop(startTime + cycleCount * cycleDuration);
+  };
+
+  if (context.state === 'suspended') {
+    void context.resume().then(playTone).catch(() => {});
+  } else {
+    playTone();
+  }
+}
 
 watch(() => props.alarm.notificationKey, () => {
   error.value = '';
   submitting.value = false;
+  playAlarmSound();
+}, { immediate: true });
+
+onMounted(() => {
+  window.addEventListener('realtime-alarm-arrived', playAlarmSound);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('realtime-alarm-arrived', playAlarmSound);
+  if (alarmAudioContext) {
+    void alarmAudioContext.close();
+    alarmAudioContext = null;
+  }
 });
 
 const alarmModalTheme = {
@@ -188,10 +259,29 @@ async function quickHandle() {
   gap: 12px;
 }
 
-.alarm-modal-footer > span {
+.queue-description {
+  display: inline-flex;
   flex: none;
+  align-items: center;
   color: #8faccc;
   font-size: 12px;
+}
+
+.queue-description strong {
+  display: inline-grid;
+  min-width: 28px;
+  height: 28px;
+  margin: 0 5px;
+  padding: 0 6px;
+  place-items: center;
+  border: 1px solid #ff7875;
+  border-radius: 4px;
+  background: #cf1322;
+  box-shadow: 0 0 14px rgba(255, 77, 79, 0.55);
+  color: #fff;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 .alarm-modal-actions {
