@@ -286,7 +286,8 @@ async function quickHandle() {
 
 .alarm-modal-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
   justify-content: flex-end;
   gap: 8px;
 }
