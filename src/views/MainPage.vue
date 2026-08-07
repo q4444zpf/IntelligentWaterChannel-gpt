@@ -40,7 +40,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import AlarmDetailModal from '../components/alarm/AlarmDetailModal.vue';
 import RealtimeAlarmNotificationModal from '../components/alarm/RealtimeAlarmNotificationModal.vue';
 import AppShell from '../layouts/AppShell.vue';
@@ -107,7 +107,7 @@ function handleRealtimeAlarmNotification(event) {
     ...alarm,
     notificationKey: ++realtimeAlarmSequence,
   });
-  window.dispatchEvent(new Event('realtime-alarm-arrived'));
+  void nextTick(() => window.dispatchEvent(new Event('realtime-alarm-arrived')));
 }
 
 function removeCurrentRealtimeAlarm() {

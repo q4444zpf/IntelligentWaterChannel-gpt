@@ -1,12 +1,13 @@
 <template>
   <a-config-provider :locale="zhCN" :theme="alarmModalTheme">
+    <div class="alarm-screen-flash" aria-hidden="true"></div>
     <a-modal
       :open="true"
       :title="alarm.title || '告警通知'"
       :width="600"
       :closable="!submitting"
       :keyboard="!submitting"
-      :mask-closable="!submitting"
+      :mask-closable="false"
       centered
       wrap-class-name="realtime-alarm-modal-wrap"
       @cancel="emit('ignore')"
@@ -142,8 +143,7 @@ function playAlarmSound() {
 watch(() => props.alarm.notificationKey, () => {
   error.value = '';
   submitting.value = false;
-  playAlarmSound();
-}, { immediate: true });
+});
 
 onMounted(() => {
   window.addEventListener('realtime-alarm-arrived', playAlarmSound);
@@ -187,6 +187,31 @@ async function quickHandle() {
 </script>
 
 <style scoped>
+.alarm-screen-flash {
+  position: fixed;
+  z-index: 999;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 52%, rgba(255, 0, 0, 0.15) 100%);
+  box-shadow:
+    inset 0 0 18px 4px rgba(255, 0, 0, 0.9),
+    inset 0 0 72px 18px rgba(255, 0, 0, 0.55),
+    inset 0 0 150px 34px rgba(255, 0, 0, 0.36);
+  opacity: 0.5;
+  animation: realtime-alarm-screen-flash 0.82s ease-in-out infinite;
+}
+
+:global(.realtime-alarm-modal-wrap) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:global(.realtime-alarm-modal-wrap .ant-modal) {
+  top: auto;
+  margin: 0;
+}
+
 .alarm-summary {
   display: flex;
   align-items: center;
@@ -236,6 +261,11 @@ async function quickHandle() {
 }
 
 .quick-handle-error { margin-top: 16px; }
+
+@keyframes realtime-alarm-screen-flash {
+  0%, 100% { opacity: 0.28; }
+  50% { opacity: 0.9; }
+}
 
 .alarm-content-switch-enter-active,
 .alarm-content-switch-leave-active {
@@ -290,6 +320,13 @@ async function quickHandle() {
   flex-wrap: nowrap;
   justify-content: flex-end;
   gap: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alarm-screen-flash {
+    animation: none;
+    opacity: 0.62;
+  }
 }
 
 @media (max-width: 640px) {
