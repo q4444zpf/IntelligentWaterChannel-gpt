@@ -76,20 +76,17 @@ import { handleAlarm } from '../../api/alarm.js';
 
 const props = defineProps({
   alarm: { type: Object, required: true },
+  alarmAudioContext: { type: Object, default: null },
+  alarmSoundEnabled: { type: Boolean, default: false },
   queueLength: { type: Number, default: 1 },
 });
 const emit = defineEmits(['handled', 'ignore', 'next', 'view-all']);
 const submitting = ref(false);
 const error = ref('');
-let alarmAudioContext;
 
 function playAlarmSound() {
-  if (typeof window === 'undefined') return;
-  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContextClass) return;
-  alarmAudioContext ??= new AudioContextClass();
-
-  const context = alarmAudioContext;
+  const context = props.alarmAudioContext;
+  if (!props.alarmSoundEnabled || !context || context.state !== 'running') return;
   const playTone = () => {
     const startTime = context.currentTime;
     const cycleCount = 4;
@@ -145,16 +142,16 @@ function playAlarmSound() {
     sineOscillator.stop(startTime + cycleCount * cycleDuration);
   };
 
-  if (context.state === 'suspended') {
-    void context.resume().then(playTone).catch(() => {});
-  } else {
-    playTone();
-  }
+  playTone();
 }
 
 watch(() => props.alarm.notificationKey, () => {
   error.value = '';
   submitting.value = false;
+});
+
+watch(() => props.alarmSoundEnabled, (enabled) => {
+  if (enabled) playAlarmSound();
 });
 
 onMounted(() => {
@@ -163,10 +160,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('realtime-alarm-arrived', playAlarmSound);
-  if (alarmAudioContext) {
-    void alarmAudioContext.close();
-    alarmAudioContext = null;
-  }
 });
 
 const alarmModalTheme = {
