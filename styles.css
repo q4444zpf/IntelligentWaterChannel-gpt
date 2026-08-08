@@ -184,14 +184,6 @@ button:disabled {
     box-shadow: 0 0 10px rgba(255, 70, 60, .25);
 }
 
-main {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    min-height: 0;
-    padding-top: 8px;
-}
-
 .page {
     display: none;
     width: 100%;
@@ -203,17 +195,6 @@ main {
     min-height: 0;
 }
 
-.page-realtime {
-    display: none;
-    flex-direction: row;
-    gap: 8px;
-    height: calc(100dvh - 74px);
-}
-
-.page-realtime.active {
-    display: flex;
-}
-
 .left-stack, .center-stack, .right-stack {
     display: flex;
     flex-direction: column;
@@ -223,16 +204,16 @@ main {
     overflow: hidden;
 }
 
-.left-stack {
-    flex: 0 0 22.2%;
-}
-
 .center-stack {
     flex: 1 1 0;
 }
 
+.left-stack,
 .right-stack {
-    flex: 0 0 25.3%;
+    width: 370px;
+    min-width: 370px;
+    max-width: 370px;
+    flex: 0 0 370px;
 }
 
 .gate-panel, .control-panel {

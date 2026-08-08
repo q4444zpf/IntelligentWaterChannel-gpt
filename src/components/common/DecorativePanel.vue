@@ -84,7 +84,6 @@ function handleActionClick(event) {
   display: flex;
   width: 100%;
   min-width: 0;
-  min-height: 334px;
   flex-direction: column;
   box-sizing: border-box;
   overflow: hidden;

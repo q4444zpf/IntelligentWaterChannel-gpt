@@ -96,13 +96,14 @@ defineEmits(['navigate']);
 }
 
 .app-shell > main {
-  padding: 54px 41px;
-  padding-top: 8px;
+  padding: 8px 41px 40px;
   min-height: 0;
+  display: flex;
+  flex: 1;
 }
 
 :deep(.page-realtime) {
-  height: auto;
+  height: 100%;
 }
 
 :deep(.page-history.active),
