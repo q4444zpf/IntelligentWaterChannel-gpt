@@ -1804,7 +1804,7 @@ defineExpose({
   align-items: center;
   justify-content: center;
   gap: 12px;
-  background: rgba(3, 16, 29, 0.94);
+  background: transparent;
   color: #bde5ff;
   font-size: 13px;
 }

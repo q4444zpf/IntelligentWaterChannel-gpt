@@ -33,8 +33,6 @@
               v-for="action in VIEW_ACTIONS"
               :key="action"
               type="button"
-              :class="{ active: action === '自动漫游' && autoRoaming }"
-              :aria-pressed="action === '自动漫游' ? autoRoaming : undefined"
               @click="handleViewAction(action)"
             >{{ action }}</button>
           </div>
@@ -55,7 +53,6 @@
             :alarm-topic="alarmNotificationTopic"
             @mqtt-data="handleMqttData"
             @alarm-notification="handleAlarmNotification"
-            @auto-roaming-change="autoRoaming = $event"
           />
         </div>
       </section>
@@ -115,7 +112,6 @@ const props = defineProps({
 defineEmits(['navigate']);
 
 const previewRef = ref(null);
-const autoRoaming = ref(false);
 const deviceGroups = ref([]);
 const deviceLoading = ref(true);
 const deviceError = ref('');
@@ -319,7 +315,8 @@ onBeforeUnmount(() => {
   flex-wrap: nowrap;
   align-items: center;
   justify-content: center;
-  width: min(100%, 322px);
+  width: max-content;
+  max-width: calc(100% - 20px);
   height: 54px;
   padding: 0 10px;
   box-sizing: border-box;
@@ -328,8 +325,7 @@ onBeforeUnmount(() => {
   background: url('../assets/preview-actions.png') center / 100% 100% no-repeat;
 }
 
-.preview-actions button,
-.preview-actions button.active {
+.preview-actions button {
   flex: 1 1 0;
   min-width: 0;
   height: 36px;
@@ -344,10 +340,9 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
-.preview-actions button:hover,
-.preview-actions button.active {
-  background: rgba(70, 183, 255, 0.2);
-  color: #fff;
+.preview-actions button:hover {
+  color: #0EC8FB;
+  font-weight: 700;
 }
 
 .sensor-panel {
@@ -374,13 +369,6 @@ onBeforeUnmount(() => {
 }
 
 .alarm-mini-error { color: #ff918a; }
-
-.mini-actions button.active {
-  border-color: #7bd4ff;
-  background: #0a5d96;
-  box-shadow: inset 0 0 0 1px rgba(123, 212, 255, 0.35), 0 0 10px rgba(47, 165, 255, 0.24);
-  color: #fff;
-}
 
 .twin-panel .twin-stage {
   flex: 1 1 auto;
@@ -412,10 +400,26 @@ onBeforeUnmount(() => {
   transform: scaleX(-1);
 }
 
-.preview-actions button.active {
-  border: 0;
-  background: rgba(70, 183, 255, 0.2);
-  box-shadow: none;
-  color: #fff;
+.preview-actions button {
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 0;
+  padding-right: 8px;
+  padding-left: 8px;
+  font-size: 16px;
+}
+
+.preview-actions button:hover::after {
+  position: absolute;
+  left: 50%;
+  bottom: -1px;
+  width: 0;
+  height: 0;
+  border-right: 5px solid transparent;
+  border-bottom: 0;
+  border-left: 5px solid transparent;
+  border-top: 6px solid #0EC8FB;
+  content: '';
+  transform: translateX(-50%);
 }
 </style>
