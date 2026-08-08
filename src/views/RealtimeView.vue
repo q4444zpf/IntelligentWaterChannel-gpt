@@ -20,9 +20,15 @@
 
     <section class="center-stack">
       <section class="panel twin-panel">
-        <div class="panel-head">
-          <h2>三维水槽工艺监控</h2>
-          <div class="mini-actions">
+        <div class="panel-head preview-head">
+          <div class="preview-title">
+            <span class="preview-title__arrow preview-title__arrow--left" aria-hidden="true"></span>
+            <h2>三维水槽工艺监控</h2>
+            <span class="preview-title__arrow preview-title__arrow--right" aria-hidden="true"></span>
+          </div>
+        </div>
+        <div class="twin-stage">
+          <div class="mini-actions preview-actions">
             <button
               v-for="action in VIEW_ACTIONS"
               :key="action"
@@ -32,8 +38,18 @@
               @click="handleViewAction(action)"
             >{{ action }}</button>
           </div>
-        </div>
-        <div class="twin-stage">
+          <img
+            class="preview-border preview-border--left"
+            src="../assets/preview-border.png"
+            alt=""
+            aria-hidden="true"
+          >
+          <img
+            class="preview-border preview-border--right"
+            src="../assets/preview-border.png"
+            alt=""
+            aria-hidden="true"
+          >
           <SmartWaterFlumePreview
             ref="previewRef"
             :alarm-topic="alarmNotificationTopic"
@@ -238,6 +254,101 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+@font-face {
+  font-family: 'YouSheTitle';
+  src: url('../assets/优设标题黑.ttf') format('truetype');
+  font-display: swap;
+}
+
+.twin-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+}
+
+.center-stack {
+  overflow: visible;
+}
+
+.preview-head {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 12px 10px;
+}
+
+.preview-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  color: #fff;
+}
+
+.preview-title h2 {
+  margin: 0;
+  padding: 0 8px;
+  color: #fff;
+  font-family: 'YouSheTitle', 'Microsoft YaHei', sans-serif;
+  font-size: 28px;
+  font-weight: normal;
+  line-height: 36px;
+  white-space: nowrap;
+}
+
+.preview-title__arrow {
+  display: block;
+  flex: 0 0 53px;
+  width: 53px;
+  height: 36px;
+  background: url('../assets/preview-title.png') center / 100% 100% no-repeat;
+}
+
+.preview-title__arrow--right {
+  transform: scaleX(-1);
+}
+
+.preview-actions {
+  position: absolute;
+  z-index: 5;
+  top: 12px;
+  left: 50%;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, 322px);
+  height: 54px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  gap: 2px;
+  transform: translateX(-50%);
+  background: url('../assets/preview-actions.png') center / 100% 100% no-repeat;
+}
+
+.preview-actions button,
+.preview-actions button.active {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 36px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #c9edff;
+  font-size: 12px;
+  line-height: 36px;
+  white-space: nowrap;
+}
+
+.preview-actions button:hover,
+.preview-actions button.active {
+  background: rgba(70, 183, 255, 0.2);
+  color: #fff;
+}
+
 .sensor-panel {
   display: flex;
   flex-direction: column;
@@ -267,6 +378,43 @@ onBeforeUnmount(() => {
   border-color: #7bd4ff;
   background: #0a5d96;
   box-shadow: inset 0 0 0 1px rgba(123, 212, 255, 0.35), 0 0 10px rgba(47, 165, 255, 0.24);
+  color: #fff;
+}
+
+.twin-panel .twin-stage {
+  flex: 1 1 auto;
+  width: calc(100% - 20px);
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  background: transparent;
+}
+
+.twin-stage .preview-border {
+  position: absolute;
+  z-index: 0;
+  inset: 0 auto 0 0;
+  width: auto;
+  height: 100%;
+  object-fit: contain;
+  filter: none;
+  pointer-events: none;
+  user-select: none;
+}
+
+.twin-stage .preview-border--left {
+  left: 0;
+}
+
+.twin-stage .preview-border--right {
+  inset: 0 0 0 auto;
+  transform: scaleX(-1);
+}
+
+.preview-actions button.active {
+  border: 0;
+  background: rgba(70, 183, 255, 0.2);
+  box-shadow: none;
   color: #fff;
 }
 </style>
