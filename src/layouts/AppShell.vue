@@ -4,12 +4,17 @@
       <div class="app-shell__background-mask"></div>
       <img class="app-shell__background-image" :src="backgroundImage" alt="">
     </div>
+    <div class="app-shell__frame" aria-hidden="true">
+      <img class="app-shell__frame-side app-shell__frame-side--left" :src="borderImage" alt="">
+      <img class="app-shell__frame-side app-shell__frame-side--right" :src="borderImage" alt="">
+    </div>
     <AppHeader :active-page="activePage" @navigate="$emit('navigate', $event)" />
     <main><slot /></main>
   </div>
 </template>
 
 <script setup>
+import borderImage from '../assets/bg-border.png';
 import backgroundImage from '../assets/login/bg.jpg';
 import AppHeader from '../components/AppHeader.vue';
 
@@ -23,6 +28,7 @@ defineEmits(['navigate']);
 <style scoped>
 .app-shell {
   position: relative;
+  height: 100dvh;
   isolation: isolate;
   overflow: hidden;
 }
@@ -56,8 +62,51 @@ defineEmits(['navigate']);
   background: radial-gradient(50% 50% at 50% 50%, #0d2a54 0%, #002245 100%);
 }
 
-.app-shell > :not(.app-shell__background) {
+.app-shell__frame {
+  position: absolute;
+  inset: 13px;
+  z-index: 3;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.app-shell__frame-side {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40%;
+  height: 100%;
+  object-fit: fill;
+}
+
+.app-shell__frame-side--left {
+  left: 0;
+  object-position: left center;
+}
+
+.app-shell__frame-side--right {
+  right: 0;
+  object-position: right center;
+  transform: scaleX(-1);
+}
+
+.app-shell > :not(.app-shell__background):not(.app-shell__frame) {
   position: relative;
   z-index: 1;
+}
+
+.app-shell > main {
+  padding: 54px 41px;
+  padding-top: 8px;
+  min-height: 0;
+}
+
+:deep(.page-realtime) {
+  height: auto;
+}
+
+:deep(.page-history.active),
+:deep(.page-alarm.active) {
+  min-height: 0;
 }
 </style>
