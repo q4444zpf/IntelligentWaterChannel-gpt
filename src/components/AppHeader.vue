@@ -157,7 +157,7 @@ onBeforeUnmount(() => {
   height: 96px;
   min-height: 96px;
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -259,16 +259,19 @@ onBeforeUnmount(() => {
   grid-column: 1 / -1;
   grid-row: 2;
   display: flex;
+  height: 30px;
+  padding-right: 39px;
   align-items: center;
   justify-self: end;
-  gap: 18px;
+  gap: 8px;
+  background: url('../assets/status-bg.png') right center / auto 100% no-repeat;
   color: #a8d7f4;
-  font-size: 12px;
+  font-size: 14px;
   white-space: nowrap;
 }
 
 .header-meta span + span::before {
-  margin-right: 18px;
+  margin-right: 8px;
   color: rgba(133, 211, 255, 0.58);
   content: '|';
 }
