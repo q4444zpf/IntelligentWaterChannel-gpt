@@ -31,7 +31,6 @@
       </div>
 
       <div class="header-account">
-        <time class="clock" :datetime="currentDateTime">{{ currentTime }}</time>
         <div class="user-area" @focusout="handleUserAreaFocusOut" @keydown.esc="userMenuOpen = false">
           <svg class="user-icon" viewBox="0 0 20 20" aria-hidden="true">
             <path d="M10,0C15.52,0,20,4.48,20,10C20,15.52,15.52,20,10,20C4.48,20,0,15.52,0,10C0,4.48,4.48,0,10,0ZM4.0233202,13.4163C5.4908299,15.606899,7.6951103,17,10.1597,17C12.6243,17,14.8286,15.606899,16.296101,13.4163C14.688499,11.9172,12.5312,11,10.1597,11C7.7882099,11,5.63095,11.9172,4.0233202,13.4163ZM10,9C11.6569,9,13,7.6568499,13,6C13,4.3431501,11.6569,3,10,3C8.3430996,3,7,4.3431501,7,6C7,7.6568499,8.3430996,9,10,9Z" />
@@ -82,9 +81,6 @@ const userMenuOpen = ref(false);
 const unhandledAlarmCount = ref(0);
 const unhandledAlarmDisplay = computed(() => unhandledAlarmCount.value > 999 ? '999+' : unhandledAlarmCount.value);
 let alarmRefreshTimer = null;
-let clockTimer = null;
-const currentTime = ref('');
-const currentDateTime = ref('');
 const username = computed(() => {
   const user = authState.user.value;
   return user?.name || user?.username || user?.account || '用户';
@@ -94,12 +90,6 @@ function handleUserAreaFocusOut(event) {
   if (!event.currentTarget.contains(event.relatedTarget)) {
     userMenuOpen.value = false;
   }
-}
-
-function refreshClock() {
-  const now = new Date();
-  currentTime.value = now.toLocaleTimeString('zh-CN', { hour12: false });
-  currentDateTime.value = now.toISOString();
 }
 
 async function handleLogout() {
@@ -134,15 +124,12 @@ function scheduleUnhandledAlarmRefresh() {
 }
 
 onMounted(() => {
-  refreshClock();
-  clockTimer = window.setInterval(refreshClock, 1_000);
   void refreshUnhandledAlarmCount();
   window.addEventListener('alarm-notification', scheduleUnhandledAlarmRefresh);
   window.addEventListener('alarm-status-changed', refreshUnhandledAlarmCount);
 });
 
 onBeforeUnmount(() => {
-  if (clockTimer !== null) window.clearInterval(clockTimer);
   if (alarmRefreshTimer !== null) window.clearTimeout(alarmRefreshTimer);
   window.removeEventListener('alarm-notification', scheduleUnhandledAlarmRefresh);
   window.removeEventListener('alarm-status-changed', refreshUnhandledAlarmCount);
@@ -166,11 +153,11 @@ onBeforeUnmount(() => {
 
 .topbar-background {
   position: absolute;
-  inset: 0;
+  top: -4px;
+  left: 50%;
   z-index: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: fill;
+  height: 96px;
+  transform: translateX(-50%);
   pointer-events: none;
 }
 
@@ -180,8 +167,7 @@ onBeforeUnmount(() => {
   left: 50%;
   z-index: 2;
   display: flex;
-  width: 418px;
-  height: 70px;
+  height: 57px;
   align-items: center;
   justify-content: center;
   transform: translateX(-50%);
@@ -282,10 +268,6 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 14px;
-}
-
-.clock {
-  display: none;
 }
 
 .user-area {

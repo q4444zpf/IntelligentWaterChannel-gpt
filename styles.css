@@ -87,13 +87,6 @@ button:disabled {
     box-shadow: 0 0 24px rgba(0, 105, 255, .16), inset 0 -1px rgba(64, 172, 255, .14);
 }
 
-.brand {
-    font-size: 23px;
-    font-weight: 800;
-    letter-spacing: .4px;
-    white-space: nowrap;
-}
-
 .brand-mark {
     display: inline-block;
     width: 20px;
