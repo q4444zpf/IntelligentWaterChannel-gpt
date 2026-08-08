@@ -275,7 +275,8 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 8px 12px 10px;
+  margin-top: -20px;
+  padding: 0;
 }
 
 .preview-title {
@@ -312,7 +313,7 @@ onBeforeUnmount(() => {
 .preview-actions {
   position: absolute;
   z-index: 5;
-  top: 12px;
+  top: 6px;
   left: 50%;
   display: flex;
   flex-wrap: nowrap;

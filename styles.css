@@ -416,8 +416,6 @@ button:disabled {
     height: calc(100% - 48px);
     box-sizing: border-box;
     margin: 0 10px 10px;
-    border: 1px solid rgba(57, 161, 255, .28);
-    border-radius: 7px;
     overflow: hidden;
     background: radial-gradient(circle at center, rgba(18, 93, 157, .28), rgba(0, 5, 12, .84) 68%);
 }
