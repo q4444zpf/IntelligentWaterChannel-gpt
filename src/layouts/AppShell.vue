@@ -104,7 +104,7 @@ defineEmits(['navigate']);
 
 :deep(.page-realtime) {
   height: 100%;
-  gap: 10px;
+  gap: 36px;
 }
 
 :deep(.page-history.active),
