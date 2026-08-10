@@ -1,17 +1,17 @@
 <template>
   <section class="page page-realtime active">
     <aside class="left-stack">
-      <DecorativePanel class="panel gate-panel" title="闸门实时状态"><table class="data-table compact">
+      <DecorativePanel class="panel gate-panel" title="闸门实时状态"><table class="data-table compact gate-status-table">
         <thead><tr><th>设备</th><th>开度(%)</th><th>闸前(mm)</th><th>闸后(mm)</th><th>状态</th></tr></thead>
         <tbody>
-          <tr v-for="gate in gates" :key="gate.id"><td><span class="device-chip" :class="`chip-${gate.color}`">{{ gate.id }}</span></td><td>{{ gate.open }}</td><td>{{ gate.before }}</td><td>{{ gate.after }}</td><td><StatusText :value="gate.state" /></td></tr>
+          <tr v-for="gate in gates" :key="gate.id"><td><span class="device-chip" :class="`chip-${gate.color}`">{{ gate.id }}</span></td><td>{{ gate.open }}</td><td>{{ gate.before }}</td><td>{{ gate.after }}</td><td :class="gate.state === '在线' ? 'gate-status-online' : 'gate-status-offline'"><StatusText :value="gate.state" /></td></tr>
           <tr v-if="!gates.length"><td colspan="5" class="realtime-empty">{{ deviceMessage }}</td></tr>
         </tbody>
       </table></DecorativePanel>
       <DecorativePanel class="panel sensor-panel" title="传感器实时状态">
         <div class="sensor-list">
-          <div v-for="group in sensorGroups" :key="group.name" class="sensor-section"><div class="sensor-title">{{ group.name }}</div><table class="data-table compact"><tbody>
-            <tr v-for="row in group.rows" :key="row.tag || row.name"><td>{{ row.name }}</td><td>{{ row.location }}</td><td>{{ row.value }}</td><td>{{ row.unit }}</td><td><StatusText :value="row.state" /></td></tr>
+          <div v-for="group in sensorGroups" :key="group.name" class="sensor-section"><div class="sensor-title">{{ group.name }}</div><table class="data-table compact sensor-status-table"><tbody>
+            <tr v-for="row in group.rows" :key="row.tag || row.name"><td>{{ row.name }}</td><td>{{ row.location }}</td><td>{{ row.value }}</td><td>{{ row.unit }}</td><td :class="row.state === '在线' ? 'sensor-status-online' : 'sensor-status-offline'"><StatusText :value="row.state" /></td></tr>
           </tbody></table></div>
           <div v-if="!sensorGroups.length" class="realtime-empty">{{ deviceMessage }}</div>
         </div>
@@ -343,6 +343,110 @@ onBeforeUnmount(() => {
 .preview-actions button:hover {
   color: #0EC8FB;
   font-weight: 700;
+}
+
+.gate-status-table {
+  width: 100%;
+  margin: 0;
+  overflow: visible;
+  border: 0;
+  border-spacing: 0 1px;
+  border-radius: 0;
+  background: transparent;
+}
+
+.gate-status-table th,
+.gate-status-table td {
+  height: 32px;
+  padding: 0 7px;
+  border: 0;
+  color: #b9d4e8;
+  font-size: 12px;
+}
+
+.gate-status-table th {
+  background: #206596;
+  color: #dff3ff;
+  font-weight: 600;
+}
+
+.gate-status-table tbody tr:nth-child(odd) td {
+  background: transparent;
+}
+
+.gate-status-table tbody tr:nth-child(even) td {
+  background: rgba(32, 101, 150, 0.2);
+}
+
+.gate-status-table .device-chip {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #55cfff;
+  font-weight: 600;
+}
+
+.gate-status-table .gate-status-online {
+  color: #43ff86;
+}
+
+.gate-status-table .gate-status-offline {
+  color: #ff5b55;
+}
+
+.sensor-section {
+  margin: 0 0 10px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.sensor-title {
+  display: flex;
+  height: 34px;
+  align-items: center;
+  padding: 0 14px;
+  background: #206596 url('../assets/table-header.png') right center / auto 100% no-repeat;
+  color: #e7f6ff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sensor-status-table {
+  width: 100%;
+  margin: 0;
+  overflow: visible;
+  border: 0;
+  border-spacing: 0 1px;
+  border-radius: 0;
+  background: transparent;
+}
+
+.sensor-status-table td {
+  height: 32px;
+  padding: 0 7px;
+  border: 0;
+  color: #b9d4e8;
+  font-size: 12px;
+}
+
+.sensor-status-table tbody tr:nth-child(odd) td {
+  background: transparent;
+}
+
+.sensor-status-table tbody tr:nth-child(even) td {
+  background: rgba(32, 101, 150, 0.2);
+}
+
+.sensor-status-table .sensor-status-online {
+  color: #43ff86;
+}
+
+.sensor-status-table .sensor-status-offline {
+  color: #ff5b55;
 }
 
 .sensor-panel {
