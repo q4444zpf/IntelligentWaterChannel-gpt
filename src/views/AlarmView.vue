@@ -255,7 +255,7 @@ defineExpose({ refresh });
 
 .alarm-page {
   gap: 0;
-  padding: 10px;
+  padding-top: 10px;
   overflow: hidden;
 }
 

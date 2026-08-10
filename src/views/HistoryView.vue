@@ -361,7 +361,6 @@ onMounted(async () => {
 <style scoped>
 .history-page {
   gap: 0;
-  padding: 0 10px 10px;
   overflow: hidden;
 }
 

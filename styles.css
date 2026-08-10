@@ -1110,14 +1110,6 @@ button:disabled {
     grid-template-columns: repeat(5, minmax(150px, 1fr));
 }
 
-.alarm-results-panel {
-    min-height: 0;
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    padding-bottom: 12px;
-}
-
 .alarm-results-head > span {
     color: #7895b2;
     font-size: 12px;
