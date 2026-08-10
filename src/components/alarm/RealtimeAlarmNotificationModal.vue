@@ -1,61 +1,70 @@
 <template>
   <a-config-provider :locale="zhCN" :theme="alarmModalTheme">
-    <div class="alarm-screen-flash" aria-hidden="true"></div>
-    <a-modal
-      :open="true"
-      :title="alarm.title || '告警通知'"
-      :width="600"
-      :closable="!submitting"
-      :keyboard="!submitting"
-      :mask-closable="false"
-      centered
-      wrap-class-name="realtime-alarm-modal-wrap"
-      @cancel="emit('ignore')"
-    >
-      <transition name="alarm-content-switch" mode="out-in">
-        <div :key="alarm.notificationKey" class="alarm-notification-body">
-          <div class="alarm-summary">
-            <div class="alarm-indicator" aria-hidden="true">!</div>
-            <div class="alarm-summary-text">
-              <strong>{{ alarm.deviceName || '未知设备' }}</strong>
-              <span>{{ alarm.deviceSn || '--' }}</span>
+    <teleport to="body">
+      <div class="realtime-alarm-modal-layer">
+        <div class="realtime-alarm-modal-mask" aria-hidden="true"></div>
+        <div class="alarm-screen-flash" aria-hidden="true"></div>
+
+        <section
+          class="realtime-alarm-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="realtime-alarm-modal-title"
+          :aria-busy="submitting"
+          tabindex="-1"
+          autofocus
+          @keydown.esc="!submitting && emit('ignore')"
+        >
+          <h2 id="realtime-alarm-modal-title" class="realtime-alarm-modal-title">
+            {{ alarm.title || '告警通知' }}
+          </h2>
+
+          <div class="realtime-alarm-modal-body">
+            <transition name="alarm-content-switch" mode="out-in">
+              <div :key="alarm.notificationKey" class="alarm-notification-body">
+                <div class="alarm-summary">
+                  <div class="alarm-indicator" aria-hidden="true">!</div>
+                  <div class="alarm-summary-text">
+                    <strong>{{ alarm.deviceName || '未知设备' }}</strong>
+                    <span>{{ alarm.deviceSn || '--' }}</span>
+                  </div>
+                  <a-tag color="red">{{ alarm.grade || '告警' }}</a-tag>
+                </div>
+
+                <a-descriptions :column="1" size="small" bordered>
+                  <a-descriptions-item label="告警时间">{{ alarm.warnTime || '--' }}</a-descriptions-item>
+                  <a-descriptions-item label="设备名称">{{ alarm.deviceName || '--' }}</a-descriptions-item>
+                  <a-descriptions-item label="设备编号">{{ alarm.deviceSn || '--' }}</a-descriptions-item>
+                  <a-descriptions-item label="当前值">{{ alarm.value ?? '--' }}</a-descriptions-item>
+                </a-descriptions>
+
+                <section class="alarm-content">
+                  <span>告警信息</span>
+                  <p>{{ alarm.content || '收到新的告警通知' }}</p>
+                </section>
+
+                <a-alert v-if="error" class="quick-handle-error" type="error" show-icon :message="error" />
+              </div>
+            </transition>
+          </div>
+
+          <footer class="alarm-modal-footer">
+            <span class="queue-description">
+              <template v-if="queueLength > 1">队列中还有 <strong>{{ queueLength - 1 }}</strong> 条告警</template>
+              <template v-else>当前为最后一条告警</template>
+            </span>
+            <div class="alarm-modal-actions">
+              <a-button :disabled="submitting" @click="emit('ignore')">忽略</a-button>
+              <a-button :disabled="submitting" @click="emit('view-all')">查看全部告警</a-button>
+              <a-button :disabled="submitting || queueLength <= 1" @click="emit('next')">下一条</a-button>
+              <a-button type="primary" danger :loading="submitting" :disabled="!alarm.id" @click="quickHandle">
+                快速处理
+              </a-button>
             </div>
-            <a-tag color="red">{{ alarm.grade || '告警' }}</a-tag>
-          </div>
-
-          <a-descriptions :column="1" size="small" bordered>
-            <a-descriptions-item label="告警时间">{{ alarm.warnTime || '--' }}</a-descriptions-item>
-            <a-descriptions-item label="设备名称">{{ alarm.deviceName || '--' }}</a-descriptions-item>
-            <a-descriptions-item label="设备编号">{{ alarm.deviceSn || '--' }}</a-descriptions-item>
-            <a-descriptions-item label="当前值">{{ alarm.value ?? '--' }}</a-descriptions-item>
-          </a-descriptions>
-
-          <section class="alarm-content">
-            <span>告警信息</span>
-            <p>{{ alarm.content || '收到新的告警通知' }}</p>
-          </section>
-
-          <a-alert v-if="error" class="quick-handle-error" type="error" show-icon :message="error" />
-        </div>
-      </transition>
-
-      <template #footer>
-        <div class="alarm-modal-footer">
-          <span class="queue-description">
-            <template v-if="queueLength > 1">队列中还有 <strong>{{ queueLength - 1 }}</strong> 条告警</template>
-            <template v-else>当前为最后一条告警</template>
-          </span>
-          <div class="alarm-modal-actions">
-            <a-button :disabled="submitting" @click="emit('ignore')">忽略</a-button>
-            <a-button :disabled="submitting" @click="emit('view-all')">查看全部告警</a-button>
-            <a-button :disabled="submitting || queueLength <= 1" @click="emit('next')">下一条</a-button>
-            <a-button type="primary" danger :loading="submitting" :disabled="!alarm.id" @click="quickHandle">
-              快速处理
-            </a-button>
-          </div>
-        </div>
-      </template>
-    </a-modal>
+          </footer>
+        </section>
+      </div>
+    </teleport>
   </a-config-provider>
 </template>
 
@@ -66,7 +75,6 @@ import {
   ConfigProvider as AConfigProvider,
   Descriptions as ADescriptions,
   DescriptionsItem as ADescriptionsItem,
-  Modal as AModal,
   Tag as ATag,
   theme as antTheme,
 } from 'ant-design-vue';
@@ -192,9 +200,31 @@ async function quickHandle() {
 </script>
 
 <style scoped>
-.alarm-screen-flash {
+@font-face {
+  font-family: 'YouSheBiaoTiHei';
+  src: url('../../assets/优设标题黑.ttf') format('truetype');
+  font-display: swap;
+}
+
+.realtime-alarm-modal-layer {
   position: fixed;
-  z-index: 999;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  padding: 24px;
+  place-items: center;
+}
+
+.realtime-alarm-modal-mask {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.58);
+}
+
+.alarm-screen-flash {
+  position: absolute;
+  z-index: 1;
   inset: 0;
   pointer-events: none;
   background: radial-gradient(ellipse at center, transparent 52%, rgba(255, 0, 0, 0.15) 100%);
@@ -206,15 +236,45 @@ async function quickHandle() {
   animation: realtime-alarm-screen-flash 0.82s ease-in-out infinite;
 }
 
-:global(.realtime-alarm-modal-wrap) {
+.realtime-alarm-dialog {
+  position: relative;
+  z-index: 2;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  width: min(600px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  flex-direction: column;
+  overflow: hidden;
+  outline: none;
+  background-image:
+    url('../../assets/alarm-modal-bg.png'),
+    url('../../assets/alarm-modal-bg.png');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
 }
 
-:global(.realtime-alarm-modal-wrap .ant-modal) {
-  top: auto;
+.realtime-alarm-modal-title {
+  position: absolute;
+  z-index: 2;
+  top: 11px;
+  right: 0;
+  left: 0;
+  display: grid;
+  width: auto;
   margin: 0;
+  place-items: center;
+  color: #f2f9ff;
+  font-family: 'YouSheBiaoTiHei', sans-serif;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 28px;
+  text-shadow: 0 0 10px rgba(102, 206, 255, 0.72);
+}
+
+.realtime-alarm-modal-body {
+  min-height: 0;
+  padding: 52px 24px 0;
+  overflow-y: auto;
 }
 
 .alarm-summary {
@@ -289,9 +349,14 @@ async function quickHandle() {
 
 .alarm-modal-footer {
   display: flex;
+  flex: none;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin: 12px 24px 0;
+  padding: 14px 0 24px;
+  border-top: 1px solid rgba(72, 155, 230, 0.24);
+  background: transparent;
 }
 
 .queue-description {
@@ -335,7 +400,11 @@ async function quickHandle() {
 }
 
 @media (max-width: 640px) {
-  .alarm-modal-footer { align-items: stretch; flex-direction: column; }
+  .realtime-alarm-modal-layer { padding: 10px; }
+  .realtime-alarm-dialog { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); }
+  .realtime-alarm-modal-body { padding: 48px 18px 0; }
+  .realtime-alarm-modal-title { top: 9px; font-size: 16px; }
+  .alarm-modal-footer { align-items: stretch; flex-direction: column; margin-inline: 18px; padding-bottom: 20px; }
   .alarm-modal-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 </style>
