@@ -39,7 +39,7 @@ JavaScript 文件使用 ES Modules（`.mjs`），脚本文件名使用小写加�
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **IntelligentWaterChannel-gpt** (1552 symbols, 3097 relationships, 129 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **IntelligentWaterChannel-gpt** (1651 symbols, 3313 relationships, 138 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 

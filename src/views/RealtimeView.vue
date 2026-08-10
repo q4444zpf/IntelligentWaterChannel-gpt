@@ -371,6 +371,8 @@ onBeforeUnmount(() => {
 .alarm-mini-error { color: #ff918a; }
 
 .twin-panel .twin-stage {
+  display: block;
+  position: relative;
   flex: 1 1 auto;
   width: calc(100% - 20px);
   height: auto;
@@ -384,7 +386,7 @@ onBeforeUnmount(() => {
   z-index: 0;
   inset: 0 auto 0 0;
   width: auto;
-  height: 100%;
+  height: calc(100% - 40px);
   object-fit: contain;
   filter: none;
   pointer-events: none;

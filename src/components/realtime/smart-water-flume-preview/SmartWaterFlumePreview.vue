@@ -1868,7 +1868,7 @@ defineExpose({
   position: absolute;
   z-index: 10;
   right: auto;
-  bottom: 10px;
+  bottom: 50px;
   left: 50%;
   display: flex;
   align-items: flex-end;
