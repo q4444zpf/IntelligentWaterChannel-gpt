@@ -2,6 +2,13 @@
   <section class="page page-realtime active">
     <aside class="left-stack">
       <DecorativePanel class="panel gate-panel" title="闸门实时状态"><table class="data-table compact gate-status-table">
+        <colgroup>
+          <col style="width: 14%">
+          <col style="width: 18%">
+          <col style="width: 25%">
+          <col style="width: 25%">
+          <col style="width: 18%">
+        </colgroup>
         <thead><tr><th>设备</th><th>开度(%)</th><th>闸前(mm)</th><th>闸后(mm)</th><th>状态</th></tr></thead>
         <tbody>
           <tr v-for="gate in gates" :key="gate.id"><td><span class="device-chip" :class="`chip-${gate.color}`">{{ gate.id }}</span></td><td>{{ gate.open }}</td><td>{{ gate.before }}</td><td>{{ gate.after }}</td><td :class="gate.state === '在线' ? 'gate-status-online' : 'gate-status-offline'"><StatusText :value="gate.state" /></td></tr>

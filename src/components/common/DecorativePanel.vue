@@ -258,11 +258,18 @@ function handleActionClick(event) {
   min-width: 0;
   min-height: 0;
   flex: 1 1 auto;
+  overflow: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
   padding: 14px;
   border: 1px solid transparent;
   border-image: linear-gradient(180deg, rgba(31, 157, 242, 0.18) 0%, var(--panel-border-accent) 100%) 1;
   background: rgba(2, 22, 46, 0.74);
   color: #d9ecff;
+}
+
+.decorative-panel__content::-webkit-scrollbar {
+  display: none;
 }
 
 @media (max-width: 560px) {
