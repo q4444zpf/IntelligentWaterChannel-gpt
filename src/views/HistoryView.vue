@@ -465,7 +465,7 @@ onMounted(async () => {
 .history-filter-panel::before {
   position: absolute;
   z-index: 1;
-  top: -1px;
+  top: -30px;
   right: 0;
   left: 0;
   height: 30px;
@@ -481,10 +481,6 @@ onMounted(async () => {
   padding: 14px 16px 12px;
   overflow: visible;
   border-top-left-radius: 0;
-}
-
-.history-filter-panel::before {
-  top: -30px;
 }
 
 .history-filter-corner-mark {
