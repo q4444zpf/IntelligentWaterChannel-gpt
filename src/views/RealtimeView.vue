@@ -430,7 +430,6 @@ onBeforeUnmount(() => {
 .control-panel :deep(.decorative-panel__content) {
   padding: 10px 14px 12px;
   overflow: hidden;
-  background: transparent;
 }
 
 .control-panel .control-card {
@@ -663,7 +662,7 @@ onBeforeUnmount(() => {
 }
 
 .sensor-status-table tbody tr:nth-child(even) td {
-  background: rgba(32, 101, 150, 0.2);
+  background: transparent;
 }
 
 .sensor-status-table .sensor-status-online {
@@ -701,7 +700,6 @@ onBeforeUnmount(() => {
   position: relative;
   padding: 6px 14px;
   overflow: hidden;
-  background: transparent !important;
 }
 
 .alarm-list {

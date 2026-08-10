@@ -264,7 +264,6 @@ function handleActionClick(event) {
   padding: 14px;
   border: 1px solid transparent;
   border-image: linear-gradient(180deg, rgba(31, 157, 242, 0.18) 0%, var(--panel-border-accent) 100%) 1;
-  background: rgba(2, 22, 46, 0.74);
   color: #d9ecff;
 }
 

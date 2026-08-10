@@ -221,14 +221,15 @@ onMounted(() => trendTypes.forEach((type) => {
 .trend-analysis-head::before {
   height: 41px;
   border: 1px solid;
-  border-image: linear-gradient(0deg, #1e7fc1 0%, rgba(30, 127, 193, 0) 100%) 1;
-  background: linear-gradient(0deg, rgba(32, 105, 212, 0) 0%, rgba(110, 217, 247, 0.5) 100%);
-  opacity: 1;
-  transform: rotate(180deg);
+  border-image: linear-gradient(180deg, #1e7fc1 0%, rgba(30, 127, 193, 0) 100%) 1;
+  background: linear-gradient(180deg, rgba(32, 105, 212, 0) 0%, rgba(110, 217, 247, 0.5) 100%);
 }
 
 .trend-analysis-head::after {
-  background: url('../../../assets/panel-glow-placeholder.png') center / 100% 100% no-repeat;
+  background-image: url('../../../assets/panel-glow-placeholder.png');
+  background-repeat: no-repeat;
+  background-position: left center;
+  background-size: contain;
   opacity: 0.9;
 }
 
