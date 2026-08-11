@@ -1,5 +1,8 @@
 <template>
-  <section class="page page-realtime active">
+  <section
+    class="page page-realtime active"
+    :class="{ 'is-center-fullscreen': isCenterFullscreen }"
+  >
     <aside class="left-stack">
       <DecorativePanel class="panel gate-panel" title="闸门实时状态"><table class="data-table compact gate-status-table">
         <colgroup>
@@ -42,6 +45,12 @@
               type="button"
               @click="handleViewAction(action)"
             >{{ action }}</button>
+            <button
+              type="button"
+              :aria-pressed="isCenterFullscreen"
+              :title="isCenterFullscreen ? '退出全屏' : '全屏显示'"
+              @click="toggleCenterFullscreen"
+            >{{ isCenterFullscreen ? '退出全屏' : '全屏' }}</button>
           </div>
           <img
             class="preview-border preview-border--left"
@@ -64,6 +73,7 @@
         </div>
       </section>
       <TrendAnalysis
+        v-show="!isCenterFullscreen"
         :profile-nodes="profileNodes"
         :realtime-values="realtimeValues"
         :profile-loading="profileLoading"
@@ -192,6 +202,7 @@ const props = defineProps({
 defineEmits(['navigate']);
 
 const previewRef = ref(null);
+const isCenterFullscreen = ref(false);
 const targetGateOpening = ref(50);
 const targetPumpFrequency = ref(35);
 const deviceGroups = ref([]);
@@ -240,6 +251,10 @@ function handleViewAction(action) {
     return;
   }
   previewRef.value?.handleAction(action);
+}
+
+function toggleCenterFullscreen() {
+  isCenterFullscreen.value = !isCenterFullscreen.value;
 }
 
 watch(() => props.sceneTarget, async (target) => {
@@ -348,6 +363,21 @@ onBeforeUnmount(() => {
   overflow: visible;
 }
 
+.page-realtime.is-center-fullscreen {
+  gap: 0;
+}
+
+.page-realtime.is-center-fullscreen > .left-stack,
+.page-realtime.is-center-fullscreen > .right-stack {
+  display: none;
+}
+
+.page-realtime.is-center-fullscreen > .center-stack {
+  width: 100%;
+  flex: 1 1 100%;
+  overflow: hidden;
+}
+
 .preview-head {
   flex: 0 0 auto;
   display: flex;
@@ -355,6 +385,10 @@ onBeforeUnmount(() => {
   align-items: center;
   margin-top: -20px;
   padding: 0;
+}
+
+.page-realtime.is-center-fullscreen .preview-head {
+  margin-top: 0;
 }
 
 .preview-title {
