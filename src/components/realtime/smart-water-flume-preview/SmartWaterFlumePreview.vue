@@ -289,6 +289,7 @@ const props = defineProps({
     default: WEB_TOPO_CONFIG.webTopoId,
   },
   alarmTopic: { type: String, default: '' },
+  performanceMode: { type: Boolean, default: false },
 });
 const emit = defineEmits(['mqtt-data', 'alarm-notification', 'auto-roaming-change']);
 
@@ -360,6 +361,7 @@ const LABEL_GROUP_COLORS = ['#77bdf2', '#84c7a8', '#f0b77a', '#df9a7d', '#76c8bf
 const CAMERA_FOCUS_DURATION = 800;
 const MODEL_EXPANSION_DURATION = 650;
 const CANVAS_CLICK_TOLERANCE = 4;
+const PERFORMANCE_PIXEL_RATIO_LIMIT = 1.25;
 const raycaster = new THREE.Raycaster();
 const raycastPointer = new THREE.Vector2();
 const labelCameraDirection = new THREE.Vector3();
@@ -977,6 +979,14 @@ function resizeScene() {
   if (!host || !camera || !renderer) return;
   const width = Math.max(host.clientWidth, 1);
   const height = Math.max(host.clientHeight, 1);
+  const pixelRatio = Math.min(
+    window.devicePixelRatio || 1,
+    props.performanceMode ? PERFORMANCE_PIXEL_RATIO_LIMIT : 2,
+  );
+  if (renderer.getPixelRatio() !== pixelRatio) {
+    renderer.setPixelRatio(pixelRatio);
+    composer?.setPixelRatio(pixelRatio);
+  }
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
   renderer.setSize(width, height, false);
@@ -1213,6 +1223,10 @@ watch(() => props.alarmTopic, (nextTopic, previousTopic) => {
   if (next && next !== realtimeTopic) {
     subscribeWebTopoMqtt(mqttClient, next, handleMqttError);
   }
+});
+
+watch(() => props.performanceMode, () => {
+  resizeScene();
 });
 
 watch(autoRotating, (enabled) => {

@@ -67,6 +67,7 @@
           <SmartWaterFlumePreview
             ref="previewRef"
             :alarm-topic="alarmNotificationTopic"
+            :performance-mode="isCenterFullscreen"
             @mqtt-data="handleMqttData"
             @alarm-notification="handleAlarmNotification"
           />
