@@ -794,6 +794,11 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
+.alarm-mini .alarm-item.handled .state-pill {
+  box-shadow: inset 0 0 5px rgba(49, 222, 109, 0.5);
+  color: #31de6d;
+}
+
 .alarm-item__title {
   display: block;
   min-width: 0;
