@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>警报发生器</title>
+<style>
+*{box-sizing:border-box;}
+body{font-family:system-ui;padding:24px;max-width:1350px;margin:0 auto;}
+button{
+  padding:10px 20px;
+  font-size:15px;
+  cursor:pointer;
+  border:none;
+  border-radius:6px;
+  background:#c22020;
+  color:#fff;
+  margin-right:8px;
+  margin-bottom:12px;
+}
+button:active{background:#991b1b;}
+.btn-stop{background:#333;}
+.btn-stop:active{background:#111;}
+.btn-add{background:#2070c2;}
+.btn-copy{background:#20a060;}
+.btn-del{background:#b82020;}
+.btn-export{background:#7030c2;}
+
+#oscCanvas{
+  width:100%;
+  height:200px;
+  background:#061d2e;
+  border-radius:8px;
+  margin:10px 0 20px;
+}
+
+.panel{
+  background:#f4f4f4;
+  padding:18px;
+  border-radius:10px;
+  margin-bottom:16px;
+}
+
+.editor-layout{
+  display:grid;
+  grid-template-columns:minmax(620px, 1.25fr) minmax(470px, 0.95fr);
+  gap:12px;
+  align-items:start;
+}
+.editor-layout .panel{
+  margin-bottom:0;
+}
+.list-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.list-header h4{
+  margin:0;
+}
+.list-header button{
+  margin:0;
+  white-space:nowrap;
+}
+@media (max-width: 980px){
+  .editor-layout{grid-template-columns:1fr;}
+}
+
+.row{
+  margin:10px 0;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex-wrap:wrap;
+}
+.row label{width:150px;}
+input[type="range"]{width:270px;}
+.val-input{width:80px;padding:4px 6px;border:1px solid #aaa;border-radius:4px;font-family:monospace;font-size:14px;}
+
+.radio-group{
+  display:flex;
+  gap:10px;
+  flex-wrap:nowrap;
+}
+.radio-group label{
+  width:auto;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  gap:4px;
+}
+
+/*波形列表表格样式*/
+.wave-list-wrap{
+  max-height:320px;
+  overflow:auto;
+  border:1px solid #bbb;
+  background:#fff;
+  border-radius:8px;
+  margin:10px 0;
+}
+.wave-table{
+  width:100%;
+  border-collapse: collapse;
+  font-size:13px;
+}
+.wave-table th,.wave-table td{
+  border:1px solid #ddd;
+  padding:8px 10px;
+}
+.wave-table th{
+  background:#eee;
+  position:sticky;
+  top:0;
+}
+.wave-table tbody tr{
+  cursor:pointer;
+}
+.wave-table tbody tr.selected{
+  background:#cce0ff;
+}
+.wave-table tbody tr:hover{
+  background:#eef4fc;
+}
+.wave-table .ops button{
+  padding:3px 7px;
+  font-size:12px;
+  margin:0 3px;
+  margin-bottom:3px;
+}
+
+.param-text-area{
+  margin-top:12px;
+  padding:12px;
+  background:#222;
+  color:#7cf07c;
+  font-family:Consolas,monospace;
+  border-radius:8px;
+  white-space:pre‑wrap;
+  font-size:12px;
+}
+.nl-export-area{
+  margin-top:12px;
+  padding:12px;
+  background:#1a1a30;
+  color:#e0e0ff;
+  font-family:Consolas,monospace;
+  border-radius:8px;
+  white-space:pre‑wrap;
+  font-size:12px;
+  min-height:140px;
+}
+
+.saved-panel h4{margin:0 0 12px;}
+.saved-controls{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.saved-name{
+  width:220px;
+  padding:7px 8px;
+  border:1px solid #aaa;
+  border-radius:4px;
+  font-size:14px;
+}
+.saved-controls button{margin:0;}
+.saved-list{margin-top:12px;overflow:auto;}
+.saved-table{width:100%;border-collapse:collapse;font-size:13px;background:#fff;}
+.saved-table th,.saved-table td{border:1px solid #ddd;padding:8px 10px;text-align:left;}
+.saved-table th{background:#eee;}
+.saved-table .saved-name{width:100%;min-width:140px;}
+.saved-table button{padding:4px 8px;font-size:12px;margin:0 3px 0 0;}
+.btn-update{background:#b56a16;}
+.saved-empty{margin:0;color:#666;}
+
+:root{
+  --page:#dff4ff;
+  --surface:#ffffff;
+  --surface-muted:#eefaff;
+  --border:#b9def2;
+  --text:#12324a;
+  --muted:#3f718b;
+  --primary:#087ce5;
+  --primary-hover:#0066c3;
+  --teal:#00a887;
+  --danger:#e83d50;
+}
+html{background:var(--page);}
+body{
+  min-height:100vh;
+  max-width:1400px;
+  padding:28px;
+  background:#f7fcff;
+  color:var(--text);
+  font-family:"Microsoft YaHei",system-ui,sans-serif;
+}
+h2{
+  margin:0 0 18px;
+  font-size:23px;
+  font-weight:700;
+  letter-spacing:0;
+  color:#075b96;
+}
+.toolbar{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-bottom:14px;
+  padding:12px 14px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:#ffffff;
+  box-shadow:0 3px 10px rgba(8,124,229,.12);
+}
+.toolbar label{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#1f5b80;}
+button{
+  margin:0;
+  padding:8px 14px;
+  border-radius:5px;
+  background:var(--primary);
+  box-shadow:0 2px 4px rgba(8,91,150,.22);
+  font-size:14px;
+  font-weight:600;
+  transition:background .15s ease,box-shadow .15s ease,transform .15s ease;
+}
+button:hover{background:var(--primary-hover);box-shadow:0 4px 10px rgba(8,91,150,.24);}
+button:active{background:#00529f;transform:translateY(1px);}
+.btn-stop{background:#475569;}
+.btn-stop:hover{background:#334155;}
+.btn-add{background:var(--teal);}
+.btn-add:hover{background:#008a70;}
+.btn-copy{background:#0aa67d;}
+.btn-copy:hover{background:#078664;}
+.btn-del{background:var(--danger);}
+.btn-del:hover{background:#c92c3e;}
+.btn-export{background:#7b55d8;}
+.btn-export:hover{background:#6541bb;}
+.btn-update{background:#f28b22;}
+.btn-update:hover{background:#d96e0c;}
+#oscCanvas{
+  display:block;
+  height:190px;
+  margin:0 0 16px;
+  border:1px solid #087ce5;
+  border-radius:8px;
+  box-shadow:inset 0 0 0 1px rgba(159,226,255,.15),0 3px 10px rgba(8,124,229,.20);
+}
+.panel{
+  padding:16px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:#ffffff;
+  box-shadow:0 3px 10px rgba(8,124,229,.10);
+}
+.panel h4{color:#0870bb;font-size:15px;font-weight:700;letter-spacing:0;}
+.editor-layout{gap:14px;align-items:stretch;}
+.editor-layout > .panel:first-child{display:flex;flex-direction:column;}
+.editor-layout > .panel:first-child .wave-list-wrap{height:344px;flex:none;max-height:344px;overflow:auto;}
+.list-header{padding-bottom:10px;border-bottom:1px solid #d7edfa;}
+.list-header button{padding:8px 12px;}
+.row{margin:9px 0;gap:8px;}
+.row label{color:#245d80;font-size:14px;font-weight:600;}
+.val-input,.saved-name{
+  border-color:#9fd0ec;
+  background:#fbfeff;
+  color:#14364c;
+  transition:border-color .15s ease,box-shadow .15s ease;
+}
+.val-input:focus,.saved-name:focus{
+  outline:none;
+  border-color:#087ce5;
+  box-shadow:0 0 0 3px rgba(8,124,229,.16);
+}
+input[type="range"]{accent-color:var(--primary);}
+.radio-group{gap:12px;}
+.radio-group label{color:#36454f;font-size:14px;}
+.wave-list-wrap{
+  margin:12px 0 0;
+  border-color:#9fd0ec;
+  border-radius:6px;
+  box-shadow:inset 0 1px 2px rgba(8,124,229,.08);
+}
+.wave-table th,.wave-table td{border-color:#dfe6ea;padding:9px 10px;}
+.wave-table th{
+  background:#dff2ff;
+  color:#075b96;
+  font-weight:700;
+}
+.wave-table tbody tr{transition:background .12s ease;}
+.wave-table tbody tr.selected{background:#bfe4ff;}
+.wave-table tbody tr:hover{background:#eaf8ff;}
+.wave-table .ops button{box-shadow:none;}
+.saved-panel{margin-top:16px;}
+.saved-panel h4{padding-bottom:10px;border-bottom:1px solid #d7edfa;}
+.saved-controls{gap:10px;}
+.saved-controls button{padding:8px 12px;}
+.saved-list{border:1px solid #9fd0ec;border-radius:6px;background:#fbfeff;}
+.saved-table th,.saved-table td{border-color:#cce8f8;padding:9px 10px;}
+.saved-table th{background:#dff2ff;color:#075b96;font-weight:700;}
+.saved-table tbody tr:hover{background:#eaf8ff;}
+.saved-empty{padding:13px 14px;color:var(--muted);font-size:14px;}
+.param-text-area,.nl-export-area{
+  border:1px solid #263c48;
+  border-radius:8px;
+  box-shadow:0 2px 8px rgba(25,42,54,.10);
+}
+.param-text-area{background:#073b45;color:#baffd4;}
+.nl-export-area{background:#312563;color:#f0eaff;}
+.top-layout{
+  display:grid;
+  grid-template-columns:minmax(250px, .38fr) minmax(0, 2.12fr);
+  gap:14px;
+  align-items:stretch;
+  margin-bottom:16px;
+}
+.top-layout .toolbar{
+  margin-bottom:0;
+  padding:10px;
+  gap:7px;
+  flex-direction:column;
+  align-items:stretch;
+}
+.top-layout .toolbar label{justify-content:space-between;gap:6px;}
+.top-layout .toolbar button{width:100%;padding:7px 10px;}
+.top-layout #loopBtn.is-playing{background:#e83d50;}
+.top-layout #loopBtn.is-playing:hover{background:#c92c3e;}
+.top-layout #oscCanvas{height:190px;margin:0;}
+.output-layout{
+  display:grid;
+  grid-template-columns:minmax(420px, .9fr) minmax(0, 1.4fr);
+  gap:14px;
+  align-items:stretch;
+  margin-top:16px;
+}
+.output-layout .param-text-area,.output-layout .nl-export-area{margin:0;}
+@media (max-width:980px){
+  .top-layout,.output-layout{grid-template-columns:1fr;}
+}
+@media (max-width:720px){
+  body{padding:16px;}
+  .toolbar{align-items:stretch;}
+  .toolbar label{justify-content:space-between;width:100%;}
+  .toolbar button{flex:1 1 auto;}
+  .row label{width:100%;}
+  input[type="range"]{width:min(100%,240px);}
+  .radio-group{flex-wrap:wrap;}
+}
+</style>
+</head>
+<body>
+<h2>🚨 警报发生器｜AI自然语言导出</h2>
+
+<div class="top-layout">
+  <div class="toolbar">
+  <label>单次播放循环次数：
+    <input id="oneShotLoopCount" class="val-input" type="number" min="1" max="99" step="1" value="2">
+  </label>
+  <button id="triggerBtn">触发单次播放</button>
+  <button id="loopBtn">开始无限持续播放</button>
+  <button id="exportNLBtn" class="btn-export">导出AI复现描述</button>
+  </div>
+
+  <canvas id="oscCanvas"></canvas>
+</div>
+
+<div class="editor-layout">
+  <div class="panel">
+    <div class="list-header">
+      <h4>波形列表（点击选中行，右侧面板编辑该波形）</h4>
+      <button id="addWaveBtn" class="btn-add">+新增波形</button>
+    </div>
+    <div id="waveListWrap" class="wave-list-wrap"></div>
+  </div>
+
+  <div class="panel" id="editPanel">
+  <h4>编辑选中波形 <span id="editWaveName"></span></h4>
+  <div class="row">
+    <label>波形类型：</label>
+    <div class="radio-group">
+      <label><input type="radio" name="waveType" value="sine"> 正弦波</label>
+      <label><input type="radio" name="waveType" value="square"> 方波</label>
+      <label><input type="radio" name="waveType" value="triangle"> 三角波</label>
+      <label><input type="radio" name="waveType" value="sawtooth"> 锯齿波</label>
+    </div>
+  </div>
+  <div class="row">
+    <label>上升时长(秒)：</label>
+    <input type="range" id="riseTimeSlider" min="0.02" max="5.0" step="0.02" value="0.15">
+    <input class="val-input" id="riseTimeInput" type="number" min="0.02" max="5.0" step="0.02" value="0.15">
+  </div>
+  <div class="row">
+    <label>波峰‑高频停留(秒)：</label>
+    <input type="range" id="peakHoldSlider" min="0" max="5.0" step="0.02" value="0.10">
+    <input class="val-input" id="peakHoldInput" type="number" min="0" max="5.0" step="0.02" value="0.10">
+  </div>
+  <div class="row">
+    <label>下降时长(秒)：</label>
+    <input type="range" id="fallTimeSlider" min="0.02" max="5.0" step="0.02" value="0.15">
+    <input class="val-input" id="fallTimeInput" type="number" min="0.02" max="5.0" step="0.02" value="0.15">
+  </div>
+  <div class="row">
+    <label>波谷‑低频停留(秒)：</label>
+    <input type="range" id="valleyHoldSlider" min="0" max="5.0" step="0.02" value="0.10">
+    <input class="val-input" id="valleyHoldInput" type="number" min="0" max="5.0" step="0.02" value="0.10">
+  </div>
+  <div class="row">
+    <label>最低频率(Hz)：</label>
+    <input type="range" id="freqLowSlider" min="100" max="2000" step="10" value="650">
+    <input class="val-input" id="freqLowInput" type="number" min="100" max="2000" step="10" value="650">
+  </div>
+  <div class="row">
+    <label>最高频率(Hz)：</label>
+    <input type="range" id="freqHighSlider" min="200" max="4000" step="10" value="1450">
+    <input class="val-input" id="freqHighInput" type="number" min="200" max="4000" step="10" value="1450">
+  </div>
+  <div class="row">
+    <label>该波形增益：</label>
+    <input type="range" id="gainSlider" min="0.01" max="0.4" step="0.01" value="0.18">
+    <input class="val-input" id="gainInput" type="number" min="0.01" max="0.4" step="0.01" value="0.18">
+  </div>
+  <div class="row">
+    <label>全局低通滤波(Hz)：</label>
+    <input type="range" id="filterCutSlider" min="200" max="12000" step="50" value="3400">
+    <input class="val-input" id="filterCutInput" type="number" min="200" max="12000" step="50" value="3400">
+  </div>
+    <div class="row">
+      <label>全局主音量：</label>
+      <input type="range" id="masterSlider" min="0.01" max="0.6" step="0.01" value="0.22">
+      <input class="val-input" id="masterInput" type="number" min="0.01" max="0.6" step="0.01" value="0.22">
+    </div>
+  </div>
+</div>
+
+<div class="panel saved-panel">
+  <h4>已保存方案</h4>
+  <div class="saved-controls">
+    <input id="savedPresetName" class="saved-name" type="text" maxlength="40" placeholder="方案名称">
+    <button id="savePresetBtn" class="btn-add">保存当前列表</button>
+  </div>
+  <div id="savedPresetList" class="saved-list"></div>
+</div>
+
+<div class="output-layout">
+  <div class="param-text-area" id="paramTextDisplay"></div>
+  <div class="nl-export-area" id="nlExportDisplay">【点击导出AI复现描述按钮生成可给AI的自然语言复现指令】</div>
+</div>
+
+<script>
+//音频
+let audioCtx = null;
+let analyser = null;
+let filter = null;
+let masterGain = null;
+let runningOscList = [];
+let loopTimerId = null;
+
+//波形列表数据
+let waveList = [];
+let selectedIndex = -1;
+const WAVE_TYPE_LABELS = {
+  sine:"正弦波",
+  square:"方波",
+  triangle:"三角波",
+  sawtooth:"锯齿波"
+};
+
+//DOM
+const canvas = document.getElementById('oscCanvas');
+const ctx = canvas.getContext('2d');
+const waveListWrap = document.getElementById('waveListWrap');
+const editPanel = document.getElementById('editPanel');
+const editWaveName = document.getElementById('editWaveName');
+const triggerBtn = document.getElementById('triggerBtn');
+const loopBtn = document.getElementById('loopBtn');
+const addWaveBtn = document.getElementById('addWaveBtn');
+const exportNLBtn = document.getElementById('exportNLBtn');
+const paramTextDisplay = document.getElementById('paramTextDisplay');
+const nlExportDisplay = document.getElementById('nlExportDisplay');
+const oneShotLoopCount = document.getElementById('oneShotLoopCount');
+const savedPresetName = document.getElementById('savedPresetName');
+const savePresetBtn = document.getElementById('savePresetBtn');
+const savedPresetList = document.getElementById('savedPresetList');
+const SAVED_PRESETS_KEY = 'webAudioAlarmPresets';
+
+//单选按钮集合
+const waveTypeRadios = document.querySelectorAll('input[name="waveType"]');
+
+//编辑控件映射
+const editCtrls = {
+  riseTimeSlider: document.getElementById('riseTimeSlider'),
+  riseTimeInput: document.getElementById('riseTimeInput'),
+  peakHoldSlider: document.getElementById('peakHoldSlider'),
+  peakHoldInput: document.getElementById('peakHoldInput'),
+  fallTimeSlider: document.getElementById('fallTimeSlider'),
+  fallTimeInput: document.getElementById('fallTimeInput'),
+  valleyHoldSlider: document.getElementById('valleyHoldSlider'),
+  valleyHoldInput: document.getElementById('valleyHoldInput'),
+  freqLowSlider: document.getElementById('freqLowSlider'),
+  freqLowInput: document.getElementById('freqLowInput'),
+  freqHighSlider: document.getElementById('freqHighSlider'),
+  freqHighInput: document.getElementById('freqHighInput'),
+  gainSlider: document.getElementById('gainSlider'),
+  gainInput: document.getElementById('gainInput'),
+  filterCutSlider: document.getElementById('filterCutSlider'),
+  filterCutInput: document.getElementById('filterCutInput'),
+  masterSlider: document.getElementById('masterSlider'),
+  masterInput: document.getElementById('masterInput'),
+};
+
+//示波器
+function resizeCanvas(){
+  canvas.width = canvas.clientWidth;
+  canvas.height = canvas.clientHeight;
+}
+resizeCanvas();
+window.addEventListener('resize',resizeCanvas);
+function drawOsc(){
+  requestAnimationFrame(drawOsc);
+  ctx.fillStyle="#000";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  if(!analyser) return;
+  const buf = new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteTimeDomainData(buf);
+  ctx.lineWidth=2; ctx.strokeStyle="#0f0"; ctx.beginPath();
+  const sliceW = canvas.width / buf.length;
+  for(let i=0;i<buf.length;i++){
+    const y = (buf[i]/128.0)*canvas.height*0.5;
+    const x = i*sliceW;
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+}
+drawOsc();
+
+//新建波形对象
+function newWaveItem(){
+  return {
+    type:"triangle",
+    riseTime:0.15,
+    peakHold:0.10,
+    fallTime:0.15,
+    valleyHold:0.10,
+    freqLow:650,
+    freqHigh:1450,
+    gain:0.18
+  };
+}
+
+//设置单选选中状态
+function setWaveRadioValue(val){
+  waveTypeRadios.forEach(r=>{
+    r.checked = (r.value === val);
+  });
+}
+function getSelectedRadioValue(){
+  for(const r of waveTypeRadios){
+    if(r.checked) return r.value;
+  }
+  return "triangle";
+}
+
+//渲染列表UI【改为表格】
+function renderWaveList(){
+  waveListWrap.innerHTML = '';
+  const table = document.createElement('table');
+  table.className = "wave-table";
+  const thead = document.createElement('thead');
+  thead.innerHTML = `<tr>
+    <th>#</th>
+    <th>波形类型</th>
+    <th>周期(s)</th>
+    <th>上升(s)</th>
+    <th>高停(s)</th>
+    <th>下降(s)</th>
+    <th>低停(s)</th>
+    <th>频率(Hz)</th>
+    <th>增益</th>
+    <th>操作</th>
+  </tr>`;
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  waveList.forEach((w,idx)=>{
+    const tr = document.createElement('tr');
+    if(idx===selectedIndex) tr.classList.add('selected');
+    const period = w.riseTime + w.peakHold + w.fallTime + w.valleyHold;
+    tr.innerHTML = `
+      <td>${idx}</td>
+      <td>${WAVE_TYPE_LABELS[w.type] || w.type}</td>
+      <td>${period.toFixed(2)}</td>
+      <td>${w.riseTime.toFixed(2)}</td>
+      <td>${w.peakHold.toFixed(2)}</td>
+      <td>${w.fallTime.toFixed(2)}</td>
+      <td>${w.valleyHold.toFixed(2)}</td>
+      <td>${w.freqLow}‑${w.freqHigh}</td>
+      <td>${w.gain.toFixed(2)}</td>
+      <td class="ops">
+        <button class="btn-copy" data-idx="${idx}">复制</button>
+        <button class="btn-del" data-idx="${idx}">删除</button>
+      </td>
+    `;
+    tr.dataset.idx = idx;
+    tr.addEventListener('click',(e)=>{
+      if(e.target.tagName==='BUTTON') return;
+      selectedIndex = idx;
+      syncEditPanelFromSelected();
+      renderWaveList();
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  waveListWrap.appendChild(table);
+
+  //复制、删除按钮事件
+  document.querySelectorAll('.btn-copy').forEach(btn=>{
+    btn.onclick=(ev)=>{
+      ev.stopPropagation();
+      const i = Number(btn.dataset.idx);
+      const copy = JSON.parse(JSON.stringify(waveList[i]));
+      waveList.splice(i+1,0,copy);
+      selectedIndex = i+1;
+      syncEditPanelFromSelected();
+      renderWaveList();
+      renderParamText();
+    }
+  });
+  document.querySelectorAll('.btn-del').forEach(btn=>{
+    btn.onclick=(ev)=>{
+      ev.stopPropagation();
+      const i = Number(btn.dataset.idx);
+      waveList.splice(i,1);
+      if(selectedIndex===i) selectedIndex = Math.min(waveList.length-1, Math.max(0,selectedIndex-1));
+      else if(selectedIndex>i) selectedIndex--;
+      syncEditPanelFromSelected();
+      renderWaveList();
+      renderParamText();
+    }
+  });
+  syncEditPanelFromSelected();
+}
+
+//把选中波形数据加载到编辑面板
+function syncEditPanelFromSelected(){
+  if(selectedIndex<0 || selectedIndex>=waveList.length){
+    editPanel.style.opacity="0.4";
+    editWaveName.textContent="(未选中波形)";
+    return;
+  }
+  editPanel.style.opacity="1";
+  const w = waveList[selectedIndex];
+  editWaveName.textContent=`#${selectedIndex}`;
+  setWaveRadioValue(w.type);
+  editCtrls.riseTimeSlider.value = w.riseTime;
+  editCtrls.riseTimeInput.value = w.riseTime.toFixed(2);
+  editCtrls.peakHoldSlider.value = w.peakHold;
+  editCtrls.peakHoldInput.value = w.peakHold.toFixed(2);
+  editCtrls.fallTimeSlider.value = w.fallTime;
+  editCtrls.fallTimeInput.value = w.fallTime.toFixed(2);
+  editCtrls.valleyHoldSlider.value = w.valleyHold;
+  editCtrls.valleyHoldInput.value = w.valleyHold.toFixed(2);
+  editCtrls.freqLowSlider.value = w.freqLow;
+  editCtrls.freqLowInput.value = w.freqLow;
+  editCtrls.freqHighSlider.value = w.freqHigh;
+  editCtrls.freqHighInput.value = w.freqHigh;
+  editCtrls.gainSlider.value = w.gain;
+  editCtrls.gainInput.value = w.gain.toFixed(2);
+}
+
+//将编辑面板回写到选中波形
+function writeEditToSelected(){
+  if(selectedIndex<0 || selectedIndex>=waveList.length) return;
+  const w = waveList[selectedIndex];
+  w.type = getSelectedRadioValue();
+  w.riseTime = parseFloat(editCtrls.riseTimeSlider.value);
+  w.peakHold = parseFloat(editCtrls.peakHoldSlider.value);
+  w.fallTime = parseFloat(editCtrls.fallTimeSlider.value);
+  w.valleyHold = parseFloat(editCtrls.valleyHoldSlider.value);
+  w.freqLow = parseFloat(editCtrls.freqLowSlider.value);
+  w.freqHigh = parseFloat(editCtrls.freqHighSlider.value);
+  w.gain = parseFloat(editCtrls.gainSlider.value);
+  renderWaveList();
+  renderParamText();
+}
+
+//双向绑定工具：slider <-> input
+function bindSliderInput(slider,input,onChange){
+  slider.addEventListener('input',()=>{
+    input.value = Number(slider.value).toFixed(2);
+    onChange();
+  });
+  input.addEventListener('change',()=>{
+    let v = parseFloat(input.value);
+    const min = parseFloat(slider.min);
+    const max = parseFloat(slider.max);
+    if(isNaN(v)) v=min;
+    v = Math.max(min,Math.min(max,v));
+    slider.value = v;
+    input.value = Number(v).toFixed(2);
+    onChange();
+  });
+}
+bindSliderInput(editCtrls.riseTimeSlider, editCtrls.riseTimeInput, writeEditToSelected);
+bindSliderInput(editCtrls.peakHoldSlider, editCtrls.peakHoldInput, writeEditToSelected);
+bindSliderInput(editCtrls.fallTimeSlider, editCtrls.fallTimeInput, writeEditToSelected);
+bindSliderInput(editCtrls.valleyHoldSlider, editCtrls.valleyHoldInput, writeEditToSelected);
+bindSliderInput(editCtrls.freqLowSlider, editCtrls.freqLowInput, writeEditToSelected);
+bindSliderInput(editCtrls.freqHighSlider, editCtrls.freqHighInput, writeEditToSelected);
+bindSliderInput(editCtrls.gainSlider, editCtrls.gainInput, writeEditToSelected);
+
+//全局滤波、主音量
+bindSliderInput(editCtrls.filterCutSlider, editCtrls.filterCutInput, ()=>{
+  if(filter) filter.frequency.value = parseFloat(editCtrls.filterCutSlider.value);
+  renderParamText();
+});
+bindSliderInput(editCtrls.masterSlider, editCtrls.masterInput, ()=>{
+  if(masterGain) masterGain.gain.value = parseFloat(editCtrls.masterSlider.value);
+  renderParamText();
+});
+
+//单选变更事件
+waveTypeRadios.forEach(r=>{
+  r.addEventListener('change', writeEditToSelected);
+});
+
+//新增
+addWaveBtn.onclick = ()=>{
+  waveList.push(newWaveItem());
+  selectedIndex = waveList.length-1;
+  renderWaveList();
+  renderParamText();
+};
+
+function readSavedPresets(){
+  try{
+    const presets = JSON.parse(localStorage.getItem(SAVED_PRESETS_KEY) || '[]');
+    return Array.isArray(presets) ? presets : [];
+  }catch(e){
+    return [];
+  }
+}
+
+function writeSavedPresets(presets){
+  try{
+    localStorage.setItem(SAVED_PRESETS_KEY, JSON.stringify(presets));
+    return true;
+  }catch(e){
+    alert('保存失败，浏览器存储空间不可用。');
+    return false;
+  }
+}
+
+function createSavedPreset(name){
+  return {
+    id:`preset_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
+    name,
+    savedAt:new Date().toISOString(),
+    waveList:JSON.parse(JSON.stringify(waveList)),
+    oneShotLoopCount:oneShotLoopCount.value,
+    filterCut:editCtrls.filterCutSlider.value,
+    master:editCtrls.masterSlider.value
+  };
+}
+
+function saveCurrentPreset(){
+  const presets = readSavedPresets();
+  const name = savedPresetName.value.trim() || `方案 ${presets.length+1}`;
+  presets.push(createSavedPreset(name));
+  if(writeSavedPresets(presets)){
+    savedPresetName.value = '';
+    renderSavedPresets();
+  }
+}
+
+function loadSavedPreset(id){
+  const preset = readSavedPresets().find(item=>item.id===id);
+  if(!preset || !Array.isArray(preset.waveList) || !confirm(`加载已保存方案“${preset.name}”？当前编辑内容将被替换。`)) return;
+  waveList = JSON.parse(JSON.stringify(preset.waveList));
+  selectedIndex = waveList.length ? 0 : -1;
+  oneShotLoopCount.value = preset.oneShotLoopCount || 1;
+  editCtrls.filterCutSlider.value = preset.filterCut || editCtrls.filterCutSlider.value;
+  editCtrls.filterCutInput.value = editCtrls.filterCutSlider.value;
+  editCtrls.masterSlider.value = preset.master || editCtrls.masterSlider.value;
+  editCtrls.masterInput.value = editCtrls.masterSlider.value;
+  renderWaveList();
+  renderParamText();
+}
+
+function updateSavedPreset(id){
+  const presets = readSavedPresets();
+  const index = presets.findIndex(item=>item.id===id);
+  if(index<0 || !confirm(`用当前设置覆盖已保存方案“${presets[index].name}”？`)) return;
+  const updated = createSavedPreset(presets[index].name);
+  updated.id = id;
+  presets[index] = updated;
+  if(writeSavedPresets(presets)) renderSavedPresets();
+}
+
+function deleteSavedPreset(id){
+  const presets = readSavedPresets();
+  const preset = presets.find(item=>item.id===id);
+  if(!preset || !confirm(`删除已保存方案“${preset.name}”？`)) return;
+  if(writeSavedPresets(presets.filter(item=>item.id!==id))) renderSavedPresets();
+}
+
+function renameSavedPreset(id, name){
+  const presets = readSavedPresets();
+  const preset = presets.find(item=>item.id===id);
+  if(!preset) return;
+  const trimmedName = name.trim();
+  if(!trimmedName){
+    renderSavedPresets();
+    return;
+  }
+  preset.name = trimmedName;
+  if(writeSavedPresets(presets)) renderSavedPresets();
+}
+
+function renderSavedPresets(){
+  const presets = readSavedPresets();
+  savedPresetList.replaceChildren();
+  if(presets.length===0){
+    const empty = document.createElement('p');
+    empty.className = 'saved-empty';
+    empty.textContent = '暂无已保存方案';
+    savedPresetList.appendChild(empty);
+    return;
+  }
+
+  const table = document.createElement('table');
+  table.className = 'saved-table';
+  table.innerHTML = '<thead><tr><th>方案名称</th><th>波形数</th><th>保存时间</th><th>操作</th></tr></thead>';
+  const tbody = document.createElement('tbody');
+  presets.forEach(preset=>{
+    const tr = document.createElement('tr');
+    const nameCell = document.createElement('td');
+    const nameInput = document.createElement('input');
+    nameInput.className = 'saved-name';
+    nameInput.type = 'text';
+    nameInput.maxLength = 40;
+    nameInput.value = preset.name;
+    nameInput.addEventListener('change',()=>renameSavedPreset(preset.id,nameInput.value));
+    nameCell.appendChild(nameInput);
+
+    const countCell = document.createElement('td');
+    countCell.textContent = Array.isArray(preset.waveList) ? preset.waveList.length : 0;
+    const timeCell = document.createElement('td');
+    timeCell.textContent = new Date(preset.savedAt).toLocaleString();
+    const actionsCell = document.createElement('td');
+    const loadBtn = document.createElement('button');
+    loadBtn.className = 'btn-copy';
+    loadBtn.textContent = '加载';
+    loadBtn.onclick = ()=>loadSavedPreset(preset.id);
+    const updateBtn = document.createElement('button');
+    updateBtn.className = 'btn-update';
+    updateBtn.textContent = '覆盖';
+    updateBtn.onclick = ()=>updateSavedPreset(preset.id);
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'btn-del';
+    deleteBtn.textContent = '删除';
+    deleteBtn.onclick = ()=>deleteSavedPreset(preset.id);
+    actionsCell.append(loadBtn,updateBtn,deleteBtn);
+    tr.append(nameCell,countCell,timeCell,actionsCell);
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  savedPresetList.appendChild(table);
+}
+
+savePresetBtn.onclick = saveCurrentPreset;
+
+//参数文本输出
+function renderParamText(){
+  let txt = "波形列表:\n";
+  waveList.forEach((w,i)=>{
+    const p = w.riseTime+w.peakHold+w.fallTime+w.valleyHold;
+    txt += `[${i}] ${w.type} |周期:${p.toFixed(2)}s |上升${w.riseTime.toFixed(2)} 高停${w.peakHold.toFixed(2)} 下降${w.fallTime.toFixed(2)} 低停${w.valleyHold.toFixed(2)} |${w.freqLow}-${w.freqHigh}Hz gain:${w.gain.toFixed(2)}\n`;
+  });
+  txt += `\n单次播放循环次数:${oneShotLoopCount.value} |全局: 低通${editCtrls.filterCutSlider.value}Hz 主音量${editCtrls.masterSlider.value}`;
+  paramTextDisplay.innerText = txt;
+}
+
+//=====导出AI自然语言复现描述=====
+function exportNaturalLanguage(){
+  const loopCnt = parseInt(oneShotLoopCount.value||1,10);
+  const filterHz = parseFloat(editCtrls.filterCutSlider.value);
+  const masterVol = parseFloat(editCtrls.masterSlider.value);
+
+  if(waveList.length===1){
+    const w = waveList[0];
+    const period = (w.riseTime + w.peakHold + w.fallTime + w.valleyHold).toFixed(2);
+    nlExportDisplay.innerText = `【任务：严格复现下面的Web Audio音频片段，输出单次完整音频，一共循环${loopCnt}次】
+要求：播放下面这个波形；全局经过低通滤波器${filterHz}Hz；全局主音量增益${masterVol.toFixed(2)}。
+
+单个波形：
+波形类型${w.type}；单周期${period}秒。
+时序：从低频${w.freqLow}Hz开始，用${w.riseTime.toFixed(2)}秒线性上升到高频${w.freqHigh}Hz；高频保持${w.peakHold.toFixed(2)}秒；再用${w.fallTime.toFixed(2)}秒线性下降回到${w.freqLow}Hz；低频保持${w.valleyHold.toFixed(2)}秒，完成一个周期。
+该波形自身增益：${w.gain.toFixed(2)}。
+
+播放规则：该波形从0时刻启动，完整重复${loopCnt}个周期，播放结束后停止输出。
+音频链路：振荡器 → 波形独立增益节点 → 低通滤波器 → 主音量增益 → 输出。
+请根据以上全部参数完整生成音频，不要省略任何时间、频率参数。`;
+    return;
+  }
+
+  let out = `【任务：严格复现下面的Web Audio音频片段，输出单次完整音频，一共循环${loopCnt}次】
+要求：并行同时播放下面全部波形，每个波形独立时序，全部叠加混合输出；全局经过低通滤波器${filterHz}Hz；全局主音量增益${masterVol.toFixed(2)}。
+
+波形列表（多条同时发声）：
+`;
+  waveList.forEach((w,idx)=>{
+    const period = (w.riseTime + w.peakHold + w.fallTime + w.valleyHold).toFixed(2);
+    out += `波形${idx+1}：波形类型${w.type}；单周期${period}秒。
+时序：从低频${w.freqLow}Hz开始，用${w.riseTime.toFixed(2)}秒线性上升到高频${w.freqHigh}Hz；高频保持${w.peakHold.toFixed(2)}秒；再用${w.fallTime.toFixed(2)}秒线性下降回到${w.freqLow}Hz；低频保持${w.valleyHold.toFixed(2)}秒，完成一个周期。
+该波形自身增益：${w.gain.toFixed(2)}。
+`;
+  });
+
+  out += `
+播放规则：所有波形同步从0时刻启动，完整重复${loopCnt}个周期，播放结束后停止输出。
+音频链路：每个振荡器 → 波形独立增益节点 → 共用低通滤波器 → 主音量增益 → 输出。
+请根据以上全部参数完整生成音频，不要省略任何波形、时间、频率参数。`;
+  nlExportDisplay.innerText = out;
+}
+exportNLBtn.onclick = exportNaturalLanguage;
+
+//音频初始化
+function setupAudio(){
+  if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  if(!analyser){
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize=2048;
+  }
+  if(!filter){
+    filter = audioCtx.createBiquadFilter();
+    filter.type='lowpass';
+  }
+  if(!masterGain){
+    masterGain = audioCtx.createGain();
+  }
+  filter.connect(analyser);
+  analyser.connect(masterGain);
+  masterGain.connect(audioCtx.destination);
+  filter.frequency.value = parseFloat(editCtrls.filterCutSlider.value);
+  masterGain.gain.value = parseFloat(editCtrls.masterSlider.value);
+}
+
+//停止全部
+function stopAllAudio(){
+  if(loopTimerId){ clearTimeout(loopTimerId); loopTimerId=null; }
+  runningOscList.forEach(item=>{
+    try{item.osc.stop();}catch(e){}
+    item.gain.disconnect();
+    item.osc.disconnect();
+  });
+  runningOscList = [];
+  loopBtn.textContent = "开始无限持续播放";
+  loopBtn.classList.remove('is-playing');
+}
+
+//单次播放，使用界面设置的循环次数
+async function playOneShot(){
+  stopAllAudio();
+  if(waveList.length===0) return;
+  setupAudio();
+  const t0 = audioCtx.currentTime;
+  const count = Math.max(1,parseInt(oneShotLoopCount.value||1,10));
+  runningOscList = [];
+  waveList.forEach(w=>{
+    const osc = audioCtx.createOscillator();
+    osc.type = w.type;
+    const g = audioCtx.createGain();
+    g.gain.value = w.gain;
+    osc.connect(g);
+    g.connect(filter);
+    const period = w.riseTime + w.peakHold + w.fallTime + w.valleyHold;
+    const totalT = period * count;
+    for(let i=0;i<count;i++){
+      const base = t0 + i*period;
+      const tRiseEnd = base + w.riseTime;
+      const tPeakEnd = tRiseEnd + w.peakHold;
+      const tFallEnd = tPeakEnd + w.fallTime;
+      const tValleyEnd = tFallEnd + w.valleyHold;
+      osc.frequency.setValueAtTime(w.freqLow, base);
+      osc.frequency.linearRampToValueAtTime(w.freqHigh, tRiseEnd);
+      osc.frequency.setValueAtTime(w.freqHigh, tPeakEnd);
+      osc.frequency.linearRampToValueAtTime(w.freqLow, tFallEnd);
+      osc.frequency.setValueAtTime(w.freqLow, tValleyEnd);
+    }
+    osc.start(t0);
+    osc.stop(t0+totalT);
+    runningOscList.push({osc,gain:g,wave:w});
+  });
+}
+
+//循环一步（无限持续播放）
+function loopStep(){
+  if(runningOscList.length===0 || !audioCtx) return;
+  const now = audioCtx.currentTime;
+  runningOscList.forEach(item=>{
+    const w = item.wave;
+    const tRiseEnd = now + w.riseTime;
+    const tPeakEnd = tRiseEnd + w.peakHold;
+    const tFallEnd = tPeakEnd + w.fallTime;
+    const tValleyEnd = tFallEnd + w.valleyHold;
+    item.osc.frequency.setValueAtTime(w.freqLow, now);
+    item.osc.frequency.linearRampToValueAtTime(w.freqHigh, tRiseEnd);
+    item.osc.frequency.setValueAtTime(w.freqHigh, tPeakEnd);
+    item.osc.frequency.linearRampToValueAtTime(w.freqLow, tFallEnd);
+    item.osc.frequency.setValueAtTime(w.freqLow, tValleyEnd);
+  });
+  const p0 = runningOscList[0].wave.riseTime + runningOscList[0].wave.peakHold + runningOscList[0].wave.fallTime + runningOscList[0].wave.valleyHold;
+  loopTimerId = setTimeout(loopStep, p0*1000);
+}
+
+async function startLoop(){
+  stopAllAudio();
+  if(waveList.length===0) return;
+  setupAudio();
+  runningOscList = [];
+  waveList.forEach(w=>{
+    const osc = audioCtx.createOscillator();
+    osc.type = w.type;
+    const g = audioCtx.createGain();
+    g.gain.value = w.gain;
+    osc.connect(g);
+    g.connect(filter);
+    osc.start();
+    runningOscList.push({osc,gain:g,wave:w});
+  });
+  loopBtn.textContent = "正在无限持续播放…";
+  loopBtn.classList.add('is-playing');
+  loopStep();
+}
+
+triggerBtn.onclick = playOneShot;
+loopBtn.onclick = async ()=>{
+  if(runningOscList.length>0){ stopAllAudio(); }
+  else { await startLoop(); }
+};
+
+oneShotLoopCount.addEventListener('change',renderParamText);
+
+//初始化默认一条波形
+waveList.push(newWaveItem());
+selectedIndex = 0;
+renderWaveList();
+renderParamText();
+renderSavedPresets();
+</script>
+</body>
+</html>

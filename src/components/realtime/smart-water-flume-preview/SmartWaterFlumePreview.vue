@@ -2,25 +2,47 @@
   <div class="flume-preview">
     <div ref="canvasHostRef" class="canvas-host"></div>
 
+    <div class="preview-scene-controls">
+      <button
+        v-if="labelGroups.length"
+        type="button"
+        class="label-visibility-trigger"
+        :class="{ active: labelVisibilityOpen }"
+        aria-controls="label-visibility-card"
+        :aria-expanded="labelVisibilityOpen"
+        :aria-pressed="labelVisibilityOpen"
+        @click="labelVisibilityOpen = !labelVisibilityOpen"
+      >标签</button>
+      <button
+        v-if="modelGroupTree.length"
+        type="button"
+        class="selected-model-isolation"
+        :class="{ active: selectedModelIsolationEnabled }"
+        :aria-pressed="selectedModelIsolationEnabled"
+        title="只显示选中对象"
+        @click="setSelectedModelIsolation(!selectedModelIsolationEnabled)"
+      >只显示选中对象</button>
+      <button
+        v-if="modelGroupTree.length"
+        type="button"
+        class="scene-tree-trigger"
+        :class="{ active: sceneTreeOpen }"
+        aria-controls="model-scene-tree"
+        :aria-expanded="sceneTreeOpen"
+        :aria-pressed="sceneTreeOpen"
+        @click="sceneTreeOpen = !sceneTreeOpen"
+      >场景树</button>
+    </div>
+
     <div
       v-if="labelGroups.length"
-      class="label-visibility-control"
+      class="preview-popup-host preview-popup-host--left"
       @pointerdown.stop
       @wheel.stop
     >
-      <Transition name="scene-tree-toggle" mode="out-in">
-        <button
-          v-if="!labelVisibilityOpen"
-          key="trigger"
-          type="button"
-          class="label-visibility-trigger"
-          aria-controls="label-visibility-card"
-          :aria-expanded="false"
-          @click="labelVisibilityOpen = true"
-        >标签</button>
-
+      <Transition name="scene-tree-toggle">
         <aside
-          v-else
+          v-if="labelVisibilityOpen"
           id="label-visibility-card"
           key="panel"
           class="label-visibility-card"
@@ -74,31 +96,13 @@
 
     <div
       v-if="modelGroupTree.length"
-      class="scene-tree-control"
+      class="preview-popup-host preview-popup-host--right"
       @pointerdown.stop
       @wheel.stop
     >
-      <button
-        type="button"
-        class="selected-model-isolation"
-        :class="{ active: selectedModelIsolationEnabled }"
-        :aria-pressed="selectedModelIsolationEnabled"
-        title="只显示选中对象"
-        @click="setSelectedModelIsolation(!selectedModelIsolationEnabled)"
-      >只显示选中对象</button>
-      <Transition name="scene-tree-toggle" mode="out-in">
-        <button
-          v-if="!sceneTreeOpen"
-          key="trigger"
-          type="button"
-          class="scene-tree-trigger"
-          aria-controls="model-scene-tree"
-          :aria-expanded="false"
-          @click="sceneTreeOpen = true"
-        >场景树</button>
-
+      <Transition name="scene-tree-toggle">
         <aside
-          v-else
+          v-if="sceneTreeOpen"
           id="model-scene-tree"
           key="panel"
           class="scene-tree-panel"
@@ -285,6 +289,7 @@ const props = defineProps({
     default: WEB_TOPO_CONFIG.webTopoId,
   },
   alarmTopic: { type: String, default: '' },
+  performanceMode: { type: Boolean, default: false },
 });
 const emit = defineEmits(['mqtt-data', 'alarm-notification', 'auto-roaming-change']);
 
@@ -356,6 +361,7 @@ const LABEL_GROUP_COLORS = ['#77bdf2', '#84c7a8', '#f0b77a', '#df9a7d', '#76c8bf
 const CAMERA_FOCUS_DURATION = 800;
 const MODEL_EXPANSION_DURATION = 650;
 const CANVAS_CLICK_TOLERANCE = 4;
+const PERFORMANCE_PIXEL_RATIO_LIMIT = 1.25;
 const raycaster = new THREE.Raycaster();
 const raycastPointer = new THREE.Vector2();
 const labelCameraDirection = new THREE.Vector3();
@@ -973,6 +979,14 @@ function resizeScene() {
   if (!host || !camera || !renderer) return;
   const width = Math.max(host.clientWidth, 1);
   const height = Math.max(host.clientHeight, 1);
+  const pixelRatio = Math.min(
+    window.devicePixelRatio || 1,
+    props.performanceMode ? PERFORMANCE_PIXEL_RATIO_LIMIT : 2,
+  );
+  if (renderer.getPixelRatio() !== pixelRatio) {
+    renderer.setPixelRatio(pixelRatio);
+    composer?.setPixelRatio(pixelRatio);
+  }
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
   renderer.setSize(width, height, false);
@@ -1211,6 +1225,10 @@ watch(() => props.alarmTopic, (nextTopic, previousTopic) => {
   }
 });
 
+watch(() => props.performanceMode, () => {
+  resizeScene();
+});
+
 watch(autoRotating, (enabled) => {
   emit('auto-roaming-change', enabled);
 });
@@ -1262,7 +1280,7 @@ defineExpose({
 }
 
 .flume-preview {
-  overflow: hidden;
+  overflow: visible;
 }
 
 .canvas-host {
@@ -1365,18 +1383,6 @@ defineExpose({
 .model-expansion-slider-leave-to {
   opacity: 0;
   transform: translateX(-6px);
-}
-
-.label-visibility-control {
-  position: absolute;
-  z-index: 4;
-  top: 10px;
-  left: 10px;
-  display: flex;
-  align-items: flex-start;
-  box-sizing: border-box;
-  width: min(130px, calc(100% - 20px));
-  pointer-events: none;
 }
 
 .label-visibility-trigger,
@@ -1517,20 +1523,6 @@ defineExpose({
 .label-group-actions button:disabled {
   opacity: 0.45;
   cursor: default;
-}
-
-.scene-tree-control {
-  position: absolute;
-  z-index: 4;
-  top: 10px;
-  right: 10px;
-  bottom: 10px;
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  justify-content: flex-end;
-  width: min(396px, calc(100% - 20px));
-  pointer-events: none;
 }
 
 .selected-model-isolation {
@@ -1809,13 +1801,13 @@ defineExpose({
 
 .scene-tree-toggle-enter-active,
 .scene-tree-toggle-leave-active {
-  transition: opacity 0.16s ease, transform 0.2s ease;
+  transition: opacity 0.08s ease, transform 0.1s ease;
 }
 
 .scene-tree-toggle-enter-from,
 .scene-tree-toggle-leave-to {
   opacity: 0;
-  transform: translateY(8px) scale(0.98);
+  transform: translateY(calc(var(--scene-panel-shift, 0px) + 4px)) scale(0.99);
 }
 
 .scene-state {
@@ -1826,7 +1818,7 @@ defineExpose({
   align-items: center;
   justify-content: center;
   gap: 12px;
-  background: rgba(3, 16, 29, 0.94);
+  background: transparent;
   color: #bde5ff;
   font-size: 13px;
 }
@@ -1884,6 +1876,101 @@ defineExpose({
   margin: 0;
   cursor: pointer;
   accent-color: #2fa5ff;
+}
+
+.preview-scene-controls {
+  position: absolute;
+  z-index: 10;
+  right: auto;
+  bottom: 50px;
+  left: 50%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 8px;
+  width: max-content;
+  max-width: calc(100% - 20px);
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.preview-popup-host {
+  position: absolute;
+  z-index: 12;
+  top: 10px;
+  max-height: min(360px, calc(100vh - 180px));
+  pointer-events: none;
+}
+
+.preview-popup-host--left {
+  left: 10px;
+  width: min(130px, calc(100% - 20px));
+}
+
+.preview-popup-host--right {
+  right: 10px;
+  width: min(260px, calc(100% - 20px));
+}
+
+.preview-popup-host .label-visibility-card,
+.preview-popup-host .scene-tree-panel {
+  position: relative;
+  z-index: 1;
+  max-height: min(360px, calc(100vh - 180px));
+  pointer-events: auto;
+}
+
+.preview-popup-host .label-visibility-card {
+  overflow: auto;
+}
+
+.preview-popup-host .scene-tree-panel {
+  width: min(260px, 70vw);
+}
+
+.preview-scene-controls .label-visibility-trigger,
+.preview-scene-controls .selected-model-isolation,
+.preview-scene-controls .scene-tree-trigger {
+  flex: 0 0 111px;
+  width: 111px;
+  height: 34px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 17px;
+  overflow: hidden;
+  background: url('../../../assets/preview-scene.png') center / 100% 100% no-repeat;
+  box-shadow: none;
+  color: #dff5ff;
+  font-size: 12px;
+  line-height: 34px;
+  white-space: nowrap;
+  transition: filter 0.14s ease, box-shadow 0.14s ease, color 0.14s ease;
+}
+
+.preview-scene-controls .label-visibility-trigger:hover,
+.preview-scene-controls .selected-model-isolation:hover,
+.preview-scene-controls .scene-tree-trigger:hover {
+  border: 0;
+  background: url('../../../assets/preview-scene.png') center / 100% 100% no-repeat;
+  box-shadow: none;
+  color: #fff;
+  filter: brightness(1.18);
+}
+
+.preview-scene-controls .label-visibility-trigger.active,
+.preview-scene-controls .selected-model-isolation.active,
+.preview-scene-controls .scene-tree-trigger.active {
+  border: 0;
+  background:
+    linear-gradient(90deg, rgba(20, 155, 255, 0.42), rgba(92, 220, 255, 0.58)),
+    url('../../../assets/preview-scene.png') center / 100% 100% no-repeat;
+  box-shadow:
+    inset 0 0 0 1px rgba(161, 239, 255, 0.95),
+    inset 0 0 12px rgba(91, 222, 255, 0.5),
+    0 0 16px rgba(47, 179, 255, 0.72);
+  color: #fff;
+  filter: brightness(1.25) saturate(1.2);
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.75);
 }
 
 @keyframes cube-loading {
