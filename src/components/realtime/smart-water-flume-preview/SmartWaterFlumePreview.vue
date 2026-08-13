@@ -181,6 +181,18 @@
       </Transition>
     </div>
 
+    <Transition name="selected-group-description">
+      <aside
+        v-if="selectedGroupDetails"
+        class="selected-group-description"
+        role="status"
+        aria-live="polite"
+      >
+        <strong>{{ selectedGroupDetails.name }}</strong>
+        <p>{{ selectedGroupDetails.description }}</p>
+      </aside>
+    </Transition>
+
 <!--    <div-->
 <!--      v-if="modelGroupTree.length"-->
 <!--      class="model-expansion-controls"-->
@@ -319,6 +331,15 @@ const allLabelGroupsVisible = computed(() => hiddenLabelGroupUuids.value.size ==
 const allLabelGroupsHidden = computed(() => (
   labelGroups.value.length > 0 && hiddenLabelGroupUuids.value.size === labelGroups.value.length
 ));
+const selectedGroupDetails = computed(() => {
+  const object = sceneObjectByUuid.get(selectedSceneTreeUuid.value);
+  const description = String(object?.userData?.description ?? '').trim();
+  if (!description) return null;
+  return {
+    name: object.name?.trim() || '未命名分组',
+    description,
+  };
+});
 const sceneTreeRows = computed(() => {
   const query = sceneTreeSearch.value.trim().toLocaleLowerCase();
   const rows = [];
@@ -1307,6 +1328,50 @@ defineExpose({
   transform-origin: center;
   transition: opacity 0.16s ease;
   /* will-change: transform; */
+}
+
+.selected-group-description {
+  position: absolute;
+  z-index: 9;
+  bottom: 10px;
+  left: 10px;
+  box-sizing: border-box;
+  width: min(285px, calc(100% - 20px));
+  padding: 10px 12px;
+  border: 1px solid rgba(47, 165, 255, 0.62);
+  border-radius: 6px;
+  background: rgba(3, 25, 44, 0.94);
+  box-shadow: 0 7px 20px rgba(0, 8, 16, 0.42);
+  color: #dff3ff;
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+}
+
+.selected-group-description strong {
+  display: block;
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.selected-group-description p {
+  margin: 5px 0 0;
+  color: #a9d8f5;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.selected-group-description-enter-active,
+.selected-group-description-leave-active {
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.selected-group-description-enter-from,
+.selected-group-description-leave-to {
+  opacity: 0;
+  transform: translateY(4px);
 }
 
 .model-expansion-controls {
