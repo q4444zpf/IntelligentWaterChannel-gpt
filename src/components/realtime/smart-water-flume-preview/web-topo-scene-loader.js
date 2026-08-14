@@ -308,6 +308,7 @@ export async function loadWebTopoScenePackage(url, options = {}) {
     htmlSprites,
     labelGroups,
     config,
+    metadata: sceneJson.metadata || {},
     scripts: extractSceneScripts(sceneJson),
   };
 }
