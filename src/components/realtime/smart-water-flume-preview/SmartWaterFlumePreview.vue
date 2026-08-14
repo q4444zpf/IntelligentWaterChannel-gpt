@@ -1963,7 +1963,6 @@ defineExpose({
   position: absolute;
   z-index: 12;
   top: 10px;
-  max-height: min(360px, calc(100vh - 180px));
   pointer-events: none;
 }
 
@@ -1973,6 +1972,7 @@ defineExpose({
 }
 
 .preview-popup-host--right {
+  height: 100%;
   right: 10px;
   width: min(260px, calc(100% - 20px));
 }
@@ -1981,7 +1981,7 @@ defineExpose({
 .preview-popup-host .scene-tree-panel {
   position: relative;
   z-index: 1;
-  max-height: min(360px, calc(100vh - 180px));
+  max-height: calc(100% - 10px);
   pointer-events: auto;
 }
 
