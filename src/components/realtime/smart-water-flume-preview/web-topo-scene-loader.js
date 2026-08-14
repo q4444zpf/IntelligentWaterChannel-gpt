@@ -236,7 +236,7 @@ export function extractSceneScripts(scenePackage) {
 
 export async function loadWebTopoScenePackage(url, options = {}) {
   const { forceReload = false, onProgress, signal } = options;
-  const cache = forceReload ? 'no-store' : 'default';
+  const cache = forceReload ? 'reload' : 'default';
   throwIfAborted(signal);
 
   const imageMap = new Map();

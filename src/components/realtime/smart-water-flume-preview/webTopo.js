@@ -4,7 +4,6 @@ export async function getWebTopoScene(webTopoId, options = {}) {
   const forceReload = Boolean(options.forceReload);
   const response = await http.get(`/ghxx/bWebTopo3d/getTopo3dData/${encodeURIComponent(webTopoId)}`, {
     headers: forceReload ? { 'Cache-Control': 'no-cache', Pragma: 'no-cache' } : undefined,
-    params: forceReload ? { _: Date.now() } : undefined,
   });
 
   if (response?.code !== 200 || !response.data) {
