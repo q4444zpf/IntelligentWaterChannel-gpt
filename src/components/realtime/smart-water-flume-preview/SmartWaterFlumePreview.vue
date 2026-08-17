@@ -293,6 +293,10 @@ import {
   isolateSelectableGroup,
   restoreSelectableGroupVisibility,
 } from './web-topo-scene-tree.js';
+import {
+  collectWebTopoMaterialAnimations,
+  updateWebTopoMaterialAnimations,
+} from './web-topo-material-runtime.js';
 import { createWebTopoScriptRuntime } from './web-topo-script-runtime.js';
 
 const props = defineProps({
@@ -413,6 +417,8 @@ let modelExpansionTransition;
 let cameraTransition;
 let canvasPointerDown;
 let scriptRuntime;
+let materialAnimations = [];
+let previousRenderTimestamp;
 let pendingSceneTreeGroupName = '';
 let disposed = false;
 
@@ -891,6 +897,8 @@ function applyControlsState(state) {
 async function loadScene({ forceReload = false } = {}) {
   scriptRuntime?.dispose();
   scriptRuntime = undefined;
+  materialAnimations = [];
+  previousRenderTimestamp = undefined;
   resetModelExpansion();
   restoreIsolatedModelVisibility();
   abortController?.abort();
@@ -935,6 +943,7 @@ async function loadScene({ forceReload = false } = {}) {
     disposeObject(scene);
     scene = loaded.scene;
     scene.background = null;
+    materialAnimations = collectWebTopoMaterialAnimations(scene, loaded.metadata);
     applySceneBackgroundColor(loaded.backgroundColor);
     indexSceneObjects(scene);
     modelGroupTree.value = buildGroupTreeUnder(scene, '模型');
@@ -1206,6 +1215,13 @@ function reloadScene() {
 
 function renderScene(timestamp = performance.now()) {
   if (!composer || !scene || !camera) return;
+  if (previousRenderTimestamp !== undefined) {
+    updateWebTopoMaterialAnimations(
+      materialAnimations,
+      (timestamp - previousRenderTimestamp) / 1000,
+    );
+  }
+  previousRenderTimestamp = timestamp;
   updateModelExpansionTransition(timestamp);
   updateCameraTransition(timestamp);
   scriptRuntime?.update();
@@ -1963,7 +1979,6 @@ defineExpose({
   position: absolute;
   z-index: 12;
   top: 10px;
-  max-height: min(360px, calc(100vh - 180px));
   pointer-events: none;
 }
 
@@ -1973,6 +1988,7 @@ defineExpose({
 }
 
 .preview-popup-host--right {
+  height: 100%;
   right: 10px;
   width: min(260px, calc(100% - 20px));
 }
@@ -1981,7 +1997,7 @@ defineExpose({
 .preview-popup-host .scene-tree-panel {
   position: relative;
   z-index: 1;
-  max-height: min(360px, calc(100vh - 180px));
+  max-height: calc(100% - 10px);
   pointer-events: auto;
 }
 
