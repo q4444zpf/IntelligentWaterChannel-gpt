@@ -223,13 +223,14 @@
 <!--    </div>-->
 
     <div class="scene-labels" aria-hidden="true">
-      <div
-        v-for="(sprite, index) in htmlSprites"
-        :key="sprite.uuid"
-        :ref="(element) => setLabelRef(element, index)"
-        class="scene-label"
-        v-html="sprite.html"
-      ></div>
+      <template v-for="(sprite, index) in htmlSprites" :key="sprite.uuid">
+        <div
+          v-if="!sprite.useCanvas"
+          :ref="(element) => setLabelRef(element, index)"
+          class="scene-label"
+          v-html="sprite.html"
+        ></div>
+      </template>
     </div>
 
     <div v-if="loading" class="scene-state" role="status">
@@ -272,8 +273,14 @@ import {
   applyHtmlSpriteUserData,
   isHtmlSpriteHierarchyVisible,
   updateHtmlSpriteData,
+  updateDataLabelArrowPlus,
   updateHtmlSpriteDirectionArrow,
 } from './web-topo-html-runtime.js';
+import {
+  createDataLabelArrowPlusCanvasObject,
+  disposeDataLabelArrowPlusCanvasObject,
+  updateDataLabelArrowPlusCanvasObject,
+} from './html-objects/data-label-arrow-plus-canvas.js';
 import {
   connectWebTopoMqtt,
   disconnectWebTopoMqtt,
@@ -330,6 +337,7 @@ const selectedModelIsolationEnabled = ref(false);
 const isolatedModelGroupUuid = ref('');
 const modelExpanded = ref(false);
 const labelElements = [];
+const canvasLabelObjects = new Map();
 const loadingText = computed(() => sceneName.value ? `正在加载${sceneName.value}` : '正在获取三维场景');
 const allLabelGroupsVisible = computed(() => hiddenLabelGroupUuids.value.size === 0);
 const allLabelGroupsHidden = computed(() => (
@@ -393,6 +401,14 @@ const labelCameraDirection = new THREE.Vector3();
 const labelWorldPosition = new THREE.Vector3();
 const labelTowardCamera = new THREE.Vector3();
 const labelProjectedPosition = new THREE.Vector3();
+const labelWorldQuaternion = new THREE.Quaternion();
+const labelWorldScale = new THREE.Vector3();
+const labelWorldAxisX = new THREE.Vector3();
+const labelWorldAxisY = new THREE.Vector3();
+const labelProjectedAxisX = new THREE.Vector3();
+const labelProjectedAxisY = new THREE.Vector3();
+const labelScreenAxisX = new THREE.Vector2();
+const labelScreenAxisY = new THREE.Vector2();
 
 let scene;
 let camera;
@@ -428,8 +444,27 @@ function setLabelRef(element, index) {
 
 function applyLabelUserData() {
   htmlSprites.value.forEach((sprite, index) => {
+    if (sprite.useCanvas) return;
     applyHtmlSpriteUserData(labelElements[index], sprite);
   });
+}
+
+function createCanvasLabelObjects() {
+  canvasLabelObjects.clear();
+  htmlSprites.value.filter((sprite) => sprite.useCanvas).forEach((sprite) => {
+    const object = createDataLabelArrowPlusCanvasObject(sprite);
+    if (!object) return;
+    canvasLabelObjects.set(sprite.uuid, object);
+    scene.add(object);
+  });
+}
+
+function disposeCanvasLabelObjects() {
+  canvasLabelObjects.forEach((object) => {
+    object.parent?.remove(object);
+    disposeDataLabelArrowPlusCanvasObject(object);
+  });
+  canvasLabelObjects.clear();
 }
 
 function labelGroupColor(index) {
@@ -762,6 +797,12 @@ function setAllLabelGroupsVisible(visible) {
 
 function triggerDataUpdate(field, value) {
   htmlSprites.value.forEach((sprite, index) => {
+    if (sprite.useCanvas) {
+      if (sprite.options?.paramField !== field) return;
+      sprite.userData = { ...(sprite.userData || {}), value };
+      updateDataLabelArrowPlusCanvasObject(canvasLabelObjects.get(sprite.uuid), sprite, camera);
+      return;
+    }
     updateHtmlSpriteData(labelElements[index], sprite, field, value);
   });
 }
@@ -924,6 +965,7 @@ async function loadScene({ forceReload = false } = {}) {
   if (outlinePass) outlinePass.selectedObjects = [];
   sceneObjectByUuid = new Map();
   labelElements.length = 0;
+  disposeCanvasLabelObjects();
 
   try {
     const info = await getWebTopoScene(props.webTopoId, { forceReload });
@@ -969,6 +1011,7 @@ async function loadScene({ forceReload = false } = {}) {
       target: controls.target.clone(),
     };
     htmlSprites.value = loaded.htmlSprites;
+    createCanvasLabelObjects();
     labelGroups.value = loaded.labelGroups;
     hiddenLabelGroupUuids.value = new Set(labelGroups.value
       .filter((group) => sceneObjectByUuid.get(group.uuid)?.visible === false)
@@ -1137,6 +1180,14 @@ function updateLabels() {
   camera.getWorldDirection(labelCameraDirection);
 
   htmlSprites.value.forEach((sprite, index) => {
+    if (sprite.useCanvas) {
+      const object = canvasLabelObjects.get(sprite.uuid);
+      if (!object) return;
+      const hierarchyVisible = isHtmlSpriteHierarchyVisible(sprite, sceneObjectByUuid);
+      object.visible = hierarchyVisible;
+      if (hierarchyVisible) updateDataLabelArrowPlusCanvasObject(object, sprite, camera);
+      return;
+    }
     const element = labelElements[index];
     if (!element) return;
     const hierarchyVisible = isHtmlSpriteHierarchyVisible(sprite, sceneObjectByUuid);
@@ -1148,11 +1199,56 @@ function updateLabels() {
     const visible = labelCameraDirection.dot(labelTowardCamera) > 0
       && labelProjectedPosition.z > -1
       && labelProjectedPosition.z < 1;
-    const distance = Math.max(camera.position.distanceTo(labelWorldPosition), 0.01);
-    const pixelsPerUnit = height / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * distance);
-    const scale = THREE.MathUtils.clamp(sprite.scale * pixelsPerUnit, 0.35, 1.5);
-    element.style.opacity = visible ? '1' : '0';
-    element.style.transform = `translate(-50%, -50%) translate(${(labelProjectedPosition.x * 0.5 + 0.5) * width}px, ${(-labelProjectedPosition.y * 0.5 + 0.5) * height}px) scale(${scale})`;
+    const isBillboard = sprite.billboard !== false
+      && sprite.type !== 'HtmlPlane'
+      && sprite.type !== 'CanvasLabelPlane';
+    const screenX = (labelProjectedPosition.x * 0.5 + 0.5) * width;
+    const screenY = (-labelProjectedPosition.y * 0.5 + 0.5) * height;
+    let labelVisible = visible;
+    if (isBillboard) {
+      const distance = Math.max(camera.position.distanceTo(labelWorldPosition), 0.01);
+      const pixelsPerUnit = height / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * distance);
+      const scaleValues = Array.isArray(sprite.scale)
+        ? sprite.scale
+        : [sprite.scale ?? 1, sprite.scale ?? 1];
+      const scale = THREE.MathUtils.clamp(
+        Math.max(Math.abs(Number(scaleValues[0])), Math.abs(Number(scaleValues[1]))) * pixelsPerUnit,
+        0.35,
+        1.5,
+      );
+      element.style.transform = `translate(-50%, -50%) translate(${screenX}px, ${screenY}px) scale(${scale})`;
+    } else {
+      const scaleValues = Array.isArray(sprite.scale)
+        ? sprite.scale
+        : [sprite.scale ?? 1, sprite.scale ?? 1, sprite.scale ?? 1];
+      labelWorldScale.fromArray([
+        Number(scaleValues[0]) || 0,
+        Number(scaleValues[1]) || 0,
+        Number(scaleValues[2]) || 0,
+      ]);
+      labelWorldQuaternion.fromArray(sprite.quaternion || [0, 0, 0, 1]);
+      labelWorldAxisX.set(labelWorldScale.x, 0, 0).applyQuaternion(labelWorldQuaternion);
+      // DOM 的 Y 轴向下，和 Three.js 局部 Y 轴相反，与 CSS3DRenderer 的矩阵转换保持一致。
+      labelWorldAxisY.set(0, -labelWorldScale.y, 0).applyQuaternion(labelWorldQuaternion);
+      labelProjectedAxisX.copy(labelWorldPosition).add(labelWorldAxisX).project(camera);
+      labelProjectedAxisY.copy(labelWorldPosition).add(labelWorldAxisY).project(camera);
+      labelScreenAxisX.set(
+        (labelProjectedAxisX.x - labelProjectedPosition.x) * width * 0.5,
+        -(labelProjectedAxisX.y - labelProjectedPosition.y) * height * 0.5,
+      );
+      labelScreenAxisY.set(
+        (labelProjectedAxisY.x - labelProjectedPosition.x) * width * 0.5,
+        -(labelProjectedAxisY.y - labelProjectedPosition.y) * height * 0.5,
+      );
+      const screenArea = labelScreenAxisX.x * labelScreenAxisY.y
+        - labelScreenAxisX.y * labelScreenAxisY.x;
+      labelVisible = labelVisible && Number.isFinite(screenArea) && Math.abs(screenArea) > 1e-8;
+      element.style.transform = `translate(-50%, -50%) matrix(${labelScreenAxisX.x}, ${labelScreenAxisX.y}, ${labelScreenAxisY.x}, ${labelScreenAxisY.y}, ${screenX}, ${screenY})`;
+    }
+    element.style.opacity = labelVisible ? '1' : '0';
+    if (sprite.options?.key === 'Html dataLabelArrowPlus' || element.querySelector('#dataLabelArrowPlusRoot')) {
+      updateDataLabelArrowPlus(element, { ...(sprite.options?.userData || {}), ...(sprite.userData || {}) });
+    }
     updateHtmlSpriteDirectionArrow(element, sprite, camera, width, height);
   });
 }
@@ -1285,6 +1381,7 @@ onBeforeUnmount(() => {
   controls?.dispose();
   stopMqtt();
   renderer?.setAnimationLoop(null);
+  disposeCanvasLabelObjects();
   disposeObject(scene);
   outlinePass?.dispose();
   outputPass?.dispose();

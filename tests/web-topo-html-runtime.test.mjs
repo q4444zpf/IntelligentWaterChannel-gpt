@@ -7,6 +7,8 @@ import {
   updateHtmlSpriteData,
   updateHtmlSpriteDirectionArrow,
 } from '../src/components/realtime/smart-water-flume-preview/web-topo-html-runtime.js';
+import { updateDataLabelArrowPlus } from '../src/components/realtime/smart-water-flume-preview/html-objects/data-label-arrow-plus.js';
+import { measureCanvasTextWidth } from '../src/components/realtime/smart-water-flume-preview/html-objects/data-label-arrow-plus-canvas.js';
 import * as THREE from 'three';
 
 function createElement(id = '') {
@@ -144,6 +146,101 @@ test('applies arrow label data and projects its world direction to a CSS angle',
   sprite.userData.directionY = 1;
   assert.equal(updateHtmlSpriteDirectionArrow(root, sprite, camera, 200, 100), true);
   assert.ok(Math.abs(Number.parseFloat(arrow.style.transform.match(/rotate\((.+)rad\)/)[1]) + Math.PI / 2) < 1e-10);
+});
+
+test('projects a fixed plane arrow in the plane local axes', () => {
+  const arrow = createElement('directionArrow');
+  const root = createRoot([arrow]);
+  const fixedQuaternion = new THREE.Quaternion().setFromAxisAngle(
+    new THREE.Vector3(0, 0, 1),
+    Math.PI / 2,
+  );
+  const plane = {
+    type: 'CanvasLabelPlane',
+    billboard: false,
+    quaternion: fixedQuaternion.toArray(),
+    userData: {
+      showArrow: true,
+      directionX: 1,
+      directionY: 0,
+      directionZ: 0,
+    },
+  };
+
+  assert.equal(updateHtmlSpriteDirectionArrow(
+    root,
+    plane,
+    new THREE.PerspectiveCamera(),
+    200,
+    100,
+  ), true);
+  const angle = Number.parseFloat(arrow.style.transform.match(/rotate\((.+)rad\)/)[1]);
+  assert.ok(Math.abs(angle - Math.PI / 2) < 1e-10);
+});
+
+test('draws the Plus bottom border as one closed rounded path', () => {
+  const path = {
+    attributes: new Map(),
+    setAttribute(name, value) {
+      this.attributes.set(name, String(value));
+    },
+  };
+  const overlay = {
+    style: {},
+    setAttribute(name, value) {
+      this[name] = String(value);
+    },
+    querySelector(selector) {
+      return selector === 'path' ? path : null;
+    },
+  };
+  const dataLabel = {
+    offsetWidth: 240,
+    offsetHeight: 72,
+    parentElement: null,
+  };
+  const root = {
+    querySelector(selector) {
+      if (selector === '#dataLabelArrow') return dataLabel;
+      if (selector === '#bottomBorderOverlay') return overlay;
+      return null;
+    },
+  };
+
+  updateDataLabelArrowPlus(root, {
+    borderColor: '#77c9ff',
+    borderWidth: 4,
+    borderRadius: 28,
+    showBottomArrow: true,
+    trianglePoint1X: -18,
+    trianglePoint2X: 18,
+    trianglePoint3X: 0,
+    trianglePoint3Y: 56,
+  });
+
+  const pathData = path.attributes.get('d');
+  assert.match(pathData, /^M /);
+  assert.match(pathData, / L [^ ]+ [^ ]+ L [^ ]+ /);
+  assert.match(pathData, / Z$/);
+  assert.equal(path.attributes.get('stroke'), '#77c9ff');
+});
+
+test('normalizes an oversized CJK fallback width for Canvas labels', () => {
+  const widths = new Map([
+    ['渠1', 35.38],
+    ['渠', 27.6],
+    ['1', 7.78],
+  ]);
+  const context = {
+    measureText(text) {
+      return { width: widths.get(text) ?? 0 };
+    },
+  };
+
+  assert.equal(measureCanvasTextWidth(context, '渠1', 14), 21.78);
+  widths.set('渠', 14);
+  widths.set('渠1', 21.78);
+  assert.equal(measureCanvasTextWidth(context, '渠1', 14), 21.78);
 });
 
 test('maps an MQTT field to the label bound by paramField', () => {

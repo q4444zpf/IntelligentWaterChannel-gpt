@@ -3,6 +3,10 @@ import {
   dataLabelArrowHandler,
   updateHtmlSpriteDirectionArrow,
 } from './html-objects/data-label-arrow.js';
+import {
+  dataLabelArrowPlusHandler,
+  updateDataLabelArrowPlus,
+} from './html-objects/data-label-arrow-plus.js';
 import { deviceHandler } from './html-objects/device.js';
 import {
   applyGenericUserData,
@@ -11,12 +15,13 @@ import {
 } from './html-objects/shared.js';
 
 const HTML_OBJECT_HANDLERS = [
+  dataLabelArrowPlusHandler,
   dataLabelArrowHandler,
   dataLabelHandler,
   deviceHandler,
 ];
 
-export { updateHtmlSpriteDirectionArrow };
+export { updateDataLabelArrowPlus, updateHtmlSpriteDirectionArrow };
 
 export function isHtmlSpriteHierarchyVisible(sprite, objectByUuid) {
   if (!sprite || sprite.visible === false) return false;
@@ -52,6 +57,9 @@ export function updateHtmlSpriteData(element, sprite, field, value) {
 
   setText(target, value);
   sprite.userData = { ...htmlObjectUserData(sprite), value };
+  if (sprite.options?.key === 'Html dataLabelArrowPlus' || element.querySelector('#dataLabelArrowPlusRoot')) {
+    updateDataLabelArrowPlus(element, htmlObjectUserData(sprite));
+  }
   return true;
 }
 
