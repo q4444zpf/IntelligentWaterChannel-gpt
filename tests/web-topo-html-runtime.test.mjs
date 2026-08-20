@@ -8,7 +8,13 @@ import {
   updateHtmlSpriteDirectionArrow,
 } from '../src/components/realtime/smart-water-flume-preview/web-topo-html-runtime.js';
 import { updateDataLabelArrowPlus } from '../src/components/realtime/smart-water-flume-preview/html-objects/data-label-arrow-plus.js';
-import { measureCanvasTextWidth } from '../src/components/realtime/smart-water-flume-preview/html-objects/data-label-arrow-plus-canvas.js';
+import {
+  applyDataLabelArrowPlusCanvasValue,
+  createDataLabelArrowPlusCanvasObject,
+  disposeDataLabelArrowPlusCanvasObject,
+  measureCanvasTextWidth,
+  updateDataLabelArrowPlusCanvasObject,
+} from '../src/components/realtime/smart-water-flume-preview/html-objects/data-label-arrow-plus-canvas.js';
 import * as THREE from 'three';
 
 function createElement(id = '') {
@@ -241,6 +247,74 @@ test('normalizes an oversized CJK fallback width for Canvas labels', () => {
   widths.set('渠', 14);
   widths.set('渠1', 21.78);
   assert.equal(measureCanvasTextWidth(context, '渠1', 14), 21.78);
+});
+
+test('replaces the Canvas texture after an MQTT value changes its width', () => {
+  const fillTextValues = [];
+  const context = {
+    beginPath() {},
+    clearRect() {},
+    closePath() {},
+    fill() {},
+    fillText(value) { fillTextValues.push(String(value)); },
+    lineTo() {},
+    measureText(value) { return { width: String(value).length * 10 }; },
+    moveTo() {},
+    quadraticCurveTo() {},
+    restore() {},
+    rotate() {},
+    save() {},
+    setTransform() {},
+    stroke() {},
+    translate() {},
+  };
+  const canvas = {
+    height: 0,
+    style: {},
+    width: 0,
+    getContext: () => context,
+  };
+  const previousDocument = globalThis.document;
+  const previousWindow = globalThis.window;
+  globalThis.document = { createElement: () => canvas };
+  globalThis.window = { devicePixelRatio: 1 };
+
+  try {
+    const sprite = {
+      name: 'channel-1',
+      position: [0, 0, 0],
+      quaternion: [0, 0, 0, 1],
+      scale: [0.01, 0.01, 0.01],
+      type: 'CanvasLabelSprite',
+      useCanvas: true,
+      options: { key: 'Html dataLabelArrowPlus', paramField: 'wl2', paramValue: '1' },
+      userData: { prefix: 'channel-1', value: '1', paramValue: '1', unit: 'm' },
+    };
+    const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+    camera.position.set(0, 0, 10);
+    camera.updateProjectionMatrix();
+    camera.updateMatrixWorld();
+    const mesh = createDataLabelArrowPlusCanvasObject(sprite);
+
+    updateDataLabelArrowPlusCanvasObject(mesh, sprite, camera);
+    const initialTexture = mesh.material.map;
+    const initialWidth = Number.parseFloat(canvas.style.width);
+    applyDataLabelArrowPlusCanvasValue(sprite, '123.45');
+    updateDataLabelArrowPlusCanvasObject(mesh, sprite, camera);
+
+    assert.equal(sprite.options.paramValue, '123.45');
+    assert.equal(sprite.userData.paramValue, '123.45');
+    assert.equal(sprite.userData.value, '123.45');
+    assert.ok(fillTextValues.includes('123.45'));
+    assert.ok(Number.parseFloat(canvas.style.width) > initialWidth);
+    assert.notEqual(mesh.material.map, initialTexture);
+    disposeDataLabelArrowPlusCanvasObject(mesh);
+  } finally {
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
 });
 
 test('maps an MQTT field to the label bound by paramField', () => {

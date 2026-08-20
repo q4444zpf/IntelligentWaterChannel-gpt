@@ -84,7 +84,22 @@ function roundedRectPath(context, x, y, width, height, radius, point1, point2, p
   context.closePath();
 }
 
-function drawCanvas(mesh, sprite, arrowAngle) {
+function replaceCanvasTexture(mesh, state) {
+  const previousTexture = state.texture;
+  const nextTexture = new THREE.CanvasTexture(state.canvas);
+  nextTexture.colorSpace = THREE.SRGBColorSpace;
+  nextTexture.generateMipmaps = false;
+  nextTexture.minFilter = THREE.LinearFilter;
+  nextTexture.magFilter = THREE.LinearFilter;
+  nextTexture.anisotropy = previousTexture.anisotropy;
+  nextTexture.needsUpdate = true;
+  state.texture = nextTexture;
+  mesh.material.map = nextTexture;
+  mesh.material.needsUpdate = true;
+  previousTexture.dispose();
+}
+
+function drawCanvas(mesh, sprite, arrowAngle, replaceTexture) {
   const data = sprite.userData || {};
   const state = canvasState.get(mesh);
   const canvas = state.canvas;
@@ -189,10 +204,23 @@ function drawCanvas(mesh, sprite, arrowAngle) {
   state.signature = JSON.stringify(data);
   state.arrowAngle = arrowAngle;
   state.texture.needsUpdate = true;
+  state.texture.image = canvas;
+  state.texture.generateMipmaps = false;
+  state.texture.minFilter = THREE.LinearFilter;
+  state.texture.magFilter = THREE.LinearFilter;
+  state.texture.source.needsUpdate = true;
+  mesh.material.needsUpdate = true;
+  if (replaceTexture) replaceCanvasTexture(mesh, state);
 }
 
 export function isCanvasDataLabelArrowPlus(sprite) {
   return Boolean(sprite?.useCanvas && sprite?.options?.key === 'Html dataLabelArrowPlus');
+}
+
+export function applyDataLabelArrowPlusCanvasValue(sprite, value) {
+  if (!sprite) return;
+  sprite.options = { ...(sprite.options || {}), paramValue: value };
+  sprite.userData = { ...(sprite.userData || {}), paramValue: value, value };
 }
 
 export function createDataLabelArrowPlusCanvasObject(sprite) {
@@ -233,7 +261,10 @@ export function updateDataLabelArrowPlusCanvasObject(mesh, sprite, camera) {
   else mesh.quaternion.fromArray(sprite.quaternion || [0, 0, 0, 1]);
   const arrowAngle = getArrowAngle(sprite, camera);
   const signature = JSON.stringify(sprite.userData || {});
-  if (state.signature !== signature || state.arrowAngle !== arrowAngle) drawCanvas(mesh, sprite, arrowAngle);
+  const dataChanged = state.signature !== signature;
+  if (dataChanged || state.arrowAngle !== arrowAngle) {
+    drawCanvas(mesh, sprite, arrowAngle, dataChanged);
+  }
 }
 
 export function disposeDataLabelArrowPlusCanvasObject(mesh) {

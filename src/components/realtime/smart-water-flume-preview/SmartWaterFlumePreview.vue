@@ -277,6 +277,7 @@ import {
   updateHtmlSpriteDirectionArrow,
 } from './web-topo-html-runtime.js';
 import {
+  applyDataLabelArrowPlusCanvasValue,
   createDataLabelArrowPlusCanvasObject,
   disposeDataLabelArrowPlusCanvasObject,
   updateDataLabelArrowPlusCanvasObject,
@@ -799,7 +800,7 @@ function triggerDataUpdate(field, value) {
   htmlSprites.value.forEach((sprite, index) => {
     if (sprite.useCanvas) {
       if (sprite.options?.paramField !== field) return;
-      sprite.userData = { ...(sprite.userData || {}), value };
+      applyDataLabelArrowPlusCanvasValue(sprite, value);
       updateDataLabelArrowPlusCanvasObject(canvasLabelObjects.get(sprite.uuid), sprite, camera);
       return;
     }
