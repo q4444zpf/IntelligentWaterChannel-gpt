@@ -9,6 +9,8 @@ const directionOrigin = new THREE.Vector3();
 const directionTarget = new THREE.Vector3();
 const projectedOrigin = new THREE.Vector3();
 const projectedTarget = new THREE.Vector3();
+const localDirection = new THREE.Vector3();
+const labelQuaternion = new THREE.Quaternion();
 
 function applyDataLabelArrowUserData(element, userData) {
   if (!applyDataLabelUserData(element, userData, '#dataLabelArrow')) return false;
@@ -53,13 +55,26 @@ export function updateHtmlSpriteDirectionArrow(element, sprite, camera, width, h
     return false;
   }
 
-  directionOrigin.fromArray(sprite.position || [0, 0, 0]);
-  directionTarget.copy(directionOrigin).add(direction.normalize());
-  projectedOrigin.copy(directionOrigin).project(camera);
-  projectedTarget.copy(directionTarget).project(camera);
+  const isBillboard = sprite.billboard !== false
+    && sprite.type !== 'HtmlPlane'
+    && sprite.type !== 'CanvasLabelPlane';
+  let dx;
+  let dy;
+  if (isBillboard) {
+    directionOrigin.fromArray(sprite.position || [0, 0, 0]);
+    directionTarget.copy(directionOrigin).add(direction.normalize());
+    projectedOrigin.copy(directionOrigin).project(camera);
+    projectedTarget.copy(directionTarget).project(camera);
+    dx = (projectedTarget.x - projectedOrigin.x) * width * 0.5;
+    dy = -(projectedTarget.y - projectedOrigin.y) * height * 0.5;
+  } else {
+    localDirection.copy(direction).normalize();
+    labelQuaternion.fromArray(sprite.quaternion || [0, 0, 0, 1]).invert();
+    localDirection.applyQuaternion(labelQuaternion);
+    dx = localDirection.x;
+    dy = -localDirection.y;
+  }
 
-  const dx = (projectedTarget.x - projectedOrigin.x) * width * 0.5;
-  const dy = -(projectedTarget.y - projectedOrigin.y) * height * 0.5;
   if (!Number.isFinite(dx) || !Number.isFinite(dy) || dx * dx + dy * dy <= 1e-8) {
     arrow.style.visibility = 'hidden';
     return false;

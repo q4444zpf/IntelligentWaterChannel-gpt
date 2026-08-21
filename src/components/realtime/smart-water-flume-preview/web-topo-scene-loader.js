@@ -3,6 +3,13 @@ import pako from 'pako';
 import * as THREE from 'three';
 
 const GROUP_FETCH_CONCURRENCY = 10;
+const HTML_LABEL_TYPES = new Set([
+  'HtmlSprite',
+  'HtmlPlane',
+  'CanvasLabelSprite',
+  'CanvasLabelPlane',
+]);
+const BILLBOARD_LABEL_TYPES = new Set(['HtmlSprite', 'CanvasLabelSprite']);
 
 function throwIfAborted(signal) {
   if (signal?.aborted) throw new DOMException('场景加载已取消', 'AbortError');
@@ -167,7 +174,7 @@ export function extractHtmlSprites(
   const worldMatrix = parentMatrix.clone().multiply(localMatrixFromJson(object));
   const ancestorUuids = object.uuid ? [...parentUuids, object.uuid] : parentUuids;
   object.children = (object.children || []).filter((child) => {
-    if (child.type !== 'HtmlSprite') {
+    if (!HTML_LABEL_TYPES.has(child.type)) {
       extractHtmlSprites(child, worldMatrix, sprites, ancestorUuids);
       return true;
     }
@@ -176,12 +183,18 @@ export function extractHtmlSprites(
     const quaternion = new THREE.Quaternion();
     const scale = new THREE.Vector3();
     worldMatrix.clone().multiply(localMatrixFromJson(child)).decompose(position, quaternion, scale);
+    const key = child.options?.key || child.options?.cardConfig?.key || '';
     sprites.push({
       uuid: child.uuid,
       name: child.name || '',
+      type: child.type,
+      billboard: BILLBOARD_LABEL_TYPES.has(child.type),
+      useCanvas: key === 'Html dataLabelArrowPlus'
+        && (child.type === 'CanvasLabelSprite' || child.type === 'CanvasLabelPlane'),
       html: child.options?.htmlContent || '',
       position: position.toArray(),
-      scale: Math.max(Math.abs(scale.x), Math.abs(scale.y)),
+      quaternion: quaternion.toArray(),
+      scale: scale.toArray(),
       visible: child.visible !== false,
       ancestorUuids,
       userData: {
@@ -189,7 +202,7 @@ export function extractHtmlSprites(
         ...(child.userData || {}),
       },
       options: {
-        key: child.options?.key || child.options?.cardConfig?.key || '',
+        key,
         paramName: child.options?.paramName || '',
         paramField: child.options?.paramField || '',
         paramUnit: child.options?.paramUnit || '',
