@@ -5,7 +5,9 @@ function tagValue(values, tag) {
 
 function hasValue(values, tag) {
   const value = tagValue(values, tag);
-  return value !== null && value !== undefined && value !== '';
+  if (value === null || value === undefined || value === '') return false;
+  if (typeof value === 'string' && value.toLowerCase() === 'offline') return false;
+  return true;
 }
 
 function displayValue(values, tag) {
