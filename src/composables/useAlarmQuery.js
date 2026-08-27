@@ -1,11 +1,11 @@
 import { computed, ref } from 'vue';
 import {
+  exportBigWaterChannelAlarms,
   getBigWaterChannelAlarms,
   getBigWaterChannelAlarmStatistics,
 } from '../api/alarm.js';
 import { getBigWaterChannelHistoryDevices } from '../api/history.js';
 import {
-  buildAlarmCsv,
   normalizeAlarmPage,
   normalizeAlarmStatistics,
   validateAlarmQuery,
@@ -113,30 +113,40 @@ export function useAlarmQuery() {
     return requestPage(appliedQuery.value, 1, pageSize.value);
   }
 
-  async function exportCsv() {
+  async function exportFile(format) {
     if (!canExport.value) return;
     exporting.value = true;
     error.value = '';
     try {
-      const page = normalizeAlarmPage(await getBigWaterChannelAlarms({
+      const { blob, fileName } = await exportBigWaterChannelAlarms({
         ...appliedQuery.value,
-        current: 1,
-        size: -1,
-      }));
-      const blob = new Blob([`\uFEFF${buildAlarmCsv(page.rows)}`], { type: 'text/csv;charset=utf-8' });
+        format,
+      });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = `蛇形水槽告警_${Date.now()}.csv`;
+      anchor.download = fileName;
       document.body.append(anchor);
       anchor.click();
       anchor.remove();
       URL.revokeObjectURL(url);
     } catch (requestError) {
-      error.value = requestError?.message || '导出告警CSV失败';
+      error.value = requestError?.message || '导出告警数据失败';
     } finally {
       exporting.value = false;
     }
+  }
+
+  function exportCsv() {
+    return exportFile('csv');
+  }
+
+  function exportExcel() {
+    return exportFile('excel');
+  }
+
+  function exportPdf() {
+    return exportFile('pdf');
   }
 
   async function initialize() {
@@ -153,6 +163,8 @@ export function useAlarmQuery() {
     draft,
     error,
     exportCsv,
+    exportExcel,
+    exportPdf,
     exporting,
     initialize,
     loading,

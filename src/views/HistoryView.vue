@@ -698,9 +698,18 @@ onMounted(async () => {
 }
 
 .history-filter-actions :deep(.ant-btn) {
+  position: relative;
   width: 100%;
   min-width: 0;
   padding-inline: 5px;
+  overflow: hidden;
+}
+
+.history-filter-primary-actions :deep(.ant-btn-loading-icon) {
+  position: absolute;
+  left: 5px;
+  margin-inline-end: 0;
+  font-size: 12px;
 }
 
 .history-export-button {
@@ -845,6 +854,10 @@ onMounted(async () => {
 }
 
 .history-workspace-panel .history-chart-grid {
+  min-height: 0;
+  flex: 1 1 0;
+  align-content: start;
+  grid-auto-rows: 348px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   padding: 12px 18px;
   overflow-y: auto;

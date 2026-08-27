@@ -1,5 +1,6 @@
 import { WEB_TOPO_CONFIG } from '../config/webTopoConfig.js';
 import { buildAlarmParams } from '../alarm-api-params.js';
+import { parseDownloadFilename } from '../history-api-params.js';
 import { ApiError, http } from '../utils/request.js';
 
 export async function getBigWaterChannelAlarms({
@@ -37,6 +38,30 @@ export async function getBigWaterChannelAlarmStatistics({
   }
 
   return response.data;
+}
+
+export async function exportBigWaterChannelAlarms({
+  format = 'csv',
+  groupId = WEB_TOPO_CONFIG.deviceGroupId,
+  ...filters
+} = {}) {
+  const { current, size, ...params } = buildAlarmParams({ groupId, ...filters });
+  const extension = format === 'pdf' ? 'pdf' : format === 'excel' ? 'xlsx' : 'csv';
+  const response = await http.get(`/iot/device/bigWaterChannel/alarm/export/${format}`, {
+    params,
+    responseType: 'blob',
+    rawResponse: true,
+  });
+
+  if (!(response?.data instanceof Blob)) {
+    throw new ApiError('导出告警数据失败');
+  }
+
+  return {
+    blob: response.data,
+    fileName: parseDownloadFilename(response.headers?.['content-disposition'])
+      || `蛇形水槽告警数据_${Date.now()}.${extension}`,
+  };
 }
 
 export async function getBigWaterChannelAlarmNotificationTopic(

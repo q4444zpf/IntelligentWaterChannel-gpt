@@ -11,6 +11,13 @@
 
           <div class="alarm-filter-scroll">
             <a-form class="alarm-filter-form" :model="draft" layout="vertical">
+              <a-form-item label="快捷时间">
+                <div class="alarm-quick-range-options">
+                  <a-button :type="alarmQuickRange === 'day' ? 'primary' : 'default'" :disabled="loading" @click="queryQuickRange('day')">本日</a-button>
+                  <a-button :type="alarmQuickRange === 'week' ? 'primary' : 'default'" :disabled="loading" @click="queryQuickRange('week')">本周</a-button>
+                  <a-button :type="alarmQuickRange === 'month' ? 'primary' : 'default'" :disabled="loading" @click="queryQuickRange('month')">本月</a-button>
+                </div>
+              </a-form-item>
               <a-form-item label="开始时间">
                 <a-date-picker v-model:value="startTimeValue" show-time format="YYYY-MM-DD HH:mm:ss" :allow-clear="false" />
               </a-form-item>
@@ -55,10 +62,12 @@
           <div class="alarm-filter-actions">
             <div class="alarm-filter-primary-actions">
               <a-button type="primary" :loading="loading" @click="runQuery">查询</a-button>
-              <a-button :disabled="loading" @click="resetQuery">重置</a-button>
+              <a-button :disabled="loading" @click="resetAlarmQuery">重置</a-button>
               <a-button :disabled="loading" @click="refresh">刷新</a-button>
             </div>
-            <a-button class="success alarm-export-button" :loading="exporting" :disabled="!canExport" @click="exportCsv">导出CSV</a-button>
+              <a-button class="success alarm-export-button" :loading="exporting" :disabled="!canExport" @click="exportCsv">导出CSV</a-button>
+              <a-button class="success alarm-export-button" :loading="exporting" :disabled="!canExport" @click="exportExcel">导出Excel</a-button>
+              <a-button class="success alarm-export-button" :loading="exporting" :disabled="!canExport" @click="exportPdf">导出PDF</a-button>
           </div>
           <p v-if="error" class="query-error alarm-filter-feedback" role="alert">{{ error }}</p>
         </aside>
@@ -116,7 +125,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import {
   Button as AButton,
   ConfigProvider as AConfigProvider,
@@ -184,6 +193,8 @@ const {
   draft,
   error,
   exportCsv,
+  exportExcel,
+  exportPdf,
   exporting,
   initialize,
   loading,
@@ -195,6 +206,7 @@ const {
   statistics,
   total,
 } = useAlarmQuery();
+const alarmQuickRange = ref('day');
 const alarmStats = computed(() => [
   { key: 'total', label: '报警总数', value: statistics.value.total, icon: 'total', tone: 'cyan' },
   { key: 'unhandled', label: '未处理', value: statistics.value.unhandled, icon: 'unhandled', tone: 'orange' },
@@ -215,12 +227,32 @@ const alarmPagination = computed(() => ({
 }));
 const startTimeValue = computed({
   get: () => draft.value.start ? dayjs(draft.value.start) : null,
-  set: (value) => { draft.value.start = value ? value.format('YYYY-MM-DDTHH:mm:ss') : ''; },
+  set: (value) => {
+    draft.value.start = value ? value.format('YYYY-MM-DDTHH:mm:ss') : '';
+    alarmQuickRange.value = '';
+  },
 });
 const endTimeValue = computed({
   get: () => draft.value.end ? dayjs(draft.value.end) : null,
-  set: (value) => { draft.value.end = value ? value.format('YYYY-MM-DDTHH:mm:ss') : ''; },
+  set: (value) => {
+    draft.value.end = value ? value.format('YYYY-MM-DDTHH:mm:ss') : '';
+    alarmQuickRange.value = '';
+  },
 });
+
+async function queryQuickRange(range) {
+  const now = dayjs();
+  const unit = range === 'week' ? 'week' : range === 'month' ? 'month' : 'day';
+  draft.value.start = now.startOf(unit).format('YYYY-MM-DDTHH:mm:ss');
+  draft.value.end = now.endOf(unit).format('YYYY-MM-DDTHH:mm:ss');
+  alarmQuickRange.value = range;
+  await runQuery();
+}
+
+async function resetAlarmQuery() {
+  alarmQuickRange.value = 'day';
+  await resetQuery();
+}
 
 function handleTableChange(pagination) {
   void changePage(pagination.current || 1, pagination.pageSize || pageSize.value);
@@ -275,7 +307,7 @@ defineExpose({ refresh });
   min-width: 0;
   min-height: 0;
   flex-direction: column;
-  padding: 14px 16px 12px;
+  padding: 10px 16px 8px;
   overflow: visible;
   border: 1px solid rgba(48, 145, 224, 0.35);
   border-radius: 0 8px 8px 8px;
@@ -341,25 +373,40 @@ defineExpose({ refresh });
 .alarm-filter-scroll {
   min-height: 0;
   flex: 1 1 auto;
-  padding-top: 3px;
+  padding-top: 1px;
   overflow-y: auto;
   scrollbar-color: rgba(47, 155, 225, 0.55) transparent;
   scrollbar-width: thin;
 }
 
 :deep(.alarm-filter-form .ant-form-item) {
-  margin-bottom: 8px;
+  margin-bottom: 2px;
+}
+
+:deep(.alarm-filter-form .ant-form-item:last-child) {
+  margin-bottom: 0;
 }
 
 :deep(.alarm-filter-form .ant-form-item-label) {
-  padding: 0 0 3px;
+  padding: 0 0 1px;
 }
 
 :deep(.alarm-filter-form .ant-form-item-label > label) {
   height: auto;
   color: #a9c0d7;
   font-size: 11px;
-  line-height: 17px;
+  line-height: 15px;
+}
+
+.alarm-quick-range-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.alarm-quick-range-options :deep(.ant-btn) {
+  min-width: 0;
+  padding-inline: 4px;
 }
 
 :deep(.alarm-filter-form .ant-picker),
@@ -376,11 +423,15 @@ defineExpose({ refresh });
   background: rgba(2, 34, 66, 0.82) !important;
 }
 
+:deep(.alarm-filter-form .ant-input-affix-wrapper .ant-input) {
+  background: transparent !important;
+}
+
 .alarm-filter-actions {
   display: grid;
   flex: 0 0 auto;
-  gap: 9px;
-  padding-top: 8px;
+  gap: 5px;
+  padding-top: 5px;
 }
 
 .alarm-filter-primary-actions {
