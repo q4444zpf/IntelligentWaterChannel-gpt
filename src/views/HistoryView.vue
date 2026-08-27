@@ -20,6 +20,13 @@
             <span class="history-filter-arrow" aria-hidden="true"></span>
             <div class="history-filter-scroll">
               <a-form class="history-filter-form" :model="draft" layout="vertical">
+                <a-form-item label="快捷时间">
+                  <div class="history-quick-range-options">
+                    <a-button :type="historyQuickRange === 'day' ? 'primary' : 'default'" :disabled="loading || !draft.deviceIds.length" @click="queryQuickRange('day')">本日</a-button>
+                    <a-button :type="historyQuickRange === 'week' ? 'primary' : 'default'" :disabled="loading || !draft.deviceIds.length" @click="queryQuickRange('week')">本周</a-button>
+                    <a-button :type="historyQuickRange === 'month' ? 'primary' : 'default'" :disabled="loading || !draft.deviceIds.length" @click="queryQuickRange('month')">本月</a-button>
+                  </div>
+                </a-form-item>
                 <a-form-item label="开始时间">
                   <a-date-picker v-model:value="startTimeValue" show-time format="YYYY-MM-DD HH:mm:ss" :allow-clear="false" />
                 </a-form-item>
@@ -31,7 +38,18 @@
                     <a-select-option v-for="type in historyDeviceTypes" :key="type" :value="type">{{ type }}</a-select-option>
                   </a-select>
                 </a-form-item>
-                <a-form-item label="设备名称">
+                <a-form-item>
+                  <template #label>
+                    <span class="history-device-label">
+                      <span>设备名称</span>
+                      <a-checkbox
+                        v-model:checked="allSelectableDevicesSelected"
+                        :indeterminate="deviceSelectionIndeterminate"
+                        :disabled="devicesLoading || !selectableDevices.length"
+                        @click.stop
+                      >全选</a-checkbox>
+                    </span>
+                  </template>
                   <a-select v-model:value="draft.deviceIds" mode="multiple" show-search option-label-prop="label" :filter-option="filterDeviceOption" :max-tag-count="1" :loading="devicesLoading" :disabled="devicesLoading || !historyDevices.length" placeholder="请选择设备" not-found-content="当前分组下没有设备">
                     <a-select-option v-for="device in selectableDevices" :key="device.id" :value="device.id" :label="device.name">
                       <span class="history-device-option"><strong>{{ device.name }}</strong><span>{{ device.type }}</span><span>{{ device.location }}</span></span>
@@ -63,6 +81,8 @@
                 <a-button :disabled="loading" @click="queryAndClose">刷新</a-button>
               </div>
               <a-button class="success history-export-button" :loading="exporting" :disabled="!canExport" @click="exportCsv">导出CSV</a-button>
+              <a-button class="success history-export-button" :loading="exporting" :disabled="!canExport" @click="exportExcel">导出Excel</a-button>
+              <a-button class="success history-export-button" :loading="exporting" :disabled="!canExport" @click="exportPdf">导出PDF</a-button>
             </div>
             <p v-if="error" class="query-error history-filter-feedback" role="alert">{{ error }}</p>
           </aside>
@@ -119,6 +139,13 @@
 
             <div class="history-filter-scroll">
               <a-form class="history-filter-form history-replay-filter-form" :model="replayDraft" layout="vertical">
+                <a-form-item label="快捷时间">
+                  <div class="history-quick-range-options">
+                    <a-button :type="replayQuickRange === 'day' ? 'primary' : 'default'" :disabled="replayLoading" @click="queryReplayQuickRange('day')">本日</a-button>
+                    <a-button :type="replayQuickRange === 'week' ? 'primary' : 'default'" :disabled="replayLoading" @click="queryReplayQuickRange('week')">本周</a-button>
+                    <a-button :type="replayQuickRange === 'month' ? 'primary' : 'default'" :disabled="replayLoading" @click="queryReplayQuickRange('month')">本月</a-button>
+                  </div>
+                </a-form-item>
                 <a-form-item label="开始时间">
                   <a-date-picker v-model:value="replayStartTimeValue" show-time format="YYYY-MM-DD HH:mm:ss" :allow-clear="false" />
                 </a-form-item>
@@ -151,6 +178,8 @@
                 <a-button :disabled="replayLoading" @click="runReplayQuery">刷新</a-button>
               </div>
               <a-button class="success history-export-button" :disabled="!replayCanExport" @click="exportReplayCsv">导出CSV</a-button>
+              <a-button class="success history-export-button" :loading="replayExporting" :disabled="!replayCanExport || replayExporting" @click="exportReplayFile('excel')">导出Excel</a-button>
+              <a-button class="success history-export-button" :loading="replayExporting" :disabled="!replayCanExport || replayExporting" @click="exportReplayFile('pdf')">导出PDF</a-button>
             </div>
             <p v-if="replayError" class="query-error history-filter-feedback" role="alert">{{ replayError }}</p>
           </aside>
@@ -202,7 +231,7 @@
 
 <script setup>
 import { computed, h, onMounted, ref, watch } from 'vue';
-import { Button as AButton, ConfigProvider as AConfigProvider, DatePicker as ADatePicker, Form as AForm, FormItem as AFormItem, Select as ASelect, SelectOption as ASelectOption, Table as ATable, theme as antTheme } from 'ant-design-vue';
+import { Button as AButton, Checkbox as ACheckbox, ConfigProvider as AConfigProvider, DatePicker as ADatePicker, Form as AForm, FormItem as AFormItem, Select as ASelect, SelectOption as ASelectOption, Table as ATable, theme as antTheme } from 'ant-design-vue';
 import zhCN from 'ant-design-vue/es/locale/zh_CN';
 import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
@@ -210,6 +239,7 @@ import CombinedHistoryChart from '../components/history/CombinedHistoryChart.vue
 import DeviceHistoryChart from '../components/history/DeviceHistoryChart.vue';
 import HistoryReplayProfileChart from '../components/history/HistoryReplayProfileChart.vue';
 import StatusText from '../components/common/StatusText.vue';
+import { exportBigWaterChannelHistoryReplay } from '../api/history.js';
 import { useHistoryQuery } from '../composables/useHistoryQuery.js';
 import { useHistoryReplay } from '../composables/useHistoryReplay.js';
 import { formatReplayValue } from '../history-replay-data.js';
@@ -224,6 +254,8 @@ const activeTab = ref('analysis');
 const resultTab = ref('combined');
 const tablePage = ref(1);
 const replayTablePage = ref(1);
+const historyQuickRange = ref('day');
+const replayQuickRange = ref('day');
 const resultTabs = [{ key: 'combined', label: '综合曲线' }, { key: 'devices', label: '分设备曲线' }, { key: 'table', label: '数据表格' }];
 const historyColumns = [
   { title: '时间', dataIndex: 'timestamp', key: 'timestamp', width: 180 },
@@ -236,7 +268,19 @@ const historyColumns = [
   { title: '状态', dataIndex: 'state', key: 'state', width: 90 },
 ];
 const historyTableLocale = { emptyText: '当前条件下没有历史数据' };
-const { applyDeviceFilters, canExport, chartRowCount, devicesLoading, draft, error, exportCsv, exporting, historyChannels, historyDevices, historyDeviceTypes, historyTotal, initialize, loading, rangeLabel, resetQuery, results, rows, runQuery, selectableDevices } = useHistoryQuery();
+const { applyDeviceFilters, canExport, chartRowCount, clearDevices, devicesLoading, draft, error, exportCsv, exportExcel, exportPdf, exporting, historyChannels, historyDevices, historyDeviceTypes, historyTotal, initialize, loading, rangeLabel, resetQuery, results, rows, runQuery, selectAllDevices, selectableDevices } = useHistoryQuery();
+const replayExporting = ref(false);
+const selectedSelectableDeviceCount = computed(() => {
+  const selectedIds = new Set(draft.value.deviceIds);
+  return selectableDevices.value.filter((device) => selectedIds.has(device.id)).length;
+});
+const allSelectableDevicesSelected = computed({
+  get: () => selectableDevices.value.length > 0
+    && selectedSelectableDeviceCount.value === selectableDevices.value.length,
+  set: (checked) => { if (checked) selectAllDevices(); else clearDevices(); },
+});
+const deviceSelectionIndeterminate = computed(() => selectedSelectableDeviceCount.value > 0
+  && selectedSelectableDeviceCount.value < selectableDevices.value.length);
 const historyPagination = computed(() => ({
   current: tablePage.value,
   pageSize: 50,
@@ -247,6 +291,7 @@ const historyPagination = computed(() => ({
 }));
 const {
   activeIndex: replayActiveIndex,
+  appliedQuery: replayAppliedQuery,
   canExport: replayCanExport,
   channels: replayChannels,
   currentRow: replayCurrentRow,
@@ -267,6 +312,30 @@ const {
   selectRow: selectReplayRow,
   setActiveIndex: setReplayActiveIndex,
 } = useHistoryReplay();
+
+async function exportReplayFile(format) {
+  if (!replayCanExport.value || replayExporting.value) return;
+  replayError.value = '';
+  replayExporting.value = true;
+  try {
+    const { blob, fileName } = await exportBigWaterChannelHistoryReplay({
+      ...replayAppliedQuery.value,
+      format,
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  } catch (requestError) {
+    replayError.value = requestError?.message || '导出节点水位回放失败';
+  } finally {
+    replayExporting.value = false;
+  }
+}
 const replayColumns = computed(() => [
   { title: '时间', dataIndex: 'timestamp', key: 'timestamp', width: 180, fixed: 'left' },
   ...replayNodes.value.map((node) => ({
@@ -306,19 +375,31 @@ const historyTheme = {
 };
 const startTimeValue = computed({
   get: () => draft.value.start ? dayjs(draft.value.start) : null,
-  set: (value) => { draft.value.start = value ? value.format('YYYY-MM-DDTHH:mm:ss') : ''; },
+  set: (value) => {
+    draft.value.start = value ? value.format('YYYY-MM-DDTHH:mm:ss') : '';
+    historyQuickRange.value = '';
+  },
 });
 const endTimeValue = computed({
   get: () => draft.value.end ? dayjs(draft.value.end) : null,
-  set: (value) => { draft.value.end = value ? value.format('YYYY-MM-DDTHH:mm:ss') : ''; },
+  set: (value) => {
+    draft.value.end = value ? value.format('YYYY-MM-DDTHH:mm:ss') : '';
+    historyQuickRange.value = '';
+  },
 });
 const replayStartTimeValue = computed({
   get: () => replayDraft.value.start ? dayjs(replayDraft.value.start) : null,
-  set: (value) => { replayDraft.value.start = value ? value.format('YYYY-MM-DDTHH:mm:ss') : ''; },
+  set: (value) => {
+    replayDraft.value.start = value ? value.format('YYYY-MM-DDTHH:mm:ss') : '';
+    replayQuickRange.value = '';
+  },
 });
 const replayEndTimeValue = computed({
   get: () => replayDraft.value.end ? dayjs(replayDraft.value.end) : null,
-  set: (value) => { replayDraft.value.end = value ? value.format('YYYY-MM-DDTHH:mm:ss') : ''; },
+  set: (value) => {
+    replayDraft.value.end = value ? value.format('YYYY-MM-DDTHH:mm:ss') : '';
+    replayQuickRange.value = '';
+  },
 });
 
 function showTab(tab) {
@@ -326,13 +407,29 @@ function showTab(tab) {
   if (tab === 'replay') initializeReplay().then(syncReplayTablePage);
 }
 async function queryAndClose() { tablePage.value = 1; await runQuery(); }
-async function resetAndClose() { tablePage.value = 1; await resetQuery(); }
+async function resetAndClose() { historyQuickRange.value = 'day'; tablePage.value = 1; await resetQuery(); }
+async function queryQuickRange(range) {
+  const now = dayjs();
+  const unit = range === 'week' ? 'week' : range === 'month' ? 'month' : 'day';
+  draft.value.start = now.startOf(unit).format('YYYY-MM-DDTHH:mm:ss');
+  draft.value.end = now.endOf(unit).format('YYYY-MM-DDTHH:mm:ss');
+  historyQuickRange.value = range;
+  await queryAndClose();
+}
 function handleHistoryTableChange(pagination) { tablePage.value = pagination.current || 1; }
 function syncReplayTablePage(success) {
   if (success) replayTablePage.value = 1;
 }
 async function runReplayQuery() { replayTablePage.value = 1; syncReplayTablePage(await queryReplay()); }
-async function resetReplayQuery() { replayTablePage.value = 1; syncReplayTablePage(await resetReplay()); }
+async function resetReplayQuery() { replayQuickRange.value = 'day'; replayTablePage.value = 1; syncReplayTablePage(await resetReplay()); }
+async function queryReplayQuickRange(range) {
+  const now = dayjs();
+  const unit = range === 'week' ? 'week' : range === 'month' ? 'month' : 'day';
+  replayDraft.value.start = now.startOf(unit).format('YYYY-MM-DDTHH:mm:ss');
+  replayDraft.value.end = now.endOf(unit).format('YYYY-MM-DDTHH:mm:ss');
+  replayQuickRange.value = range;
+  await runReplayQuery();
+}
 function handleReplayTableChange(pagination) { replayTablePage.value = pagination.current || 1; }
 function replayCustomRow(record) { return { onClick: () => selectReplayRow(record) }; }
 function replayRowClassName(record) { return record.key === replayActiveIndex.value ? 'selected' : ''; }
@@ -546,6 +643,28 @@ onMounted(async () => {
   color: #a9c0d7;
   font-size: 11px;
   line-height: 17px;
+}
+
+.history-device-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.history-quick-range-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.history-quick-range-options :deep(.ant-btn) {
+  min-width: 0;
+  padding-inline: 4px;
+}
+
+.history-device-label :deep(.ant-checkbox-wrapper) {
+  color: #a9c0d7;
+  font-size: 11px;
 }
 
 :deep(.history-filter-form .ant-picker),

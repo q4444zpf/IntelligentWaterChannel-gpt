@@ -83,14 +83,43 @@ export async function getBigWaterChannelHistoryReplay({
   return response.data;
 }
 
+export async function exportBigWaterChannelHistoryReplay({
+  format,
+  groupId = WEB_TOPO_CONFIG.deviceGroupId,
+  start,
+  end,
+  intervalSeconds,
+  channels,
+} = {}) {
+  const extension = format === 'pdf' ? 'pdf' : 'xlsx';
+  const response = await http.get(`/iot/device/bigWaterChannel/history/replay/export/${format}`, {
+    params: buildHistoryReplayParams({ groupId, start, end, intervalSeconds, channels }),
+    paramsSerializer: { indexes: null },
+    responseType: 'blob',
+    rawResponse: true,
+  });
+
+  if (!(response?.data instanceof Blob)) {
+    throw new ApiError('导出节点水位回放失败');
+  }
+
+  return {
+    blob: response.data,
+    fileName: parseDownloadFilename(response.headers?.['content-disposition'])
+      || `蛇形水槽节点水位回放_${Date.now()}.${extension}`,
+  };
+}
+
 export async function exportBigWaterChannelHistory({
+  format = 'csv',
   groupId = WEB_TOPO_CONFIG.deviceGroupId,
   start,
   end,
   intervalSeconds,
   deviceIds,
 } = {}) {
-  const response = await http.get('/iot/device/bigWaterChannel/history/export', {
+  const extension = format === 'pdf' ? 'pdf' : format === 'excel' ? 'xlsx' : 'csv';
+  const response = await http.get(`/iot/device/bigWaterChannel/history/export/aligned/${format}`, {
     params: buildHistoryFilterParams({ groupId, start, end, intervalSeconds, deviceIds }),
     paramsSerializer: { indexes: null },
     responseType: 'blob',
@@ -104,6 +133,6 @@ export async function exportBigWaterChannelHistory({
   return {
     blob: response.data,
     fileName: parseDownloadFilename(response.headers?.['content-disposition'])
-      || `蛇形水槽历史数据_${Date.now()}.csv`,
+      || `蛇形水槽对齐历史数据_${Date.now()}.${extension}`,
   };
 }

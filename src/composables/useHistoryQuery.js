@@ -187,12 +187,13 @@ export function useHistoryQuery() {
     return runQuery();
   }
 
-  async function exportCsv() {
+  async function exportFile(format) {
     if (!canExport.value) return;
     error.value = '';
     exporting.value = true;
     try {
       const { blob, fileName } = await exportBigWaterChannelHistory({
+        format,
         start: appliedQuery.value.start,
         end: appliedQuery.value.end,
         intervalSeconds: appliedQuery.value.intervalSeconds,
@@ -213,6 +214,18 @@ export function useHistoryQuery() {
     }
   }
 
+  function exportCsv() {
+    return exportFile('csv');
+  }
+
+  function exportExcel() {
+    return exportFile('excel');
+  }
+
+  function exportPdf() {
+    return exportFile('pdf');
+  }
+
   return {
     canExport,
     applyDeviceFilters,
@@ -223,6 +236,8 @@ export function useHistoryQuery() {
     draft,
     error,
     exportCsv,
+    exportExcel,
+    exportPdf,
     exporting,
     filteredDevices,
     historyTotal,
