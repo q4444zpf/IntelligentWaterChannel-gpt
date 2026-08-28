@@ -2071,10 +2071,11 @@ defineExpose({
 .preview-scene-controls {
   position: absolute;
   z-index: 10;
-  right: 22px;
+  right: 400px;
   bottom: 18px;
   left: auto;
   display: flex;
+  flex-direction: column;
   align-items: flex-end;
   justify-content: flex-end;
   gap: 10px;
@@ -2088,7 +2089,7 @@ defineExpose({
   z-index: 12;
   top: auto;
   right: 400px;
-  bottom: 72px;
+  bottom: 180px;
   pointer-events: none;
 }
 
@@ -2100,7 +2101,7 @@ defineExpose({
 
 .preview-popup-host--right {
   right: 400px;
-  height: min(430px, calc(100% - 100px));
+  height: min(430px, calc(100% - 208px));
   width: min(260px, calc(100% - 20px));
 }
 
@@ -2168,6 +2169,7 @@ defineExpose({
 }
 
 @media (max-width: 1500px) {
+  .preview-scene-controls,
   .preview-popup-host,
   .preview-popup-host--left,
   .preview-popup-host--right {

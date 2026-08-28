@@ -36,22 +36,46 @@
             </span>
           </button>
 
-          <div class="menu-account">
-            <span class="menu-account__name">{{ username }}</span>
-            <button class="logout-btn" type="button" :disabled="loggingOut" @click="handleLogout">
-              <LogoutOutlined aria-hidden="true" />
-              {{ loggingOut ? '退出中' : '退出登录' }}
-            </button>
-          </div>
         </nav>
       </Transition>
     </div>
 
     <div class="brand">智能水槽监控系统</div>
 
-    <div class="plc-status" role="status">
-      <span class="plc-status__dot" aria-hidden="true"></span>
-      <span>PLC在线</span>
+    <div class="header-status">
+      <div class="plc-status" role="status">
+        <span class="plc-status__dot" aria-hidden="true"></span>
+        <span>PLC在线</span>
+      </div>
+
+      <div
+        class="header-account"
+        @focusout="handleAccountAreaFocusOut"
+        @keydown.esc="accountMenuOpen = false"
+      >
+        <button
+          class="account-trigger"
+          type="button"
+          aria-label="打开用户菜单"
+          :aria-expanded="accountMenuOpen"
+          @click="accountMenuOpen = !accountMenuOpen"
+        >
+          <svg class="account-trigger__user-icon" viewBox="0 0 20 20" aria-hidden="true">
+            <path d="M10,0C15.52,0,20,4.48,20,10C20,15.52,15.52,20,10,20C4.48,20,0,15.52,0,10C0,4.48,4.48,0,10,0ZM4.0233202,13.4163C5.4908299,15.606899,7.6951103,17,10.1597,17C12.6243,17,14.8286,15.606899,16.296101,13.4163C14.688499,11.9172,12.5312,11,10.1597,11C7.7882099,11,5.63095,11.9172,4.0233202,13.4163ZM10,9C11.6569,9,13,7.6568499,13,6C13,4.3431501,11.6569,3,10,3C8.3430996,3,7,4.3431501,7,6C7,7.6568499,8.3430996,9,10,9Z" />
+          </svg>
+          <span class="account-trigger__name">{{ username }}</span>
+          <DownOutlined class="account-trigger__arrow" aria-hidden="true" />
+        </button>
+
+        <Transition name="menu-popover">
+          <div v-if="accountMenuOpen" class="account-popover">
+            <button class="logout-btn" type="button" :disabled="loggingOut" @click="handleLogout">
+              <LogoutOutlined aria-hidden="true" />
+              {{ loggingOut ? '退出中' : '退出登录' }}
+            </button>
+          </div>
+        </Transition>
+      </div>
     </div>
   </header>
 </template>
@@ -60,6 +84,7 @@
 import {
   AlertOutlined,
   DashboardOutlined,
+  DownOutlined,
   HistoryOutlined,
   LogoutOutlined,
   MenuOutlined,
@@ -87,6 +112,7 @@ defineEmits(['navigate']);
 
 const loggingOut = ref(false);
 const userMenuOpen = ref(false);
+const accountMenuOpen = ref(false);
 const unhandledAlarmCount = ref(0);
 const unhandledAlarmDisplay = computed(() => unhandledAlarmCount.value > 999 ? '999+' : unhandledAlarmCount.value);
 const username = computed(() => {
@@ -98,6 +124,12 @@ let alarmRefreshTimer = null;
 function handleUserAreaFocusOut(event) {
   if (!event.currentTarget.contains(event.relatedTarget)) {
     userMenuOpen.value = false;
+  }
+}
+
+function handleAccountAreaFocusOut(event) {
+  if (!event.currentTarget.contains(event.relatedTarget)) {
+    accountMenuOpen.value = false;
   }
 }
 
@@ -291,50 +323,24 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
-.menu-account {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 7px;
-  padding: 10px 8px 2px;
-  border-top: 1px solid rgba(72, 158, 216, 0.3);
-}
-
-.menu-account__name {
-  min-width: 0;
-  overflow: hidden;
-  color: #8fb9d4;
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.logout-btn {
-  display: inline-flex;
-  height: 28px;
-  align-items: center;
-  gap: 5px;
-  padding: 0 8px;
-  border-color: rgba(255, 104, 94, 0.42);
-  background: rgba(105, 24, 32, 0.48);
-  color: #ffaaa4;
-  font-size: 11px;
-  white-space: nowrap;
-}
-
-.plc-status {
+.header-status {
   position: absolute;
   top: 47px;
   right: 42px;
   z-index: 3;
   display: inline-flex;
   align-items: center;
+  gap: 20px;
+  pointer-events: auto;
+}
+
+.plc-status {
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
   color: #f4fbff;
   font-size: 14px;
   line-height: 24px;
-  pointer-events: auto;
 }
 
 .plc-status__dot {
@@ -343,6 +349,96 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   background: #57e29b;
   box-shadow: 0 0 9px rgba(87, 226, 155, 0.75);
+}
+
+.header-account {
+  position: relative;
+}
+
+.account-trigger {
+  display: inline-flex;
+  height: 28px;
+  max-width: 190px;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #f4fbff;
+  font-size: 14px;
+  line-height: 28px;
+}
+
+.account-trigger:hover,
+.account-trigger:focus-visible,
+.account-trigger[aria-expanded='true'] {
+  outline: 0;
+  color: #69dcff;
+  text-shadow: 0 0 8px rgba(72, 199, 255, 0.5);
+}
+
+.account-trigger :deep(svg) {
+  flex: 0 0 auto;
+}
+
+.account-trigger__user-icon {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.account-trigger__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-trigger__arrow {
+  width: 11px;
+  height: 11px;
+  transition: transform 0.16s ease;
+}
+
+.account-trigger[aria-expanded='true'] .account-trigger__arrow {
+  transform: rotate(180deg);
+}
+
+.account-popover {
+  position: absolute;
+  top: 34px;
+  right: 0;
+  width: 142px;
+  padding: 6px;
+  border: 1px solid rgba(81, 190, 246, 0.58);
+  border-radius: 4px;
+  background: rgba(2, 25, 49, 0.96);
+  box-shadow: 0 12px 30px rgba(0, 8, 24, 0.5), inset 0 0 20px rgba(25, 147, 225, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+.logout-btn {
+  display: inline-flex;
+  width: 100%;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid rgba(255, 104, 94, 0.42);
+  border-radius: 3px;
+  background: rgba(105, 24, 32, 0.48);
+  color: #ffaaa4;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.logout-btn:hover,
+.logout-btn:focus-visible {
+  border-color: rgba(255, 132, 122, 0.76);
+  outline: 0;
+  background: rgba(132, 31, 40, 0.68);
+  color: #ffd2cf;
 }
 
 .menu-popover-enter-active,
@@ -365,7 +461,7 @@ onBeforeUnmount(() => {
     left: 28px;
   }
 
-  .plc-status {
+  .header-status {
     right: 30px;
   }
 }

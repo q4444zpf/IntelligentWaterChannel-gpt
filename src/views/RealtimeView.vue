@@ -459,7 +459,6 @@ onBeforeUnmount(() => {
 
 .right-stack {
   right: 0;
-  bottom: 82px;
   width: clamp(336px, 19vw, 372px);
 }
 
@@ -828,10 +827,6 @@ onBeforeUnmount(() => {
 }
 
 @media (max-height: 820px) {
-  .right-stack {
-    bottom: 64px;
-  }
-
   .gate-panel {
     flex-basis: 176px;
   }
