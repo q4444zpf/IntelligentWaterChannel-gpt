@@ -1,8 +1,11 @@
 <template>
   <div class="time-range-picker">
-    <div class="range-presets" aria-label="时间范围">
-      <button v-for="preset in presets" :key="preset.key" type="button" :class="{ active: rangeKey === preset.key }" @click="choosePreset(preset.key)">{{ preset.label }}</button>
-    </div>
+    <label class="range-select">
+      <span>时间</span>
+      <select :value="rangeKey" aria-label="时间范围" @change="handlePresetChange">
+        <option v-for="preset in presets" :key="preset.key" :value="preset.key">{{ preset.label }}</option>
+      </select>
+    </label>
     <div v-if="rangeKey === 'custom'" class="custom-range">
       <input v-model="startValue" type="datetime-local" aria-label="自定义开始时间" @change="submitCustom">
       <span>至</span>
@@ -28,6 +31,9 @@ const startValue = ref(toInput(props.customRange?.startTime ?? now - 3_600_000))
 const endValue = ref(toInput(props.customRange?.endTime ?? now));
 const validationError = ref('');
 function choosePreset(key: TimeRangeKey) { key === 'custom' ? emit('change', key, { startTime: new Date(startValue.value).getTime(), endTime: new Date(endValue.value).getTime() }) : emit('change', key); }
+function handlePresetChange(event: Event) {
+  choosePreset((event.target as HTMLSelectElement).value as TimeRangeKey);
+}
 function submitCustom() {
   const custom = { startTime: new Date(startValue.value).getTime(), endTime: new Date(endValue.value).getTime() };
   validationError.value = custom.startTime >= custom.endTime ? '开始时间须早于结束时间' : '';
@@ -36,9 +42,72 @@ function submitCustom() {
 </script>
 
 <style scoped>
-.time-range-picker { display: flex; gap: 6px; align-items: center; min-width: 0; }
-.range-presets { display: flex; gap: 4px; }.range-presets button { padding: 4px 7px; font-size: 9px; white-space: nowrap; }
-.custom-range { position: relative; display: flex; gap: 4px; align-items: center; color: #7898b6; font-size: 9px; }
-.custom-range input { width: 130px; height: 25px; padding: 0 4px; border: 1px solid rgba(74, 151, 207, .34); border-radius: 4px; background: rgba(2, 15, 28, .85); color: #cfe1f0; font-size: 9px; }
-.custom-range em { position: absolute; left: 0; top: 27px; color: #ff8f86; font-style: normal; white-space: nowrap; }
+.time-range-picker {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.range-select {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #82a2bd;
+  font-size: 10px;
+}
+
+.range-select select {
+  width: 96px;
+  height: 27px;
+  border: 1px solid rgba(72, 151, 207, .42);
+  border-radius: 4px;
+  outline: 0;
+  padding: 0 22px 0 7px;
+  background: rgba(2, 18, 32, .92);
+  color: #d9ecff;
+  font-size: 10px;
+}
+
+.range-select select:focus {
+  border-color: #39a9ef;
+  box-shadow: 0 0 0 2px rgba(57, 169, 239, .12);
+}
+
+.custom-range {
+  position: absolute;
+  top: 31px;
+  right: 0;
+  z-index: 8;
+  display: flex;
+  width: max-content;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(74, 151, 207, .42);
+  padding: 6px;
+  background: rgba(2, 18, 32, .97);
+  box-shadow: 0 8px 18px rgba(0, 8, 18, .45);
+  color: #7898b6;
+  font-size: 9px;
+}
+
+.custom-range input {
+  width: 112px;
+  height: 25px;
+  border: 1px solid rgba(74, 151, 207, .34);
+  border-radius: 4px;
+  padding: 0 4px;
+  background: rgba(2, 15, 28, .85);
+  color: #cfe1f0;
+  font-size: 9px;
+}
+
+.custom-range em {
+  position: absolute;
+  top: 39px;
+  right: 6px;
+  color: #ff8f86;
+  font-style: normal;
+  white-space: nowrap;
+}
 </style>

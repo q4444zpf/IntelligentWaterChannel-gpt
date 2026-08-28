@@ -1,5 +1,50 @@
 <template>
   <DecorativePanel class="panel chart-panel trend-analysis" title="实时趋势分析">
+    <template #heading-action>
+      <button
+        ref="settingsButtonRef"
+        class="trend-settings-trigger"
+        type="button"
+        title="趋势设置"
+        aria-label="趋势设置"
+        :aria-expanded="settingsOpen"
+        @click="settingsOpen = !settingsOpen"
+      >
+        <SettingOutlined aria-hidden="true" />
+      </button>
+    </template>
+
+    <Transition name="trend-settings-popover">
+      <section
+        v-if="settingsOpen"
+        ref="settingsPanelRef"
+        class="trend-settings-popover"
+        role="dialog"
+        aria-labelledby="trend-settings-title"
+        @keydown.esc.stop="closeTrendSettings"
+      >
+        <header class="trend-settings-head">
+          <strong id="trend-settings-title">趋势设置</strong>
+          <button type="button" title="关闭" aria-label="关闭趋势设置" @click="closeTrendSettings">
+            <CloseOutlined aria-hidden="true" />
+          </button>
+        </header>
+        <div v-if="isNode" class="trend-settings-static">
+          <span>设备<b>全部水位节点</b></span>
+          <span>时间<b>实时数据</b></span>
+        </div>
+        <div v-else class="trend-settings-form">
+          <TrendDeviceSelect :devices="devices" :model-value="selectedDeviceId" :loading="trendDevicesLoading"
+                             :error="trendDevicesError" @update:model-value="setSelectedDeviceId"/>
+          <TimeRangePicker :range-key="rangeKey" :custom-range="customRange" @change="setRange"/>
+          <label class="trend-update-setting">
+            <span>自动更新</span>
+            <input type="checkbox" :checked="!trendPaused" @change="toggleTrendPolling">
+          </label>
+        </div>
+      </section>
+    </Transition>
+
     <div class="trend-analysis-tabs">
       <span class="trend-analysis-time">
         <ClockCircleOutlined aria-hidden="true" />
@@ -14,14 +59,8 @@
 
       <div v-else class="trend-workbench">
         <div class="trend-main">
-          <div class="trend-toolbar">
-            <TrendDeviceSelect :devices="devices" :model-value="selectedDeviceId" :loading="trendDevicesLoading"
-                               :error="trendDevicesError" @update:model-value="setSelectedDeviceId"/>
-            <TimeRangePicker :range-key="rangeKey" :custom-range="customRange" @change="setRange"/>
-            <div class="trend-live-status">
-              <span class="refresh-status" :title="trendUpdatedLabel">MQTT 实时更新</span>
-            </div>
-            <div v-if="config.showStatistics" class="trend-statistics">
+          <div v-if="config.showStatistics" class="trend-toolbar">
+            <div class="trend-statistics">
               <span v-for="item in statistics" :key="item.device.id"><b
                   :style="{ color: item.device.color }">{{ item.device.name }}</b> 当前 {{ formatStat(item.current) }}<template
                   v-if="item.min !== null"> / {{ formatStat(item.min) }}–{{ formatStat(item.max) }}</template><i
@@ -29,9 +68,6 @@
                   item.running ? '运行' : '停止'
                 }}</i></span>
             </div>
-            <button class="trend-polling-toggle" type="button" @click="toggleTrendPolling">
-              {{ trendPaused ? '继续' : '暂停' }}
-            </button>
           </div>
           <TrendChart ref="trendChart" :config="config" :snapshot="trendSnapshot" :loading="trendDevicesLoading"
                       :error="trendDevicesError" compact/>
@@ -42,8 +78,8 @@
 </template>
 
 <script setup lang="ts">
-import {ClockCircleOutlined} from '@ant-design/icons-vue';
-import {computed, onMounted, reactive, ref, toRef, watch} from 'vue';
+import {ClockCircleOutlined, CloseOutlined, SettingOutlined} from '@ant-design/icons-vue';
+import {computed, onBeforeUnmount, onMounted, reactive, ref, toRef, watch} from 'vue';
 import {getBigWaterChannelHistory} from '../../../api/history.js';
 import {getRealtimeTrendDevices} from '../../../api/realtime.js';
 import {
@@ -91,6 +127,9 @@ const props = withDefaults(defineProps<{
 const activeTab = ref<TrendTabKey>('node');
 const profileChart = ref<InstanceType<typeof RealtimeWaterProfileChart> | null>(null);
 const trendChart = ref<InstanceType<typeof TrendChart> | null>(null);
+const settingsOpen = ref(false);
+const settingsButtonRef = ref<HTMLButtonElement | null>(null);
+const settingsPanelRef = ref<HTMLElement | null>(null);
 const trendTypes: TrendType[] = ['flow', 'level', 'pump', 'siphon'];
 const trendDevicesByType = reactive<Record<TrendType, TrendDevice[]>>({
   flow: [], level: [], pump: [], siphon: [],
@@ -142,7 +181,6 @@ const {
 const isNode = computed(() => activeTab.value === 'node');
 const trendDevicesLoading = computed(() => trendLoadingByType[config.value.key] || trendInitialLoading.value);
 const trendDevicesError = computed(() => trendErrorByType[config.value.key] || trendInitialError.value);
-const timeLabel = (value: number | null) => value ? new Date(value).toLocaleTimeString('zh-CN', {hour12: false}) : '等待首次数据';
 const dateTimeLabel = (value: number | null) => value ? new Intl.DateTimeFormat('zh-CN', {
   year: 'numeric', month: '2-digit', day: '2-digit',
   hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
@@ -150,7 +188,6 @@ const dateTimeLabel = (value: number | null) => value ? new Intl.DateTimeFormat(
 const activeUpdatedLabel = computed(() => dateTimeLabel(
   isNode.value ? props.profileTimestamp : trendUpdated.value,
 ));
-const trendUpdatedLabel = computed(() => `最近更新：${timeLabel(trendUpdated.value)}`);
 
 async function loadTrendDevices(type: TrendType) {
   trendLoadingByType[type] = true;
@@ -173,13 +210,31 @@ function toggleTrendPolling() {
   trendPaused.value ? trendResume() : trendPause();
 }
 
+function closeTrendSettings() {
+  settingsOpen.value = false;
+  settingsButtonRef.value?.focus();
+}
+
+function handleSettingsPointerDown(event: PointerEvent) {
+  const target = event.target as Node;
+  if (settingsButtonRef.value?.contains(target) || settingsPanelRef.value?.contains(target)) return;
+  settingsOpen.value = false;
+}
+
 function formatStat(value: number | null) {
   return value === null ? '--' : `${value.toFixed(config.value.precision)}${config.value.unit}`;
 }
 
-onMounted(() => trendTypes.forEach((type) => {
-  void loadTrendDevices(type);
-}));
+onMounted(() => {
+  trendTypes.forEach((type) => {
+    void loadTrendDevices(type);
+  });
+  document.addEventListener('pointerdown', handleSettingsPointerDown);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', handleSettingsPointerDown);
+});
 </script>
 
 <style scoped>
@@ -247,20 +302,6 @@ onMounted(() => trendTypes.forEach((type) => {
   border: 0;
   border-radius: 0;
   background: transparent;
-}
-
-.trend-live-status {
-  display: flex;
-  gap: 5px;
-  align-items: center;
-  white-space: nowrap;
-}
-
-.trend-polling-toggle {
-  flex: 0 0 auto;
-  margin-left: auto;
-  padding: 5px 8px;
-  font-size: 10px;
 }
 
 .trend-workbench {
@@ -338,15 +379,130 @@ onMounted(() => trendTypes.forEach((type) => {
   color: #8b99a8;
 }
 
-@media (max-width: 1400px) {
-  .trend-toolbar {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .trend-polling-toggle {
-    align-self: flex-end;
-    margin-left: 0;
-  }
+.trend-settings-trigger {
+  position: absolute;
+  top: 7px;
+  right: 12px;
+  z-index: 2;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #b9dcf1;
 }
+
+.trend-settings-trigger:hover,
+.trend-settings-trigger:focus-visible,
+.trend-settings-trigger[aria-expanded='true'] {
+  outline: 0;
+  background: rgba(28, 119, 177, 0.34);
+  box-shadow: 0 0 10px rgba(47, 190, 242, 0.24);
+  color: #ffffff;
+}
+
+.trend-settings-trigger :deep(svg) {
+  width: 16px;
+  height: 16px;
+}
+
+.trend-settings-popover {
+  position: absolute;
+  top: 38px;
+  right: 8px;
+  z-index: 20;
+  width: 276px;
+  border: 1px solid rgba(72, 178, 235, 0.58);
+  padding: 7px;
+  background: rgba(2, 25, 49, 0.97);
+  box-shadow: 0 14px 32px rgba(0, 8, 22, 0.58), inset 0 0 20px rgba(25, 147, 225, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+.trend-settings-head {
+  display: flex;
+  height: 28px;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(72, 158, 216, 0.28);
+  padding: 0 2px 6px 7px;
+}
+
+.trend-settings-head strong {
+  color: #e9f8ff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.trend-settings-head button {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #8fb6cf;
+}
+
+.trend-settings-head button:hover,
+.trend-settings-head button:focus-visible {
+  outline: 0;
+  background: rgba(35, 127, 183, 0.28);
+  color: #ffffff;
+}
+
+.trend-settings-form,
+.trend-settings-static {
+  display: grid;
+  gap: 9px;
+  padding: 10px 7px 5px;
+}
+
+.trend-settings-form :deep(.trend-device-select),
+.trend-settings-form :deep(.range-select),
+.trend-update-setting,
+.trend-settings-static > span {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  color: #82a2bd;
+  font-size: 10px;
+}
+
+.trend-settings-form :deep(.trend-device-select select),
+.trend-settings-form :deep(.range-select select) {
+  width: 100%;
+}
+
+.trend-settings-static b {
+  color: #d9ecff;
+  font-weight: 500;
+}
+
+.trend-update-setting input {
+  justify-self: end;
+  width: 30px;
+  height: 16px;
+  margin: 0;
+  accent-color: #27b9ed;
+  cursor: pointer;
+}
+
+.trend-settings-popover-enter-active,
+.trend-settings-popover-leave-active {
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.trend-settings-popover-enter-from,
+.trend-settings-popover-leave-to {
+  opacity: 0;
+  transform: translateY(-5px);
+}
+
 </style>

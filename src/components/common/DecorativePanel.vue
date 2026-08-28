@@ -9,14 +9,16 @@
 
         <h2 class="decorative-panel__title">{{ title }}</h2>
 
-        <button
-          v-if="actionText"
-          class="decorative-panel__action"
-          type="button"
-          @click="handleActionClick"
-        >
-          {{ actionText }}
-        </button>
+        <slot name="heading-action">
+          <button
+            v-if="actionText"
+            class="decorative-panel__action"
+            type="button"
+            @click="handleActionClick"
+          >
+            {{ actionText }}
+          </button>
+        </slot>
       </div>
 
       <img
