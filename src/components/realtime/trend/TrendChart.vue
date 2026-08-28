@@ -54,7 +54,19 @@ onBeforeUnmount(() => { resizeObserver?.disconnect(); chart?.dispose(); });
 
 <style scoped>
 .trend-chart-shell { position: relative; flex: 1; min-width: 0; min-height: 180px; overflow: hidden; border: 0; border-radius: 0; background: transparent; }
-.trend-chart-canvas { width: 100%; height: 100%; }
+.trend-chart-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.trend-chart-canvas :deep(canvas) {
+  margin: 0;
+  border-radius: 0;
+  background: transparent;
+}
 .trend-chart-state { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; color: #7898b6; font-size: 12px; }
 .trend-spinner { display: inline-block; width: 11px; height: 11px; border: 2px solid rgba(57, 246, 255, .25); border-top-color: #39f6ff; border-radius: 50%; animation: trend-spin .8s linear infinite; }
 .trend-chart-error { position: absolute; left: 10px; top: 42px; z-index: 4; padding: 4px 7px; border: 1px solid rgba(255, 117, 104, .35); border-radius: 4px; color: #ffaaa2; background: rgba(60, 17, 20, .88); font-size: 11px; }

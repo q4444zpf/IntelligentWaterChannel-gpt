@@ -85,8 +85,18 @@ onBeforeUnmount(() => {
 }
 
 .water-profile-chart {
+  display: block;
   width: 100%;
   height: 100%;
+  margin: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.water-profile-chart :deep(canvas) {
+  margin: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .profile-state {
