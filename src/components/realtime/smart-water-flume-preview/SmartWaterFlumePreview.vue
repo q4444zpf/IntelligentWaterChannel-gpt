@@ -14,7 +14,10 @@
         :aria-expanded="labelVisibilityOpen"
         :aria-pressed="labelVisibilityOpen"
         @click="labelVisibilityOpen = !labelVisibilityOpen; sceneTreeOpen = false"
-      ><TagsOutlined aria-hidden="true" /></button>
+      >
+        <span class="scene-control-hint" aria-hidden="true">标签设置</span>
+        <TagsOutlined aria-hidden="true" />
+      </button>
       <button
         v-if="modelGroupTree.length"
         type="button"
@@ -24,7 +27,10 @@
         aria-label="只显示选中对象"
         title="只显示选中对象"
         @click="setSelectedModelIsolation(!selectedModelIsolationEnabled)"
-      ><AimOutlined aria-hidden="true" /></button>
+      >
+        <span class="scene-control-hint" aria-hidden="true">选中定位</span>
+        <AimOutlined aria-hidden="true" />
+      </button>
       <button
         v-if="modelGroupTree.length"
         type="button"
@@ -36,7 +42,10 @@
         :aria-expanded="sceneTreeOpen"
         :aria-pressed="sceneTreeOpen"
         @click="sceneTreeOpen = !sceneTreeOpen; labelVisibilityOpen = false"
-      ><ApartmentOutlined aria-hidden="true" /></button>
+      >
+        <span class="scene-control-hint" aria-hidden="true">场景树</span>
+        <ApartmentOutlined aria-hidden="true" />
+      </button>
     </div>
 
     <div
@@ -2124,6 +2133,7 @@ defineExpose({
 .preview-scene-controls .label-visibility-trigger,
 .preview-scene-controls .selected-model-isolation,
 .preview-scene-controls .scene-tree-trigger {
+  position: relative;
   display: inline-grid;
   width: 44px;
   height: 44px;
@@ -2132,13 +2142,47 @@ defineExpose({
   padding: 0;
   border: 1px solid rgba(104, 211, 255, 0.66);
   border-radius: 50%;
-  overflow: hidden;
+  overflow: visible;
   background: rgba(5, 48, 82, 0.88);
   box-shadow: inset 0 0 14px rgba(74, 192, 255, 0.2), 0 6px 18px rgba(0, 10, 25, 0.4);
   color: #dff5ff;
   font-size: 20px;
   line-height: 1;
   transition: border-color 0.14s ease, background 0.14s ease, box-shadow 0.14s ease, color 0.14s ease;
+}
+
+.scene-control-hint {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 16px);
+  color: #dff5ff;
+  font-size: 14px;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(5px, -50%);
+  filter: drop-shadow(0 0 5px rgba(62, 196, 255, 0.7));
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.scene-control-hint::after {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 6px);
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 7px solid #54cfff;
+  content: '';
+  transform: translateY(-50%);
+}
+
+.preview-scene-controls button:hover .scene-control-hint,
+.preview-scene-controls button:focus-visible .scene-control-hint {
+  opacity: 1;
+  transform: translate(0, -50%);
 }
 
 .preview-scene-controls .label-visibility-trigger:hover,
