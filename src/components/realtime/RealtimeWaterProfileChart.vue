@@ -77,11 +77,11 @@ onBeforeUnmount(() => {
   flex: 1;
   min-width: 0;
   min-height: 180px;
-  margin: 4px 12px 10px;
+  margin: 0;
   overflow: hidden;
-  border: 1px solid rgba(54, 135, 190, .2);
-  border-radius: 6px;
-  background: rgba(2, 16, 29, .72);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .water-profile-chart {

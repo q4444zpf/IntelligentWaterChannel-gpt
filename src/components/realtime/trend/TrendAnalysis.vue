@@ -59,16 +59,6 @@
 
       <div v-else class="trend-workbench">
         <div class="trend-main">
-          <div v-if="config.showStatistics" class="trend-toolbar">
-            <div class="trend-statistics">
-              <span v-for="item in statistics" :key="item.device.id"><b
-                  :style="{ color: item.device.color }">{{ item.device.name }}</b> 当前 {{ formatStat(item.current) }}<template
-                  v-if="item.min !== null"> / {{ formatStat(item.min) }}–{{ formatStat(item.max) }}</template><i
-                  v-if="item.running !== undefined" :class="{ stopped: !item.running }">{{
-                  item.running ? '运行' : '停止'
-                }}</i></span>
-            </div>
-          </div>
           <TrendChart ref="trendChart" :config="config" :snapshot="trendSnapshot" :loading="trendDevicesLoading"
                       :error="trendDevicesError" compact/>
         </div>
@@ -156,7 +146,6 @@ const {
   selectedDeviceId,
   config,
   devices,
-  statistics,
   setTrendType,
   setSelectedDeviceId,
   setRange,
@@ -219,10 +208,6 @@ function handleSettingsPointerDown(event: PointerEvent) {
   const target = event.target as Node;
   if (settingsButtonRef.value?.contains(target) || settingsPanelRef.value?.contains(target)) return;
   settingsOpen.value = false;
-}
-
-function formatStat(value: number | null) {
-  return value === null ? '--' : `${value.toFixed(config.value.precision)}${config.value.unit}`;
 }
 
 onMounted(() => {
@@ -308,7 +293,7 @@ onBeforeUnmount(() => {
   flex: 1;
   min-width: 0;
   min-height: 0;
-  margin: 0 10px 10px;
+  margin: 0;
   overflow: hidden;
   border: 0;
   border-radius: 0;
@@ -321,16 +306,8 @@ onBeforeUnmount(() => {
   height: 100%;
   min-width: 0;
   min-height: 0;
-  padding: 6px;
-  gap: 5px;
-}
-
-.trend-toolbar {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 10px;
-  min-height: 28px;
+  padding: 0;
+  gap: 0;
 }
 
 .fixed-device {
@@ -349,34 +326,6 @@ onBeforeUnmount(() => {
   color: #d9ecff;
   background: rgba(2, 18, 32, .8);
   font-weight: 500;
-}
-
-.trend-statistics {
-  display: flex;
-  gap: 5px;
-  min-width: 0;
-  overflow-x: auto;
-}
-
-.trend-statistics > span {
-  flex: 0 0 auto;
-  color: #7898b4;
-  font-size: 8px;
-  white-space: nowrap;
-}
-
-.trend-statistics b {
-  margin-right: 3px;
-}
-
-.trend-statistics i {
-  margin-left: 4px;
-  color: #55dc83;
-  font-style: normal;
-}
-
-.trend-statistics i.stopped {
-  color: #8b99a8;
 }
 
 .trend-settings-trigger {

@@ -50,11 +50,9 @@ export function buildRealtimeTrendOption(config: TrendConfig, snapshot: TrendSna
   return {
     animation: false,
     textStyle: { color: '#a9bdd5', fontFamily: 'Microsoft YaHei, sans-serif' },
-    legend: { type: 'scroll', top: 8, left: 14, right: 72, data: series.map((item) => item.name), textStyle: { color: '#b4c9df' }, pageTextStyle: { color: '#8eb5d8' } },
+    legend: { type: 'scroll', top: 8, left: 14, right: 14, data: series.map((item) => item.name), textStyle: { color: '#b4c9df' }, pageTextStyle: { color: '#8eb5d8' } },
     tooltip: { trigger: 'axis', confine: true, formatter: tooltipFormatter, axisPointer: { type: 'cross', label: { backgroundColor: '#1d648c' } }, backgroundColor: 'rgba(3, 20, 36, .97)', borderColor: '#297eb9', textStyle: { color: '#e8f4ff' } },
-    toolbox: { right: 10, top: 3, iconStyle: { borderColor: '#7eaaca' }, emphasis: { iconStyle: { borderColor: '#39f6ff' } }, feature: { dataZoom: { yAxisIndex: 'none', title: { zoom: '框选缩放', back: '缩放回退' } }, brush: { type: ['lineX', 'clear'], title: { lineX: '框选区间', clear: '清除框选' } }, restore: { title: '恢复视图' } } },
-    brush: { xAxisIndex: 0, brushMode: 'single', throttleType: 'debounce', throttleDelay: 300 },
-    grid: { left: compact ? 50 : 58, right: 24, top: 50, bottom: 60, containLabel: true },
+    grid: { left: compact ? 50 : 58, right: 24, top: 50, bottom: compact ? 36 : 42, containLabel: true },
     xAxis: {
       type: 'time',
       min: snapshot.startTime,
@@ -67,10 +65,6 @@ export function buildRealtimeTrendOption(config: TrendConfig, snapshot: TrendSna
       splitLine: { show: false }
     },
     yAxis: { type: 'value', scale: true, name: `${config.axisName}（${config.unit}）`, nameLocation: 'middle', nameRotate: 90, nameGap: 42, axisLine: { show: true, lineStyle: { color: '#526e88' } }, axisLabel: { color: '#8fa9c2' }, splitLine: { lineStyle: { color: 'rgba(88, 137, 178, .16)' } } },
-    dataZoom: [
-      { type: 'inside', filterMode: 'none', minSpan: 5 },
-      { type: 'slider', filterMode: 'none', height: 16, bottom: 7, borderColor: 'rgba(68, 135, 193, .3)', backgroundColor: 'rgba(3, 19, 34, .65)', fillerColor: 'rgba(38, 168, 255, .18)', handleStyle: { color: '#26a8ff' }, textStyle: { color: '#7895b4', fontSize: 9 } }
-    ],
     series
   };
 }

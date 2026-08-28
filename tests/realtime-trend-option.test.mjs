@@ -7,7 +7,7 @@ import { buildRealtimeTrendOption } from '../src/realtime-trend-option.ts';
 
 const now = Date.UTC(2026, 6, 17, 8, 0, 0);
 
-test('builds shared time axes, zoom, brush, and ordered series', async () => {
+test('builds shared time axes and ordered series without viewport controls', async () => {
   const snapshot = await queryTrendData({ trendType: 'level', deviceIds: ['WL-01', 'WL-02'], startTime: now - 600_000, endTime: now, now });
   const option = buildRealtimeTrendOption(TREND_CONFIGS.level, snapshot);
   assert.equal(option.xAxis.type, 'time');
@@ -16,8 +16,9 @@ test('builds shared time axes, zoom, brush, and ordered series', async () => {
   assert.equal(option.animation, false);
   assert.match(option.yAxis.name, /m/);
   assert.deepEqual(option.series.map((item) => item.name), ['渠①水位计', '渠②水位计']);
-  assert.deepEqual(option.dataZoom.map((item) => item.type), ['inside', 'slider']);
-  assert.ok(option.toolbox.feature.brush);
+  assert.equal(option.dataZoom, undefined);
+  assert.equal(option.brush, undefined);
+  assert.equal(option.toolbox, undefined);
   assert.equal(option.tooltip.confine, true);
   assert.deepEqual(option.series[0].markLine.data.map((line) => line.yAxis), [0.5, 0.2]);
   assert.equal(option.series[1].markLine, undefined);
