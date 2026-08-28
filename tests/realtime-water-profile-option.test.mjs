@@ -17,8 +17,7 @@ const snapshot = buildWaterProfileSnapshot({
 test('builds a latest-time profile using the backend topology labels', () => {
   const option = buildRealtimeWaterProfileOption(snapshot);
 
-  assert.equal(option.title.text, '节点水位空间剖面');
-  assert.match(option.title.subtext, /最新时间/);
+  assert.equal(option.title, undefined);
   assert.equal(option.xAxis.type, 'category');
   assert.deepEqual(option.xAxis.data, ['前池', '渠①', '集水池']);
   assert.match(option.yAxis.name, /m/);
@@ -50,5 +49,8 @@ test('formats latest node details and supports a missing MQTT timestamp', () => 
   assert.equal(option.tooltip.confine, true);
 
   const waitingOption = buildRealtimeWaterProfileOption({ ...snapshot, timestamp: null });
-  assert.match(waitingOption.title.subtext, /等待 MQTT 数据/);
+  const waitingHtml = waitingOption.tooltip.formatter([
+    { dataIndex: 0, marker: '<i></i>', value: waitingOption.series[0].data[0] },
+  ]);
+  assert.match(waitingHtml, /等待 MQTT 数据/);
 });

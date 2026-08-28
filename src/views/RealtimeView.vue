@@ -616,22 +616,6 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
-.realtime-info-panel :deep(.trend-tabs) {
-  width: 100%;
-  margin-left: 0;
-  gap: 3px;
-}
-
-.realtime-info-panel :deep(.trend-tabs button) {
-  width: auto;
-  min-width: 0;
-  height: 24px;
-  flex: 1 1 0;
-  padding: 0 2px;
-  font-size: 10px;
-  line-height: 22px;
-}
-
 .realtime-info-panel :deep(.water-profile-shell) {
   min-height: 0;
 }

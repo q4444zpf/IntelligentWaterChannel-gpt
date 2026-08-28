@@ -1,6 +1,10 @@
 <template>
   <DecorativePanel class="panel chart-panel trend-analysis" title="实时趋势分析">
     <div class="trend-analysis-tabs">
+      <span class="trend-analysis-time">
+        <ClockCircleOutlined aria-hidden="true" />
+        {{ activeUpdatedLabel }}
+      </span>
       <TrendTabs v-model:active-key="activeTab" />
     </div>
 
@@ -38,6 +42,7 @@
 </template>
 
 <script setup lang="ts">
+import {ClockCircleOutlined} from '@ant-design/icons-vue';
 import {computed, onMounted, reactive, ref, toRef, watch} from 'vue';
 import {getBigWaterChannelHistory} from '../../../api/history.js';
 import {getRealtimeTrendDevices} from '../../../api/realtime.js';
@@ -138,7 +143,13 @@ const isNode = computed(() => activeTab.value === 'node');
 const trendDevicesLoading = computed(() => trendLoadingByType[config.value.key] || trendInitialLoading.value);
 const trendDevicesError = computed(() => trendErrorByType[config.value.key] || trendInitialError.value);
 const timeLabel = (value: number | null) => value ? new Date(value).toLocaleTimeString('zh-CN', {hour12: false}) : '等待首次数据';
-const nodeUpdatedLabel = computed(() => `最近更新：${timeLabel(props.profileTimestamp)}`);
+const dateTimeLabel = (value: number | null) => value ? new Intl.DateTimeFormat('zh-CN', {
+  year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+}).format(new Date(value)).replaceAll('/', '-') : '等待首次数据';
+const activeUpdatedLabel = computed(() => dateTimeLabel(
+  isNode.value ? props.profileTimestamp : trendUpdated.value,
+));
 const trendUpdatedLabel = computed(() => `最近更新：${timeLabel(trendUpdated.value)}`);
 
 async function loadTrendDevices(type: TrendType) {
@@ -193,38 +204,34 @@ onMounted(() => trendTypes.forEach((type) => {
   display: flex;
   min-width: 0;
   flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   padding: 5px 9px;
   border-bottom: 1px solid rgba(31, 157, 242, 0.24);
 }
 
 .trend-analysis-tabs :deep(.trend-tabs) {
-  width: 100%;
+  flex: 0 0 auto;
   gap: 6px;
 }
 
-.trend-analysis-tabs :deep(.trend-tabs button) {
-  width: 83px;
-  height: 28px;
-  min-width: 83px;
-  flex: 0 0 83px;
-  padding: 0 6px;
-  border: 0 solid #267da1;
-  border-radius: 4px;
-  background: linear-gradient(180deg, rgba(197, 236, 243, 0.2) 0%, rgba(133, 192, 251, 0.5) 100%);
-  box-shadow: inset 0 4px 10px 0 #4c9ef8;
-  color: #e8f8ff;
-  font-size: 12px;
-  line-height: 26px;
+.trend-analysis-time {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  color: #8fb1c8;
+  font-size: 10px;
+  line-height: 28px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.trend-analysis-tabs :deep(.trend-tabs button:hover) {
-  border-color: #267da1;
-  background: linear-gradient(180deg, rgba(197, 236, 243, 0.32) 0%, rgba(133, 192, 251, 0.68) 100%);
-}
-
-.trend-analysis-tabs :deep(.trend-tabs button.active) {
-  border: 1px solid #267da1;
-  background: linear-gradient(180deg, #9adfff 0%, #025acd 100%);
+.trend-analysis-time :deep(svg) {
+  flex: 0 0 auto;
+  color: #a9d7eb;
 }
 
 .trend-analysis-content {
@@ -332,16 +339,6 @@ onMounted(() => trendTypes.forEach((type) => {
 }
 
 @media (max-width: 1400px) {
-  .trend-analysis-tabs :deep(.trend-tabs) {
-    justify-content: center;
-  }
-
-  .trend-analysis-tabs :deep(.trend-tabs button) {
-    width: auto;
-    min-width: 0;
-    flex: 1 1 0;
-  }
-
   .trend-toolbar {
     align-items: flex-start;
     flex-direction: column;

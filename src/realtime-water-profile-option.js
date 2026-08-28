@@ -29,14 +29,6 @@ export function buildRealtimeWaterProfileOption(snapshot) {
     animationDuration: 400,
     animationDurationUpdate: 650,
     animationEasingUpdate: 'cubicInOut',
-    title: {
-      text: '节点水位空间剖面',
-      subtext: `最新时间：${formatTime(snapshot.timestamp)}`,
-      left: 18,
-      top: 8,
-      textStyle: { color: '#eaf7ff', fontSize: 14, fontWeight: 600 },
-      subtextStyle: { color: '#7ea2bf', fontSize: 10 },
-    },
     textStyle: { color: '#a9bdd5', fontFamily: 'Microsoft YaHei, sans-serif' },
     legend: { data: ['最新水位'], top: 10, right: 20, textStyle: { color: '#b9d2e8' } },
     tooltip: {
@@ -44,7 +36,7 @@ export function buildRealtimeWaterProfileOption(snapshot) {
       axisPointer: { type: 'cross', label: { backgroundColor: '#1c668d' } },
       backgroundColor: 'rgba(3, 20, 36, .97)', borderColor: '#298ab3', textStyle: { color: '#e8f7ff' }
     },
-    grid: { left: 62, right: 30, top: 62, bottom: 16, containLabel: true },
+    grid: { left: 62, right: 30, top: 36, bottom: 16, containLabel: true },
     xAxis: {
       type: 'category', data: nodes.map((node) => node.label), name: '', boundaryGap: false,
       axisLine: { lineStyle: { color: '#55718c' } }, axisLabel: { color: '#91abc4', hideOverlap: true, interval: 0, rotate: 28, fontSize: 9 },
