@@ -36,7 +36,7 @@ export function buildRealtimeWaterProfileOption(snapshot) {
       axisPointer: { type: 'cross', label: { backgroundColor: '#1c668d' } },
       backgroundColor: 'rgba(3, 20, 36, .97)', borderColor: '#298ab3', textStyle: { color: '#e8f7ff' }
     },
-    grid: { left: 62, right: 30, top: 36, bottom: 16, containLabel: true },
+    grid: { left: 8, right: 30, top: 36, bottom: 0, containLabel: true },
     xAxis: {
       type: 'category', data: nodes.map((node) => node.label), name: '', boundaryGap: false,
       axisLine: { lineStyle: { color: '#55718c' } }, axisLabel: { color: '#91abc4', hideOverlap: true, interval: 0, rotate: 28, fontSize: 9 },

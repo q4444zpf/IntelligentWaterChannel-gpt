@@ -153,6 +153,10 @@ onBeforeUnmount(() => {
   height: 96px;
   min-height: 96px;
   overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   pointer-events: none;
 }
 

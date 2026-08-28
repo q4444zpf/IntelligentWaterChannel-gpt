@@ -8,7 +8,6 @@
         @mqtt-data="handleMqttData"
         @alarm-notification="handleAlarmNotification"
       />
-      <div class="scene-vignette" aria-hidden="true"></div>
     </div>
 
     <header class="preview-console">
@@ -331,8 +330,7 @@ onBeforeUnmount(() => {
   isolation: isolate;
 }
 
-.scene-stage,
-.scene-vignette {
+.scene-stage {
   position: absolute;
   inset: 0;
 }
@@ -345,14 +343,6 @@ onBeforeUnmount(() => {
 .scene-stage :deep(.flume-preview) {
   position: absolute;
   inset: 0;
-}
-
-.scene-vignette {
-  z-index: 3;
-  background:
-    linear-gradient(90deg, rgba(0, 19, 43, 0.86) 0%, rgba(0, 27, 58, 0.44) 20%, transparent 36%, transparent 65%, rgba(0, 27, 58, 0.34) 80%, rgba(0, 19, 43, 0.82) 100%),
-    linear-gradient(180deg, rgba(0, 21, 47, 0.38) 0%, transparent 20%, transparent 78%, rgba(0, 20, 44, 0.4) 100%);
-  pointer-events: none;
 }
 
 .preview-console {
