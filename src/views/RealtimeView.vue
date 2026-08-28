@@ -56,12 +56,24 @@
       </DecorativePanel>
 
       <DecorativePanel class="panel sensor-panel" title="传感器实时状态">
+        <div v-if="sensorGroups.length" class="sensor-tabs" role="tablist" aria-label="传感器类型">
+          <button
+            v-for="group in sensorGroups"
+            :key="group.name"
+            type="button"
+            role="tab"
+            :aria-selected="selectedSensorGroup?.name === group.name"
+            :class="{ active: selectedSensorGroup?.name === group.name }"
+            @click="activeSensorGroup = group.name"
+          >
+            {{ group.name }}
+          </button>
+        </div>
         <div class="sensor-list">
-          <div v-for="group in sensorGroups" :key="group.name" class="sensor-section">
-            <div class="sensor-title">{{ group.name }}</div>
+          <div v-if="selectedSensorGroup" class="sensor-section" role="tabpanel">
             <table class="data-table compact sensor-status-table">
               <tbody>
-                <tr v-for="row in group.rows" :key="row.tag || row.name">
+                <tr v-for="row in selectedSensorGroup.rows" :key="row.tag || row.name">
                   <td>{{ row.name }}</td>
                   <td>{{ row.location }}</td>
                   <td>{{ row.value }} {{ row.unit }}</td>
@@ -72,7 +84,7 @@
               </tbody>
             </table>
           </div>
-          <div v-if="!sensorGroups.length" class="realtime-empty">{{ deviceMessage }}</div>
+          <div v-else class="realtime-empty">{{ deviceMessage }}</div>
         </div>
       </DecorativePanel>
 
@@ -218,6 +230,10 @@ let pendingRealtimePayload = null;
 const tableData = computed(() => buildRealtimeTableData(deviceGroups.value, realtimeValues));
 const gates = computed(() => tableData.value.gates);
 const sensorGroups = computed(() => tableData.value.sensorGroups);
+const activeSensorGroup = ref('');
+const selectedSensorGroup = computed(() => sensorGroups.value.find(
+  (group) => group.name === activeSensorGroup.value,
+) || sensorGroups.value[0] || null);
 const deviceMessage = computed(() => {
   if (deviceLoading.value) return '正在加载设备配置...';
   return deviceError.value || '暂无设备配置';
@@ -481,6 +497,12 @@ onBeforeUnmount(() => {
   padding: 5px 10px 9px;
 }
 
+.sensor-panel :deep(.decorative-panel__content) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .data-table {
   width: 100%;
   margin: 0;
@@ -532,27 +554,55 @@ onBeforeUnmount(() => {
 }
 
 .sensor-list {
-  height: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(55, 175, 237, 0.5) transparent;
 }
 
-.sensor-section {
-  margin: 0 0 7px;
-  border: 0;
-  background: transparent;
+.sensor-tabs {
+  display: flex;
+  min-width: 0;
+  flex: 0 0 31px;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(31, 157, 242, 0.24);
 }
 
-.sensor-title {
-  display: flex;
-  height: 28px;
-  align-items: center;
-  padding: 0 11px;
-  background: rgba(32, 101, 150, 0.82) url('../assets/table-header.png') right center / auto 100% no-repeat;
-  color: #e7f6ff;
+.sensor-tabs button {
+  min-width: 0;
+  height: 26px;
+  flex: 1 1 0;
+  overflow: hidden;
+  border: 1px solid rgba(49, 151, 214, 0.34);
+  padding: 0 5px;
+  background: rgba(7, 60, 99, 0.56);
+  color: #8ebbd6;
+  font: inherit;
   font-size: 11px;
-  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sensor-tabs button:hover {
+  border-color: rgba(76, 210, 255, 0.68);
+  color: #dff8ff;
+}
+
+.sensor-tabs button.active {
+  border-color: #3ac9f5;
+  background: rgba(21, 126, 180, 0.78);
+  color: #ffffff;
+  box-shadow: inset 0 -2px 0 #6eeaff, 0 0 8px rgba(30, 190, 242, 0.2);
+}
+
+.sensor-section {
+  margin: 0;
+  border: 0;
+  background: transparent;
 }
 
 .sensor-status-table td:nth-child(1) { width: 29%; }
