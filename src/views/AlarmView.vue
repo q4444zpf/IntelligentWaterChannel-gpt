@@ -279,12 +279,6 @@ defineExpose({ refresh });
 </script>
 
 <style scoped>
-@font-face {
-  font-family: 'YouSheTitle';
-  src: url('../assets/优设标题黑.ttf') format('truetype');
-  font-display: swap;
-}
-
 .alarm-page {
   gap: 0;
   padding-top: 10px;
@@ -509,7 +503,7 @@ defineExpose({ refresh });
 
 .alarm-stat-value,
 .alarm-results-head h2 {
-  font-family: 'YouSheTitle', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  font-family: 'SimHei', 'Microsoft YaHei', 'PingFang SC', sans-serif;
   font-weight: normal;
   letter-spacing: 0;
 }

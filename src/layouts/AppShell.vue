@@ -29,6 +29,8 @@ defineEmits(['navigate']);
 .app-shell {
   position: relative;
   height: 100dvh;
+  min-height: 720px;
+  padding: 0;
   isolation: isolate;
   overflow: hidden;
 }
@@ -95,20 +97,34 @@ defineEmits(['navigate']);
   z-index: 1;
 }
 
+.app-shell > header {
+  z-index: 10 !important;
+}
+
 .app-shell > main {
-  padding: 8px 41px 40px;
+  position: relative;
+  z-index: 2;
+  padding: 0 30px 22px;
   min-height: 0;
   display: flex;
   flex: 1;
+  overflow: hidden;
 }
 
 :deep(.page-realtime) {
   height: 100%;
-  gap: 36px;
+  gap: 0;
 }
 
 :deep(.page-history.active),
 :deep(.page-alarm.active) {
   min-height: 0;
+}
+
+@media (max-width: 1500px) {
+  .app-shell > main {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
 }
 </style>

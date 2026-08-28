@@ -2,67 +2,68 @@
   <header class="topbar">
     <img class="topbar-background" :src="headerBackground" alt="" aria-hidden="true">
 
+    <div
+      class="menu-area"
+      @focusout="handleUserAreaFocusOut"
+      @keydown.esc="userMenuOpen = false"
+    >
+      <button
+        class="menu-trigger"
+        type="button"
+        aria-label="打开系统菜单"
+        :aria-expanded="userMenuOpen"
+        @click="userMenuOpen = !userMenuOpen"
+      >
+        <MenuOutlined aria-hidden="true" />
+        <span>菜单</span>
+        <span v-if="unhandledAlarmCount > 0" class="badge">{{ unhandledAlarmDisplay }}</span>
+      </button>
+
+      <Transition name="menu-popover">
+        <nav v-if="userMenuOpen" class="menu-popover" aria-label="主导航">
+          <button
+            v-for="tab in PAGE_TABS"
+            :key="tab.key"
+            class="menu-item"
+            :class="{ active: activePage === tab.key }"
+            type="button"
+            @click="$emit('navigate', tab.key); userMenuOpen = false"
+          >
+            <component :is="PAGE_ICONS[tab.key]" aria-hidden="true" />
+            <span>{{ tab.label }}</span>
+            <span v-if="tab.key === 'alarm' && unhandledAlarmCount > 0" class="menu-item__count">
+              {{ unhandledAlarmDisplay }}
+            </span>
+          </button>
+
+          <div class="menu-account">
+            <span class="menu-account__name">{{ username }}</span>
+            <button class="logout-btn" type="button" :disabled="loggingOut" @click="handleLogout">
+              <LogoutOutlined aria-hidden="true" />
+              {{ loggingOut ? '退出中' : '退出登录' }}
+            </button>
+          </div>
+        </nav>
+      </Transition>
+    </div>
+
     <div class="brand">智能水槽监控系统</div>
 
-    <nav class="main-tabs" aria-label="主导航">
-      <button
-        v-for="tab in PAGE_TABS"
-        :key="tab.key"
-        class="nav-tab"
-        :class="{ active: activePage === tab.key }"
-        @click="$emit('navigate', tab.key)"
-      >
-        <span class="nav-tab__background" aria-hidden="true"></span>
-        <span class="nav-tab__label">{{ tab.label }}</span>
-        <span v-if="tab.key === 'alarm' && unhandledAlarmCount > 0" class="badge">{{ unhandledAlarmDisplay }}</span>
-      </button>
-    </nav>
-
-    <div class="header-right">
-      <div class="header-right__top">
-        <div class="status-strip">
-          <span class="status"><span class="status__dot" aria-hidden="true"></span>PLC 在线</span>
-          <span class="status"><span class="status__dot" aria-hidden="true"></span>WebSocket 已连接</span>
-          <span class="status"><span class="status__dot" aria-hidden="true"></span>数据库 正常</span>
-        </div>
-
-        <div class="header-account">
-          <div class="user-area" @focusout="handleUserAreaFocusOut" @keydown.esc="userMenuOpen = false">
-            <svg class="user-icon" viewBox="0 0 20 20" aria-hidden="true">
-              <path d="M10,0C15.52,0,20,4.48,20,10C20,15.52,15.52,20,10,20C4.48,20,0,15.52,0,10C0,4.48,4.48,0,10,0ZM4.0233202,13.4163C5.4908299,15.606899,7.6951103,17,10.1597,17C12.6243,17,14.8286,15.606899,16.296101,13.4163C14.688499,11.9172,12.5312,11,10.1597,11C7.7882099,11,5.63095,11.9172,4.0233202,13.4163ZM10,9C11.6569,9,13,7.6568499,13,6C13,4.3431501,11.6569,3,10,3C8.3430996,3,7,4.3431501,7,6C7,7.6568499,8.3430996,9,10,9Z" />
-            </svg>
-            <span class="user-name">{{ username }}</span>
-            <button
-              class="user-menu-toggle"
-              type="button"
-              title="用户菜单"
-              aria-label="打开用户菜单"
-              :aria-expanded="userMenuOpen"
-              @click="userMenuOpen = !userMenuOpen"
-            >
-              <svg width="10" height="5" viewBox="0 0 10 5" aria-hidden="true">
-                <path d="M5,5L10,10L0,10L5,5Z" transform="matrix(1,0,0,-1,0,10)" />
-              </svg>
-            </button>
-            <div v-if="userMenuOpen" class="user-menu">
-              <button class="logout-btn" type="button" :disabled="loggingOut" @click="handleLogout">
-                {{ loggingOut ? '退出中' : '退出登录' }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="header-meta">
-        <span>工况：明满流混合实验</span>
-        <span>实验编号：EXP-20260708-001</span>
-        <span>模式：手动控制</span>
-      </div>
+    <div class="plc-status" role="status">
+      <span class="plc-status__dot" aria-hidden="true"></span>
+      <span>PLC在线</span>
     </div>
   </header>
 </template>
 
 <script setup>
+import {
+  AlertOutlined,
+  DashboardOutlined,
+  HistoryOutlined,
+  LogoutOutlined,
+  MenuOutlined,
+} from '@ant-design/icons-vue';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import headerBackground from '../assets/bg-header.png';
@@ -71,10 +72,15 @@ import { normalizeAlarmStatistics } from '../alarm-data.js';
 import { PAGE_TABS } from '../data/monitoring-data.js';
 import { authState, signOut } from '../stores/auth.js';
 
+const PAGE_ICONS = {
+  realtime: DashboardOutlined,
+  history: HistoryOutlined,
+  alarm: AlertOutlined,
+};
 const router = useRouter();
 
 defineProps({
-  activePage: { type: String, required: true }
+  activePage: { type: String, required: true },
 });
 
 defineEmits(['navigate']);
@@ -83,11 +89,11 @@ const loggingOut = ref(false);
 const userMenuOpen = ref(false);
 const unhandledAlarmCount = ref(0);
 const unhandledAlarmDisplay = computed(() => unhandledAlarmCount.value > 999 ? '999+' : unhandledAlarmCount.value);
-let alarmRefreshTimer = null;
 const username = computed(() => {
   const user = authState.user.value;
   return user?.name || user?.username || user?.account || '用户';
 });
+let alarmRefreshTimer = null;
 
 function handleUserAreaFocusOut(event) {
   if (!event.currentTarget.contains(event.relatedTarget)) {
@@ -142,16 +148,12 @@ onBeforeUnmount(() => {
 <style scoped>
 .topbar {
   position: relative;
-  display: block;
+  z-index: 20;
   width: 100%;
   height: 96px;
   min-height: 96px;
-  padding: 0;
   overflow: visible;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
+  pointer-events: none;
 }
 
 .topbar-background {
@@ -159,284 +161,208 @@ onBeforeUnmount(() => {
   top: -4px;
   left: 50%;
   z-index: 0;
+  width: min(100%, 1920px);
   height: 96px;
+  object-fit: fill;
   transform: translateX(-50%);
   pointer-events: none;
 }
 
 .brand {
   position: absolute;
-  top: 0;
+  top: 6px;
   left: 50%;
   z-index: 2;
-  display: flex;
-  height: 57px;
-  align-items: center;
-  justify-content: center;
+  color: #fff;
+  font-family: 'SimHei', 'Microsoft YaHei', sans-serif;
+  font-size: 46px;
+  line-height: 54px;
+  text-shadow: 0 2px 0 #78cfff, 0 0 18px rgba(50, 174, 255, 0.48);
   transform: translateX(-50%);
-  background: linear-gradient(180deg, #ffffff 44%, #5dccff 100%);
-  background-clip: text;
-  color: transparent;
-  font-size: 48px;
-  font-variation-settings: 'opsz' 0;
-  font-feature-settings: 'kern' on;
-  font-weight: bold;
-  letter-spacing: 0.1em;
-  line-height: normal;
   white-space: nowrap;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
 }
 
-.main-tabs {
+.menu-area {
   position: absolute;
-  top: 37px;
-  left: 87px;
-  z-index: 3;
-  display: flex;
-  height: 48px;
-  align-items: stretch;
-  gap: 8px;
+  top: 38px;
+  left: 38px;
+  z-index: 4;
+  pointer-events: auto;
 }
 
-.nav-tab {
-  position: relative;
-  isolation: isolate;
-  display: flex;
-  width: 152px;
-  height: 48px;
-  flex: 0 0 152px;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 0;
-  overflow: visible;
-  border: 0;
-  border-radius: 12px;
-  background: transparent;
-  box-sizing: border-box;
-  color: #f4fbff;
-  font-family: 'Microsoft YaHei', sans-serif;
-  font-size: 22px;
-  font-weight: bold;
-  letter-spacing: 0;
-  line-height: normal;
-  box-shadow: none;
-}
-
-.nav-tab::before,
-.nav-tab::after {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  border-radius: 12px;
-  box-sizing: border-box;
-  content: '';
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  mask-composite: exclude;
-  pointer-events: none;
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-}
-
-.nav-tab::before {
-  padding: 1px;
-  background: linear-gradient(270deg, #67cfff 0%, rgba(151, 191, 242, 0) 100%);
-}
-
-.nav-tab::after {
-  padding: 2px;
-  background: linear-gradient(47deg, #67cfff 21%, rgba(151, 191, 242, 0) 53%);
-}
-
-.nav-tab__background {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background: url('../assets/tab-button-bg.png') center / 100% 100% no-repeat;
-  pointer-events: none;
-}
-
-.nav-tab.active .nav-tab__background {
-  inset: auto;
-  top: calc(50% + 4px);
-  left: 50%;
-  width: 182px;
-  height: 78px;
-  background-image: url('../assets/tab-button-bg-select.png');
-  transform: translate(-50%, -50%);
-}
-
-.nav-tab__label,
-.nav-tab .badge {
-  position: relative;
-  z-index: 2;
-}
-
-.nav-tab__label {
-  height: 48px;
-  line-height: 48px;
-}
-
-.nav-tab .badge {
-  position: absolute;
-  top: -6px;
-  right: -14px;
-}
-
-.header-right {
-  position: absolute;
-  top: 33px;
-  right: 40px;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-}
-
-.header-right__top {
-  display: flex;
-  align-self: stretch;
-  align-items: center;
-  gap: 14px;
-}
-
-.status-strip {
-  display: flex;
-  gap: 8px;
-}
-
-.status {
+.menu-trigger {
   display: inline-flex;
-  min-width: 87px;
-  height: 24px;
+  height: 40px;
+  min-width: 110px;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 0 4px;
-  border-radius: 4px;
-  background: url('../assets/status-item-bg.png') center / 100% 100% no-repeat;
-  box-sizing: border-box;
-  color: #ffffff;
-  font-size: 14px;
-  line-height: 24px;
-  box-shadow: inset 0 4px 10px rgba(133, 192, 251, 0.5);
-  white-space: nowrap;
+  gap: 9px;
+  padding: 0 14px;
+  border: 1px solid rgba(101, 194, 255, 0.42);
+  border-radius: 5px;
+  background: rgba(2, 31, 62, 0.72);
+  box-shadow: inset 0 0 16px rgba(37, 142, 217, 0.15);
+  color: #f2f9ff;
+  font-size: 17px;
 }
 
-.status__dot {
-  width: 8px;
-  height: 8px;
-  flex: 0 0 8px;
-  border-radius: 50%;
-  background: rgba(115, 255, 146, 0.7);
+.menu-trigger:hover,
+.menu-trigger:focus-visible,
+.menu-trigger[aria-expanded='true'] {
+  border-color: rgba(108, 219, 255, 0.85);
+  outline: 0;
+  background: rgba(7, 65, 111, 0.9);
+  box-shadow: inset 0 0 18px rgba(58, 184, 255, 0.2), 0 0 14px rgba(43, 169, 255, 0.25);
 }
 
-.header-meta {
-  display: flex;
-  height: 30px;
-  padding-right: 39px;
-  align-items: center;
-  justify-self: end;
-  gap: 8px;
-  background: url('../assets/status-bg.png') right center / auto 100% no-repeat;
-  color: #a8d7f4;
-  font-size: 14px;
-  white-space: nowrap;
-}
-
-.header-meta span + span::before {
-  margin-right: 8px;
-  color: rgba(133, 211, 255, 0.58);
-  content: '|';
-}
-
-.header-account {
-  display: flex;
-  margin-left: auto;
-  align-items: center;
-  gap: 14px;
-}
-
-.user-area {
-  position: relative;
-  display: flex;
-  min-height: 24px;
-  align-items: center;
-  gap: 8px;
-  color: #ffffff;
-  font-size: 14px;
-  white-space: nowrap;
-}
-
-.user-icon {
+.menu-trigger :deep(svg) {
   width: 20px;
   height: 20px;
-  flex: 0 0 20px;
-  fill: #ffffff;
 }
 
-.user-menu-toggle {
-  display: grid;
-  width: 20px;
+.badge {
+  display: inline-grid;
+  min-width: 25px;
   height: 20px;
   place-items: center;
-  padding: 0;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: #f45258;
+  color: #fff;
+  font-size: 11px;
+  line-height: 20px;
+}
+
+.menu-popover {
+  position: absolute;
+  top: 48px;
+  left: 0;
+  display: grid;
+  width: 230px;
+  padding: 8px;
+  border: 1px solid rgba(81, 190, 246, 0.58);
+  border-radius: 5px;
+  background: rgba(2, 25, 49, 0.96);
+  box-shadow: 0 16px 40px rgba(0, 8, 24, 0.58), inset 0 0 24px rgba(25, 147, 225, 0.1);
+  backdrop-filter: blur(14px);
+}
+
+.menu-item {
+  display: grid;
+  min-height: 42px;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 0 12px;
   border: 0;
-  border-radius: 0;
+  border-radius: 3px;
   background: transparent;
   box-shadow: none;
+  color: #b9d9ef;
+  text-align: left;
 }
 
-.user-menu-toggle:hover,
-.user-menu-toggle:focus-visible {
-  border: 0;
-  outline: 1px solid rgba(111, 216, 255, 0.68);
-  outline-offset: 1px;
-  background: rgba(42, 142, 204, 0.24);
-  box-shadow: none;
+.menu-item:hover,
+.menu-item.active {
+  background: linear-gradient(90deg, rgba(17, 119, 190, 0.52), rgba(17, 119, 190, 0.08));
+  box-shadow: inset 2px 0 #58d8ff;
+  color: #fff;
 }
 
-.user-menu-toggle svg {
-  display: block;
-  fill: #ffffff;
-  transition: transform 0.18s ease;
+.menu-item :deep(svg) {
+  width: 18px;
+  height: 18px;
+  color: #6fd8ff;
 }
 
-.user-menu-toggle[aria-expanded='true'] svg {
-  transform: rotate(180deg);
+.menu-item__count {
+  min-width: 22px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: rgba(244, 82, 88, 0.9);
+  color: #fff;
+  font-size: 10px;
+  line-height: 18px;
+  text-align: center;
 }
 
-.user-menu {
-  position: absolute;
-  top: calc(100% + 5px);
-  right: 0;
-  z-index: 8;
-  min-width: 92px;
-  padding: 4px;
-  border: 1px solid rgba(81, 190, 246, 0.58);
-  border-radius: 3px;
-  background: rgba(3, 35, 66, 0.98);
-  box-shadow: 0 8px 20px rgba(0, 8, 24, 0.48), 0 0 12px rgba(25, 147, 225, 0.2);
+.menu-account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 7px;
+  padding: 10px 8px 2px;
+  border-top: 1px solid rgba(72, 158, 216, 0.3);
+}
+
+.menu-account__name {
+  min-width: 0;
+  overflow: hidden;
+  color: #8fb9d4;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .logout-btn {
-  width: 100%;
-  padding: 5px 10px;
-  border-color: rgba(255, 104, 94, 0.48);
-  background: rgba(105, 24, 32, 0.56);
+  display: inline-flex;
+  height: 28px;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  border-color: rgba(255, 104, 94, 0.42);
+  background: rgba(105, 24, 32, 0.48);
   color: #ffaaa4;
+  font-size: 11px;
   white-space: nowrap;
 }
 
+.plc-status {
+  position: absolute;
+  top: 47px;
+  right: 42px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #f4fbff;
+  font-size: 14px;
+  line-height: 24px;
+  pointer-events: auto;
+}
+
+.plc-status__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #57e29b;
+  box-shadow: 0 0 9px rgba(87, 226, 155, 0.75);
+}
+
+.menu-popover-enter-active,
+.menu-popover-leave-active {
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.menu-popover-enter-from,
+.menu-popover-leave-to {
+  opacity: 0;
+  transform: translateY(-5px);
+}
+
 @media (max-width: 1500px) {
-  .header-meta {
-    gap: 8px;
+  .brand {
+    font-size: 38px;
   }
 
-  .header-meta span + span::before {
-    margin-right: 8px;
+  .menu-area {
+    left: 28px;
+  }
+
+  .plc-status {
+    right: 30px;
   }
 }
 </style>

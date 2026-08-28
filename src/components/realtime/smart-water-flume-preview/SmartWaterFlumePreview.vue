@@ -8,30 +8,35 @@
         type="button"
         class="label-visibility-trigger"
         :class="{ active: labelVisibilityOpen }"
+        aria-label="标签显示设置"
+        title="标签显示设置"
         aria-controls="label-visibility-card"
         :aria-expanded="labelVisibilityOpen"
         :aria-pressed="labelVisibilityOpen"
-        @click="labelVisibilityOpen = !labelVisibilityOpen"
-      >标签</button>
+        @click="labelVisibilityOpen = !labelVisibilityOpen; sceneTreeOpen = false"
+      ><TagsOutlined aria-hidden="true" /></button>
       <button
         v-if="modelGroupTree.length"
         type="button"
         class="selected-model-isolation"
         :class="{ active: selectedModelIsolationEnabled }"
         :aria-pressed="selectedModelIsolationEnabled"
+        aria-label="只显示选中对象"
         title="只显示选中对象"
         @click="setSelectedModelIsolation(!selectedModelIsolationEnabled)"
-      >只显示选中对象</button>
+      ><AimOutlined aria-hidden="true" /></button>
       <button
         v-if="modelGroupTree.length"
         type="button"
         class="scene-tree-trigger"
         :class="{ active: sceneTreeOpen }"
+        aria-label="打开场景树"
+        title="场景树"
         aria-controls="model-scene-tree"
         :aria-expanded="sceneTreeOpen"
         :aria-pressed="sceneTreeOpen"
-        @click="sceneTreeOpen = !sceneTreeOpen"
-      >场景树</button>
+        @click="sceneTreeOpen = !sceneTreeOpen; labelVisibilityOpen = false"
+      ><ApartmentOutlined aria-hidden="true" /></button>
     </div>
 
     <div
@@ -260,7 +265,13 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons-vue';
+import {
+  AimOutlined,
+  ApartmentOutlined,
+  EyeInvisibleOutlined,
+  EyeOutlined,
+  TagsOutlined,
+} from '@ant-design/icons-vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
@@ -2060,34 +2071,36 @@ defineExpose({
 .preview-scene-controls {
   position: absolute;
   z-index: 10;
-  right: auto;
-  bottom: 50px;
-  left: 50%;
+  right: 22px;
+  bottom: 18px;
+  left: auto;
   display: flex;
   align-items: flex-end;
-  justify-content: center;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: 10px;
   width: max-content;
   max-width: calc(100% - 20px);
   pointer-events: none;
-  transform: translateX(-50%);
 }
 
 .preview-popup-host {
   position: absolute;
   z-index: 12;
-  top: 10px;
+  top: auto;
+  right: 400px;
+  bottom: 72px;
   pointer-events: none;
 }
 
 .preview-popup-host--left {
-  left: 10px;
-  width: min(130px, calc(100% - 20px));
+  right: 400px;
+  left: auto;
+  width: min(160px, calc(100% - 20px));
 }
 
 .preview-popup-host--right {
-  height: 100%;
-  right: 10px;
+  right: 400px;
+  height: min(430px, calc(100% - 100px));
   width: min(260px, calc(100% - 20px));
 }
 
@@ -2110,46 +2123,56 @@ defineExpose({
 .preview-scene-controls .label-visibility-trigger,
 .preview-scene-controls .selected-model-isolation,
 .preview-scene-controls .scene-tree-trigger {
-  flex: 0 0 111px;
-  width: 111px;
-  height: 34px;
-  padding: 0 6px;
-  border: 0;
-  border-radius: 17px;
+  display: inline-grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(104, 211, 255, 0.66);
+  border-radius: 50%;
   overflow: hidden;
-  background: url('../../../assets/preview-scene.png') center / 100% 100% no-repeat;
-  box-shadow: none;
+  background: rgba(5, 48, 82, 0.88);
+  box-shadow: inset 0 0 14px rgba(74, 192, 255, 0.2), 0 6px 18px rgba(0, 10, 25, 0.4);
   color: #dff5ff;
-  font-size: 12px;
-  line-height: 34px;
-  white-space: nowrap;
-  transition: filter 0.14s ease, box-shadow 0.14s ease, color 0.14s ease;
+  font-size: 20px;
+  line-height: 1;
+  transition: border-color 0.14s ease, background 0.14s ease, box-shadow 0.14s ease, color 0.14s ease;
 }
 
 .preview-scene-controls .label-visibility-trigger:hover,
 .preview-scene-controls .selected-model-isolation:hover,
 .preview-scene-controls .scene-tree-trigger:hover {
   border: 0;
-  background: url('../../../assets/preview-scene.png') center / 100% 100% no-repeat;
-  box-shadow: none;
+  background: rgba(8, 77, 124, 0.96);
+  box-shadow: inset 0 0 16px rgba(84, 209, 255, 0.26), 0 0 14px rgba(47, 179, 255, 0.44);
   color: #fff;
-  filter: brightness(1.18);
 }
 
 .preview-scene-controls .label-visibility-trigger.active,
 .preview-scene-controls .selected-model-isolation.active,
 .preview-scene-controls .scene-tree-trigger.active {
-  border: 0;
-  background:
-    linear-gradient(90deg, rgba(20, 155, 255, 0.42), rgba(92, 220, 255, 0.58)),
-    url('../../../assets/preview-scene.png') center / 100% 100% no-repeat;
+  border: 1px solid #a1efff;
+  background: rgba(11, 112, 171, 0.96);
   box-shadow:
     inset 0 0 0 1px rgba(161, 239, 255, 0.95),
     inset 0 0 12px rgba(91, 222, 255, 0.5),
     0 0 16px rgba(47, 179, 255, 0.72);
   color: #fff;
-  filter: brightness(1.25) saturate(1.2);
   text-shadow: 0 0 6px rgba(255, 255, 255, 0.75);
+}
+
+.preview-scene-controls :deep(svg) {
+  width: 20px;
+  height: 20px;
+}
+
+@media (max-width: 1500px) {
+  .preview-popup-host,
+  .preview-popup-host--left,
+  .preview-popup-host--right {
+    right: 350px;
+  }
 }
 
 @keyframes cube-loading {

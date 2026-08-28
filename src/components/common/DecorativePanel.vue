@@ -7,13 +7,6 @@
           <span class="decorative-panel__corner-mark-line decorative-panel__corner-mark-line--vertical"></span>
         </span>
 
-        <img
-          class="decorative-panel__arrow"
-          :src="arrowImage"
-          alt=""
-          aria-hidden="true"
-        >
-
         <h2 class="decorative-panel__title">{{ title }}</h2>
 
         <button
@@ -42,7 +35,6 @@
 
 <script setup>
 import { computed } from 'vue';
-import arrowImage from '../../assets/panel-arrow-placeholder.png';
 import glowImage from '../../assets/panel-glow-placeholder.png';
 
 const props = defineProps({
@@ -71,12 +63,6 @@ function handleActionClick(event) {
 </script>
 
 <style scoped>
-@font-face {
-  font-family: 'YouSheTitle';
-  src: url('../../assets/优设标题黑.ttf') format('truetype');
-  font-display: swap;
-}
-
 .decorative-panel {
   --panel-border-accent: #1f9df2;
   --panel-title-color: #f4fbff;
@@ -106,17 +92,7 @@ function handleActionClick(event) {
   min-height: 41px;
   padding: 0;
   box-sizing: border-box;
-  border: 1px solid rgba(67, 187, 250, 0.82);
-  border-bottom: 0;
   background: transparent;
-}
-
-.decorative-panel--right .decorative-panel__heading-main {
-  border-radius: 0 30px 0 0;
-}
-
-.decorative-panel--left .decorative-panel__heading-main {
-  border-radius: 30px 0 0 0;
 }
 
 .decorative-panel__corner-mark {
@@ -152,26 +128,6 @@ function handleActionClick(event) {
   grid-row: 1 / -1;
 }
 
-.decorative-panel__arrow {
-  position: absolute;
-  top: 0;
-  right: 0;
-  display: block;
-  height: 100%;
-  object-fit: contain;
-  opacity: 0.95;
-}
-
-.decorative-panel--left .decorative-panel__arrow {
-  right: auto;
-  left: 0;
-  transform: scaleX(-1);
-}
-
-.decorative-panel--left .decorative-panel__title {
-  left: 62px;
-}
-
 .decorative-panel__title {
   position: absolute;
   top: 10px;
@@ -183,7 +139,7 @@ function handleActionClick(event) {
   padding: 0;
   overflow: visible;
   color: var(--panel-title-color);
-  font-family: 'YouSheTitle', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  font-family: 'SimHei', 'Microsoft YaHei', 'PingFang SC', sans-serif;
   font-size: 24px;
   font-variation-settings: 'opsz' auto;
   font-weight: normal;

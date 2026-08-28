@@ -200,12 +200,6 @@ async function quickHandle() {
 </script>
 
 <style scoped>
-@font-face {
-  font-family: 'YouSheBiaoTiHei';
-  src: url('../../assets/优设标题黑.ttf') format('truetype');
-  font-display: swap;
-}
-
 .realtime-alarm-modal-layer {
   position: fixed;
   z-index: 1000;
@@ -264,7 +258,7 @@ async function quickHandle() {
   margin: 0;
   place-items: center;
   color: #f2f9ff;
-  font-family: 'YouSheBiaoTiHei', sans-serif;
+  font-family: 'SimHei', 'Microsoft YaHei', sans-serif;
   font-size: 18px;
   font-weight: 400;
   line-height: 28px;
