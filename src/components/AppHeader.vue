@@ -16,6 +16,15 @@
       >
         <MenuOutlined aria-hidden="true" />
         <span>菜单</span>
+      </button>
+
+      <button
+        class="alarm-trigger"
+        type="button"
+        :aria-label="unhandledAlarmCount > 0 ? `查看告警，${unhandledAlarmDisplay}条未处理` : '查看告警'"
+        @click="$emit('navigate', 'alarm'); userMenuOpen = false"
+      >
+        <BellOutlined aria-hidden="true" />
         <span v-if="unhandledAlarmCount > 0" class="badge">{{ unhandledAlarmDisplay }}</span>
       </button>
 
@@ -31,9 +40,6 @@
           >
             <component :is="PAGE_ICONS[tab.key]" aria-hidden="true" />
             <span>{{ tab.label }}</span>
-            <span v-if="tab.key === 'alarm' && unhandledAlarmCount > 0" class="menu-item__count">
-              {{ unhandledAlarmDisplay }}
-            </span>
           </button>
 
         </nav>
@@ -83,6 +89,7 @@
 <script setup>
 import {
   AlertOutlined,
+  BellOutlined,
   DashboardOutlined,
   DownOutlined,
   HistoryOutlined,
@@ -223,6 +230,9 @@ onBeforeUnmount(() => {
   top: 38px;
   left: 38px;
   z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   pointer-events: auto;
 }
 
@@ -254,6 +264,34 @@ onBeforeUnmount(() => {
 .menu-trigger :deep(svg) {
   width: 20px;
   height: 20px;
+}
+
+.alarm-trigger {
+  display: inline-flex;
+  height: 40px;
+  min-width: 76px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 0 10px;
+  border: 1px solid rgba(101, 194, 255, 0.42);
+  border-radius: 5px;
+  background: rgba(2, 31, 62, 0.72);
+  box-shadow: inset 0 0 16px rgba(37, 142, 217, 0.15);
+  color: #f2f9ff;
+}
+
+.alarm-trigger:hover,
+.alarm-trigger:focus-visible {
+  border-color: rgba(108, 219, 255, 0.85);
+  outline: 0;
+  background: rgba(7, 65, 111, 0.9);
+  box-shadow: inset 0 0 18px rgba(58, 184, 255, 0.2), 0 0 14px rgba(43, 169, 255, 0.25);
+}
+
+.alarm-trigger :deep(svg) {
+  width: 18px;
+  height: 18px;
 }
 
 .badge {
@@ -309,18 +347,6 @@ onBeforeUnmount(() => {
   width: 18px;
   height: 18px;
   color: #6fd8ff;
-}
-
-.menu-item__count {
-  min-width: 22px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 9px;
-  background: rgba(244, 82, 88, 0.9);
-  color: #fff;
-  font-size: 10px;
-  line-height: 18px;
-  text-align: center;
 }
 
 .header-status {

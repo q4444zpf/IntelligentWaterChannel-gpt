@@ -28,30 +28,7 @@
 
     <aside class="left-stack">
       <DecorativePanel class="panel gate-panel" title="闸门实时状态">
-        <table class="data-table compact gate-status-table">
-          <colgroup>
-            <col style="width: 14%">
-            <col style="width: 18%">
-            <col style="width: 25%">
-            <col style="width: 25%">
-            <col style="width: 18%">
-          </colgroup>
-          <thead>
-            <tr><th>设备</th><th>开度</th><th>闸前</th><th>闸后</th><th>状态</th></tr>
-          </thead>
-          <tbody>
-            <tr v-for="gate in gates" :key="gate.id">
-              <td><span class="device-chip" :class="`chip-${gate.color}`">{{ gate.id }}</span></td>
-              <td>{{ gate.open }}%</td>
-              <td>{{ gate.before }}</td>
-              <td>{{ gate.after }}</td>
-              <td :class="gate.state === '在线' ? 'status-online' : 'status-offline'">
-                <StatusText :value="gate.state" />
-              </td>
-            </tr>
-            <tr v-if="!gates.length"><td colspan="5" class="realtime-empty">{{ deviceMessage }}</td></tr>
-          </tbody>
-        </table>
+        <GateStatusChart :gates="gates" :empty-text="deviceMessage" />
       </DecorativePanel>
 
       <DecorativePanel class="panel sensor-panel" title="传感器实时状态">
@@ -201,6 +178,7 @@ import {
 } from '../api/realtime.js';
 import DecorativePanel from '../components/common/DecorativePanel.vue';
 import StatusText from '../components/common/StatusText.vue';
+import GateStatusChart from '../components/realtime/GateStatusChart.vue';
 import SmartWaterFlumePreview from '../components/realtime/smart-water-flume-preview/SmartWaterFlumePreview.vue';
 import TrendAnalysis from '../components/realtime/trend/TrendAnalysis.vue';
 import { VIEW_ACTIONS } from '../data/monitoring-data.js';
@@ -481,9 +459,15 @@ onBeforeUnmount(() => {
   flex: 1 1 0;
 }
 
-.gate-panel :deep(.decorative-panel__content),
 .sensor-panel :deep(.decorative-panel__content) {
   padding: 5px 10px 9px;
+}
+
+.gate-panel :deep(.decorative-panel__content) {
+  display: flex;
+  min-height: 0;
+  padding: 0 10px 7px;
+  overflow: hidden;
 }
 
 .sensor-panel :deep(.decorative-panel__content) {
@@ -524,14 +508,6 @@ onBeforeUnmount(() => {
 
 .data-table tbody tr:nth-child(even) td {
   background: rgba(32, 101, 150, 0.16);
-}
-
-.device-chip {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: #53d7ff;
-  font-weight: 700;
 }
 
 .status-online {
