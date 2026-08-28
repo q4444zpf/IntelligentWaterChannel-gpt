@@ -220,8 +220,6 @@ function handleActionClick(event) {
   -ms-overflow-style: none;
   scrollbar-width: none;
   padding: 14px;
-  border: 1px solid transparent;
-  border-image: linear-gradient(180deg, rgba(31, 157, 242, 0.18) 0%, var(--panel-border-accent) 100%) 1;
   color: #d9ecff;
 }
 
