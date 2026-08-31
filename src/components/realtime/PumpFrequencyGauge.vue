@@ -2,10 +2,12 @@
   <div
     class="pump-frequency-gauge"
     role="img"
-    :aria-label="`水泵当前频率 ${displayValue} 赫兹`"
+    :aria-label="`${label} ${displayValue}${unit}`"
   >
     <div ref="chartElement" class="pump-frequency-gauge__canvas"></div>
-    <span class="pump-frequency-gauge__value" aria-hidden="true">{{ Math.round(displayValue) }}</span>
+    <span class="pump-frequency-gauge__value" aria-hidden="true">
+      {{ Math.round(displayValue) }}<small v-if="unit">{{ unit }}</small>
+    </span>
   </div>
 </template>
 
@@ -20,6 +22,8 @@ echarts.use([GaugeChart, CanvasRenderer]);
 const props = defineProps({
   value: { type: Number, default: 0 },
   max: { type: Number, default: 50 },
+  label: { type: String, default: '当前频率' },
+  unit: { type: String, default: '' },
 });
 
 const chartElement = ref(null);
@@ -127,7 +131,7 @@ function buildGaugeOption() {
       detail: {
         show: false,
       },
-      data: [{ value: normalizeValue(), name: '当前频率' }],
+      data: [{ value: normalizeValue(), name: props.label }],
     }],
   };
 }
@@ -146,7 +150,7 @@ async function renderChart() {
 }
 
 onMounted(renderChart);
-watch(() => [props.value, props.max], renderChart);
+watch(() => [props.value, props.max, props.label], renderChart);
 onBeforeUnmount(() => {
   resizeObserver?.disconnect();
   chart?.dispose();
@@ -179,5 +183,13 @@ onBeforeUnmount(() => {
   font-weight: 700;
   line-height: 1;
   pointer-events: none;
+}
+
+.pump-frequency-gauge__value small {
+  margin-left: 2px;
+  color: #f0f7fb;
+  -webkit-text-fill-color: #f0f7fb;
+  font-size: 12px;
+  font-weight: 600;
 }
 </style>

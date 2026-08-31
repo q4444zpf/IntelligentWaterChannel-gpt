@@ -129,55 +129,7 @@
               <span>三维定位</span>
             </button>
             <button type="button" class="gate-action-btn gate-action-btn--setting" @click="handleGateSetting">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <defs>
-                  <filter id="gate-setting-shadow" filterUnits="objectBoundingBox" color-interpolation-filters="sRGB" x="0" y="0" width="1" height="1">
-                    <feFlood flood-opacity="0" result="BackgroundImageFix"/>
-                    <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
-                    <feColorMatrix in="SourceAlpha" type="matrix" result="hardAlpha" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"/>
-                    <feOffset dy="0" dx="0"/>
-                    <feGaussianBlur stdDeviation="5"/>
-                    <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
-                    <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.3 0"/>
-                    <feBlend mode="normal" in2="shape" result="effect1_innerShadow"/>
-                  </filter>
-                  <linearGradient id="gate-setting-grad1" x1="0.243" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stop-color="#C0A1FE"/>
-                    <stop offset="35.7%" stop-color="#0D548D"/>
-                    <stop offset="64.6%" stop-color="#0D548D"/>
-                    <stop offset="100%" stop-color="#05FCFD"/>
-                  </linearGradient>
-                  <linearGradient id="gate-setting-grad2" x1="0.172" y1="-0.018" x2="0.693" y2="0.787">
-                    <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0"/>
-                    <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.5"/>
-                  </linearGradient>
-                  <filter id="gate-setting-icon-shadow" filterUnits="objectBoundingBox" color-interpolation-filters="sRGB" x="0" y="0" width="1" height="1">
-                    <feFlood flood-opacity="0" result="BackgroundImageFix"/>
-                    <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
-                    <feColorMatrix in="SourceAlpha" type="matrix" result="hardAlpha" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"/>
-                    <feOffset dy="2" dx="0"/>
-                    <feGaussianBlur stdDeviation="2"/>
-                    <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
-                    <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.3 0"/>
-                    <feBlend mode="normal" in2="shape" result="effect1_innerShadow"/>
-                  </filter>
-                  <clipPath id="gate-setting-clip"><rect x="3" y="5" width="18" height="14.4" rx="0"/></clipPath>
-                </defs>
-                <g filter="url(#gate-setting-shadow)">
-                  <rect x="0" y="0" width="24" height="24" rx="2" fill="url(#gate-setting-grad1)"/>
-                  <rect x="0.5" y="0.5" width="23" height="23" rx="1.5" stroke="url(#gate-setting-grad2)" fill-opacity="0" fill="none" stroke-width="1"/>
-                </g>
-                <g filter="url(#gate-setting-icon-shadow)">
-                  <g clip-path="url(#gate-setting-clip)">
-                    <path d="M4.64 5L6.27 5L6.27 19.4L4.64 19.4Z" fill="#fff"/>
-                    <path d="M7.91 9.39Q7.91 9.48 7.9 9.58Q7.89 9.67 7.86 9.77Q7.84 9.86 7.8 9.96Q7.77 10.05 7.72 10.14Q7.68 10.23 7.62 10.31Q7.56 10.4 7.5 10.48Q7.43 10.56 7.35 10.63Q7.28 10.71 7.19 10.77Q7.1 10.84 7.01 10.9Q6.92 10.96 6.82 11.02Q6.72 11.07 6.61 11.12Q6.51 11.16 6.39 11.2Q6.28 11.24 6.17 11.26Q6.05 11.29 5.93 11.31Q5.82 11.33 5.7 11.34Q5.58 11.35 5.45 11.35Q5.33 11.35 5.21 11.34Q5.09 11.33 4.98 11.31Q4.86 11.29 4.74 11.26Q4.63 11.24 4.52 11.2Q4.4 11.16 4.3 11.12Q4.19 11.07 4.09 11.02Q3.99 10.96 3.9 10.9Q3.8 10.84 3.72 10.77Q3.63 10.71 3.56 10.63Q3.48 10.56 3.41 10.48Q3.35 10.4 3.29 10.31Q3.23 10.23 3.19 10.14Q3.14 10.05 3.11 9.96Q3.07 9.86 3.05 9.77Q3.02 9.67 3.01 9.58Q3 9.48 3 9.39Q3 9.29 3.01 9.19Q3.02 9.1 3.05 9Q3.07 8.91 3.11 8.82Q3.14 8.72 3.19 8.63Q3.23 8.54 3.29 8.46Q3.35 8.37 3.41 8.29Q3.48 8.21 3.56 8.14Q3.63 8.07 3.72 8Q3.8 7.93 3.9 7.87Q3.99 7.81 4.09 7.75Q4.19 7.7 4.3 7.65Q4.4 7.61 4.52 7.57Q4.63 7.53 4.74 7.51Q4.86 7.48 4.98 7.46Q5.09 7.44 5.21 7.43Q5.33 7.42 5.45 7.42Q5.58 7.42 5.7 7.43Q5.82 7.44 5.93 7.46Q6.05 7.48 6.17 7.51Q6.28 7.53 6.39 7.57Q6.51 7.61 6.61 7.65Q6.72 7.7 6.82 7.75Q6.92 7.81 7.01 7.87Q7.1 7.93 7.19 8Q7.28 8.07 7.35 8.14Q7.43 8.21 7.5 8.29Q7.56 8.37 7.62 8.46Q7.68 8.54 7.72 8.63Q7.77 8.72 7.8 8.82Q7.84 8.91 7.86 9Q7.89 9.1 7.9 9.19Q7.91 9.29 7.91 9.39Z" fill="#fff"/>
-                    <path d="M11.18 5L12.82 5L12.82 19.4L11.18 19.4Z" fill="#fff"/>
-                    <path d="M14.45 15.15Q14.45 15.24 14.44 15.34Q14.43 15.43 14.41 15.53Q14.38 15.62 14.35 15.72Q14.31 15.81 14.27 15.9Q14.22 15.99 14.16 16.07Q14.11 16.16 14.04 16.24Q13.97 16.32 13.9 16.39Q13.82 16.47 13.74 16.53Q13.65 16.6 13.56 16.66Q13.46 16.72 13.36 16.78Q13.26 16.83 13.16 16.88Q13.05 16.92 12.94 16.96Q12.83 17 12.71 17.02Q12.6 17.05 12.48 17.07Q12.36 17.09 12.24 17.1Q12.12 17.11 12 17.11Q11.88 17.11 11.76 17.1Q11.64 17.09 11.52 17.07Q11.4 17.05 11.29 17.02Q11.17 17 11.06 16.96Q10.95 16.92 10.84 16.88Q10.74 16.83 10.64 16.78Q10.54 16.72 10.44 16.66Q10.35 16.6 10.26 16.53Q10.18 16.47 10.1 16.39Q10.03 16.32 9.96 16.24Q9.89 16.16 9.84 16.07Q9.78 15.99 9.73 15.9Q9.69 15.81 9.65 15.72Q9.62 15.62 9.59 15.53Q9.57 15.43 9.56 15.34Q9.55 15.24 9.55 15.15Q9.55 15.05 9.56 14.95Q9.57 14.86 9.59 14.76Q9.62 14.67 9.65 14.58Q9.69 14.48 9.73 14.39Q9.78 14.3 9.84 14.22Q9.89 14.13 9.96 14.05Q10.03 13.97 10.1 13.9Q10.18 13.83 10.26 13.76Q10.35 13.69 10.44 13.63Q10.54 13.57 10.64 13.51Q10.74 13.46 10.84 13.41Q10.95 13.37 11.06 13.33Q11.17 13.29 11.29 13.27Q11.4 13.24 11.52 13.22Q11.64 13.2 11.76 13.19Q11.88 13.18 12 13.18Q12.12 13.18 12.24 13.19Q12.36 13.2 12.48 13.22Q12.6 13.24 12.71 13.27Q12.83 13.29 12.94 13.33Q13.05 13.37 13.16 13.41Q13.26 13.46 13.36 13.51Q13.46 13.57 13.56 13.63Q13.65 13.69 13.74 13.76Q13.82 13.83 13.9 13.9Q13.97 13.97 14.04 14.05Q14.11 14.13 14.16 14.22Q14.22 14.3 14.27 14.39Q14.31 14.48 14.35 14.58Q14.38 14.67 14.41 14.76Q14.43 14.86 14.44 14.95Q14.45 15.05 14.45 15.15Z" fill="#fff"/>
-                    <path d="M17.73 5L19.36 5L19.36 19.4L17.73 19.4Z" fill="#fff"/>
-                    <path d="M21 9.39Q21 9.48 20.99 9.58Q20.98 9.67 20.95 9.77Q20.93 9.86 20.89 9.96Q20.86 10.05 20.81 10.14Q20.77 10.23 20.71 10.31Q20.65 10.4 20.59 10.48Q20.52 10.56 20.44 10.63Q20.37 10.71 20.28 10.77Q20.2 10.84 20.1 10.9Q20.01 10.96 19.91 11.02Q19.81 11.07 19.7 11.12Q19.6 11.16 19.48 11.2Q19.37 11.24 19.26 11.26Q19.14 11.29 19.02 11.31Q18.91 11.33 18.79 11.34Q18.67 11.35 18.55 11.35Q18.42 11.35 18.3 11.34Q18.18 11.33 18.07 11.31Q17.95 11.29 17.83 11.26Q17.72 11.24 17.61 11.2Q17.49 11.16 17.39 11.12Q17.28 11.07 17.18 11.02Q17.08 10.96 16.99 10.9Q16.9 10.84 16.81 10.77Q16.72 10.71 16.65 10.63Q16.57 10.56 16.5 10.48Q16.44 10.4 16.38 10.31Q16.32 10.23 16.28 10.14Q16.23 10.05 16.2 9.96Q16.16 9.86 16.14 9.77Q16.11 9.67 16.1 9.58Q16.09 9.48 16.09 9.39Q16.09 9.29 16.1 9.19Q16.11 9.1 16.14 9Q16.16 8.91 16.2 8.82Q16.23 8.72 16.28 8.63Q16.32 8.54 16.38 8.46Q16.44 8.37 16.5 8.29Q16.57 8.21 16.65 8.14Q16.72 8.07 16.81 8Q16.9 7.93 16.99 7.87Q17.08 7.81 17.18 7.75Q17.28 7.7 17.39 7.65Q17.49 7.61 17.61 7.57Q17.72 7.53 17.83 7.51Q17.95 7.48 18.07 7.46Q18.18 7.44 18.3 7.43Q18.42 7.42 18.55 7.42Q18.67 7.42 18.79 7.43Q18.91 7.44 19.02 7.46Q19.14 7.48 19.26 7.51Q19.37 7.53 19.48 7.57Q19.6 7.61 19.7 7.65Q19.81 7.7 19.91 7.75Q20.01 7.81 20.1 7.87Q20.2 7.93 20.28 8Q20.37 8.07 20.44 8.14Q20.52 8.21 20.59 8.29Q20.65 8.37 20.71 8.46Q20.77 8.54 20.81 8.63Q20.86 8.72 20.89 8.82Q20.93 8.91 20.95 9Q20.98 9.1 20.99 9.19Q21 9.29 21 9.39Z" fill="#fff"/>
-                  </g>
-                </g>
-              </svg>
+              <GateOpeningSettingIcon />
               <span>设置开度</span>
             </button>
           </div>
@@ -210,67 +162,46 @@
               <span>三维定位</span>
             </button>
             <button type="button" class="gate-action-btn pump-frequency-action">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
-                <defs>
-                  <filter id="pump-frequency-shadow" filterUnits="objectBoundingBox" color-interpolation-filters="sRGB" x="0" y="0" width="1" height="1">
-                    <feFlood flood-opacity="0" result="BackgroundImageFix"/>
-                    <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
-                    <feColorMatrix in="SourceAlpha" type="matrix" result="hardAlpha" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"/>
-                    <feOffset dy="0" dx="0"/>
-                    <feGaussianBlur stdDeviation="5"/>
-                    <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
-                    <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.3 0"/>
-                    <feBlend mode="normal" in2="shape" result="effect1_innerShadow"/>
-                  </filter>
-                  <linearGradient id="pump-frequency-grad1" x1="0.243" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stop-color="#C0A1FE"/>
-                    <stop offset="35.714%" stop-color="#0D548D"/>
-                    <stop offset="64.645%" stop-color="#0D548D"/>
-                    <stop offset="100%" stop-color="#05FCFD"/>
-                  </linearGradient>
-                  <linearGradient id="pump-frequency-grad2" x1="0.172" y1="-0.018" x2="0.693" y2="0.787">
-                    <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0"/>
-                    <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.5"/>
-                  </linearGradient>
-                  <clipPath id="pump-frequency-clip"><rect x="2" y="2" width="20" height="20"/></clipPath>
-                </defs>
-                <g filter="url(#pump-frequency-shadow)">
-                  <rect width="24" height="24" rx="2" fill="url(#pump-frequency-grad1)"/>
-                  <rect x="0.5" y="0.5" width="23" height="23" rx="1.5" stroke="url(#pump-frequency-grad2)" fill="none"/>
-                </g>
-                <g clip-path="url(#pump-frequency-clip)">
-                  <path d="M10.6537504,4.8125C11.0495682,4.812520790101,11.4027271,5.06113282,11.5362501,5.43375015L14.58125,13.9137506L15.135001,11.9262505C15.248351,11.5209489,15.617899,11.24085,16.038752,11.2412505L20.75,11.2412505C21.267767,11.2412505,21.6875,11.6609836,21.6875,12.1787505C21.6875,12.6965179,21.267767,13.116251,20.75,13.116251L16.75,13.116251L15.595,17.252501C15.484862,17.645247,15.133418,17.921706999999998,14.725782,17.936266C14.318145,17.950826,13.947874,17.700139,13.81,17.316251L10.6537504,8.5250001L9.5162501,11.6912498C9.3828821,12.063437,9.0303597,12.3119521,8.6349998,12.3125L3.25,12.3125C2.73223296,12.3125,2.3125,11.8927674,2.3125,11.375C2.3125,10.8572326,2.73223296,10.4375,3.25,10.4375L7.9749999,10.4375L9.7712502,5.43375015C9.9047732,5.06113243,10.2579317,4.81252040863,10.6537504,4.8125Z" fill="#FFFFFF"/>
-                </g>
-              </svg>
+              <PumpFrequencySettingIcon />
               <span>设置频率</span>
             </button>
           </div>
         </section>
 
-        <section class="control-section">
-          <div class="control-section__head">
-            <h2><ControlOutlined aria-hidden="true" />阀门</h2>
-            <span class="running-state"><span aria-hidden="true"></span>在线</span>
+        <section class="control-section valve-control-section">
+          <div class="gate-header valve-header">
+            <h2 class="gate-title">阀门</h2>
+            <div class="gate-tabs" role="tablist" aria-label="阀门列表">
+              <button
+                v-for="valve in valves"
+                :key="valve"
+                type="button"
+                role="tab"
+                :aria-selected="selectedValve === valve"
+                :class="{ active: selectedValve === valve }"
+                @click="selectedValve = valve"
+              >
+                {{ valve }}
+              </button>
+            </div>
           </div>
-          <div class="control-device-row">
-            <label for="valve-device">设备</label>
-            <select id="valve-device"><option>V3</option><option>V1</option><option>V2</option></select>
-            <strong>当前 46%</strong>
-          </div>
-          <div class="control-value"><span>目标开度</span><b>{{ targetValveOpening }}<small>%</small></b></div>
-          <input
-            v-model.number="targetValveOpening"
-            type="range"
-            min="0"
-            max="100"
-            step="1"
-            aria-label="阀门目标开度"
-            :style="{ '--range-progress': `${targetValveOpening}%` }"
-          >
-          <div class="button-row">
-            <button type="button"><SettingOutlined aria-hidden="true" /><span>设置开度</span></button>
-            <button class="danger-command" type="button"><PauseCircleOutlined aria-hidden="true" /><span>停止</span></button>
-            <button type="button"><ReloadOutlined aria-hidden="true" /><span>复位</span></button>
+
+          <PumpFrequencyGauge
+            :value="targetValveOpening"
+            :max="100"
+            label="当前开度"
+            unit="%"
+          />
+
+          <div class="gate-actions valve-actions">
+            <button type="button" class="gate-action-btn" @click="handleValveLocate">
+              <LocateIcon />
+              <span>三维定位</span>
+            </button>
+            <button type="button" class="gate-action-btn gate-action-btn--setting">
+              <ValveOpeningSettingIcon />
+              <span>设置开度</span>
+            </button>
           </div>
         </section>
       </DecorativePanel>
@@ -279,12 +210,6 @@
 </template>
 
 <script setup>
-import {
-  ControlOutlined,
-  PauseCircleOutlined,
-  ReloadOutlined,
-  SettingOutlined,
-} from '@ant-design/icons-vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, watchEffect } from 'vue';
 import { getBigWaterChannelAlarmNotificationTopic } from '../api/alarm.js';
 import {
@@ -292,7 +217,10 @@ import {
   getRealtimeWaterProfileTopology,
 } from '../api/realtime.js';
 import DecorativePanel from '../components/common/DecorativePanel.vue';
+import GateOpeningSettingIcon from '../components/common/GateOpeningSettingIcon.vue';
 import LocateIcon from '../components/common/LocateIcon.vue';
+import PumpFrequencySettingIcon from '../components/common/PumpFrequencySettingIcon.vue';
+import ValveOpeningSettingIcon from '../components/common/ValveOpeningSettingIcon.vue';
 import GateStatusChart from '../components/realtime/GateStatusChart.vue';
 import PumpFrequencyGauge from '../components/realtime/PumpFrequencyGauge.vue';
 import SmartWaterFlumePreview from '../components/realtime/smart-water-flume-preview/SmartWaterFlumePreview.vue';
@@ -309,6 +237,8 @@ const targetGateOpening = ref(50);
 const targetPumpFrequency = ref(35);
 const targetValveOpening = ref(52);
 const pumpRunning = ref(true);
+const valves = Object.freeze(['V1', 'V2', 'V3', 'V4', 'V5', 'V6']);
+const selectedValve = ref('V3');
 const deviceGroups = ref([]);
 const deviceLoading = ref(true);
 const deviceError = ref('');
@@ -395,6 +325,10 @@ function handleGateSetting() {
 
 function handlePumpLocate() {
   previewRef.value?.focusSceneTreeGroupByName('水泵');
+}
+
+function handleValveLocate() {
+  previewRef.value?.focusSceneTreeGroupByName('阀门');
 }
 
 async function loadAlarmNotificationTopic() {
@@ -1011,11 +945,13 @@ onBeforeUnmount(() => {
 
 /* End gate control section */
 
-.pump-control-section {
+.pump-control-section,
+.valve-control-section {
   padding: 8px 2px 12px;
 }
 
-.pump-header {
+.pump-header,
+.valve-header {
   margin-bottom: 0;
 }
 
@@ -1069,7 +1005,8 @@ onBeforeUnmount(() => {
   box-shadow: 0 0 0 2px rgba(100, 222, 255, 0.38);
 }
 
-.pump-actions {
+.pump-actions,
+.valve-actions {
   margin-top: -5px;
 }
 
