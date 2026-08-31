@@ -47,6 +47,29 @@ function objectValue(value) {
   }
 }
 
+function hasOwnValue(target, field) {
+  return Object.prototype.hasOwnProperty.call(target, field);
+}
+
+function pumpTelemetry(value, statusField, frequencyField) {
+  const telemetry = objectValue(value);
+  if (hasOwnValue(telemetry, statusField) || hasOwnValue(telemetry, frequencyField)) {
+    return {
+      running: booleanValue(telemetry[statusField]),
+      frequency: numberValue(telemetry[frequencyField]),
+    };
+  }
+
+  const normalizedValue = typeof value === 'string' ? value.trim().toLowerCase() : value;
+  const stopped = normalizedValue === null || normalizedValue === undefined || normalizedValue === ''
+    || normalizedValue === false || normalizedValue === 'false' || normalizedValue === 'offline';
+  const frequency = numberValue(value);
+  return {
+    running: !stopped && (booleanValue(value) || Number.isFinite(Number(value))),
+    frequency: stopped ? 0 : frequency,
+  };
+}
+
 export function buildRealtimeTableData(deviceGroups, values = {}) {
   const gates = [];
   const gateList = [];
@@ -79,7 +102,7 @@ export function buildRealtimeTableData(deviceGroups, values = {}) {
       const tag = pumpConfig.tag || 'Pump';
       const statusField = pumpConfig.statusField || 'stats';
       const frequencyField = pumpConfig.frequencyField || 'frequency';
-      const telemetry = objectValue(tagValue(values, tag));
+      const telemetry = pumpTelemetry(tagValue(values, tag), statusField, frequencyField);
       const maxFrequency = Number(pumpConfig.maxFrequency);
       pump = {
         uid: pumpConfig.uid == null ? '' : String(pumpConfig.uid),
@@ -88,8 +111,8 @@ export function buildRealtimeTableData(deviceGroups, values = {}) {
         statusField,
         frequencyField,
         maxFrequency: Number.isFinite(maxFrequency) && maxFrequency > 0 ? maxFrequency : 50,
-        running: booleanValue(telemetry[statusField]),
-        frequency: numberValue(telemetry[frequencyField]),
+        running: telemetry.running,
+        frequency: telemetry.frequency,
         state: deviceState(values, [tag]),
       };
     }
@@ -97,7 +120,9 @@ export function buildRealtimeTableData(deviceGroups, values = {}) {
     for (const valveConfig of Array.isArray(deviceGroup?.valve) ? deviceGroup.valve : []) {
       const tag = valveConfig.tag || '';
       const openingField = valveConfig.openingField || 'opening';
-      const telemetry = objectValue(tagValue(values, tag));
+      const value = tagValue(values, tag);
+      const telemetry = objectValue(value);
+      const opening = hasOwnValue(telemetry, openingField) ? telemetry[openingField] : value;
       const maxOpening = Number(valveConfig.maxOpening);
       valves.push({
         id: tag || valveConfig.name || '--',
@@ -107,7 +132,7 @@ export function buildRealtimeTableData(deviceGroups, values = {}) {
         tag,
         openingField,
         maxOpening: Number.isFinite(maxOpening) && maxOpening > 0 ? maxOpening : 100,
-        opening: numberValue(telemetry[openingField]),
+        opening: numberValue(opening),
         state: deviceState(values, [tag]),
       });
     }

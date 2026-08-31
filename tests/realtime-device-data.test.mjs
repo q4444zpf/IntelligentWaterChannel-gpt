@@ -126,6 +126,23 @@ test('normalizes string pump telemetry values', () => {
   assert.equal(result.pump.state, '在线');
 });
 
+test('reads scalar pump and valve values from the configuration topic', () => {
+  const running = buildRealtimeTableData(deviceGroups, {
+    Pump: 45,
+    v1: '30',
+    v2: 70.5,
+  });
+
+  assert.equal(running.pump.running, true);
+  assert.equal(running.pump.frequency, 45);
+  assert.equal(running.valves[0].opening, 30);
+  assert.equal(running.valves[1].opening, 70.5);
+
+  const stopped = buildRealtimeTableData(deviceGroups, { Pump: 'false' });
+  assert.equal(stopped.pump.running, false);
+  assert.equal(stopped.pump.frequency, 0);
+});
+
 test('merges flat MQTT payloads while retaining previous tag values', () => {
   const values = { wl1: 100 };
 
