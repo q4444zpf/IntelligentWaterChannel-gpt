@@ -24,12 +24,13 @@ function gateColor(state) {
 
 export function buildRealtimeTableData(deviceGroups, values = {}) {
   const gates = [];
+  const gateList = [];
   const sensorGroupMap = new Map();
 
   for (const deviceGroup of Array.isArray(deviceGroups) ? deviceGroups : []) {
     for (const gate of Array.isArray(deviceGroup?.gate) ? deviceGroup.gate : []) {
       const state = deviceState(values, [gate.openingTag]);
-      gates.push({
+      const gateData = {
         id: gate.openingTag || gate.name || '--',
         name: gate.name || gate.openingTag || '--',
         openingTag: gate.openingTag || '',
@@ -40,7 +41,9 @@ export function buildRealtimeTableData(deviceGroups, values = {}) {
         after: displayValue(values, gate.downLevelTag),
         state,
         color: gateColor(state),
-      });
+      };
+      gates.push(gateData);
+      gateList.push(gateData);
     }
 
     for (const sensorGroup of Array.isArray(deviceGroup?.other) ? deviceGroup.other : []) {
@@ -63,7 +66,7 @@ export function buildRealtimeTableData(deviceGroups, values = {}) {
     }
   }
 
-  return { gates, sensorGroups: [...sensorGroupMap.values()] };
+  return { gates, gateList, sensorGroups: [...sensorGroupMap.values()] };
 }
 
 export function mergeRealtimeValues(target, payload) {
