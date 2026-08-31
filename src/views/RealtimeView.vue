@@ -128,12 +128,18 @@
               <LocateIcon />
               <span>三维定位</span>
             </button>
-            <GateOpeningSettingPopover :value="selectedGateOpening" @confirm="confirmGateSetting">
+            <ControlValueSettingPopover
+              :value="selectedGateOpening"
+              :max="80"
+              label="目标开度："
+              unit="mm"
+              @confirm="confirmGateSetting"
+            >
               <button type="button" class="gate-action-btn gate-action-btn--setting">
                 <GateOpeningSettingIcon />
                 <span>设置开度</span>
               </button>
-            </GateOpeningSettingPopover>
+            </ControlValueSettingPopover>
           </div>
         </section>
 
@@ -163,10 +169,18 @@
               <LocateIcon />
               <span>三维定位</span>
             </button>
-            <button type="button" class="gate-action-btn pump-frequency-action">
-              <PumpFrequencySettingIcon />
-              <span>设置频率</span>
-            </button>
+            <ControlValueSettingPopover
+              :value="targetPumpFrequency"
+              :max="50"
+              label="目标频率："
+              unit="Hz"
+              @confirm="confirmPumpFrequency"
+            >
+              <button type="button" class="gate-action-btn pump-frequency-action">
+                <PumpFrequencySettingIcon />
+                <span>设置频率</span>
+              </button>
+            </ControlValueSettingPopover>
           </div>
         </section>
 
@@ -200,10 +214,18 @@
               <LocateIcon />
               <span>三维定位</span>
             </button>
-            <button type="button" class="gate-action-btn gate-action-btn--setting">
-              <ValveOpeningSettingIcon />
-              <span>设置开度</span>
-            </button>
+            <ControlValueSettingPopover
+              :value="targetValveOpening"
+              :max="100"
+              label="目标开度："
+              unit="%"
+              @confirm="confirmValveSetting"
+            >
+              <button type="button" class="gate-action-btn gate-action-btn--setting">
+                <ValveOpeningSettingIcon />
+                <span>设置开度</span>
+              </button>
+            </ControlValueSettingPopover>
           </div>
         </section>
       </DecorativePanel>
@@ -224,7 +246,7 @@ import GateOpeningSettingIcon from '../components/common/GateOpeningSettingIcon.
 import LocateIcon from '../components/common/LocateIcon.vue';
 import PumpFrequencySettingIcon from '../components/common/PumpFrequencySettingIcon.vue';
 import ValveOpeningSettingIcon from '../components/common/ValveOpeningSettingIcon.vue';
-import GateOpeningSettingPopover from '../components/realtime/GateOpeningSettingPopover.vue';
+import ControlValueSettingPopover from '../components/realtime/ControlValueSettingPopover.vue';
 import GateStatusChart from '../components/realtime/GateStatusChart.vue';
 import PumpFrequencyGauge from '../components/realtime/PumpFrequencyGauge.vue';
 import SmartWaterFlumePreview from '../components/realtime/smart-water-flume-preview/SmartWaterFlumePreview.vue';
@@ -325,6 +347,14 @@ function handleGateLocate() {
 
 function confirmGateSetting(value) {
   targetGateOpening.value = value;
+}
+
+function confirmPumpFrequency(value) {
+  targetPumpFrequency.value = value;
+}
+
+function confirmValveSetting(value) {
+  targetValveOpening.value = value;
 }
 
 function handlePumpLocate() {
