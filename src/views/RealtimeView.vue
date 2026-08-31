@@ -33,6 +33,7 @@
 
       <DecorativePanel class="panel sensor-panel" title="传感器实时状态">
         <div v-if="sensorGroups.length" class="sensor-tabs" role="tablist" aria-label="传感器类型">
+          <div class="sensor-tabs__bg"></div>
           <button
             v-for="group in sensorGroups"
             :key="group.name"
@@ -527,41 +528,66 @@ onBeforeUnmount(() => {
 }
 
 .sensor-tabs {
+  position: relative;
   display: flex;
   min-width: 0;
   flex: 0 0 31px;
   align-items: center;
-  gap: 5px;
   margin-bottom: 4px;
-  border-bottom: 1px solid rgba(31, 157, 242, 0.24);
+  padding: 0;
+}
+
+.sensor-tabs__bg {
+  position: absolute;
+  inset: 0;
+  background: url('../assets/table-header.png') center / 100% 100% no-repeat, #206596;
+  pointer-events: none;
 }
 
 .sensor-tabs button {
+  position: relative;
   min-width: 0;
-  height: 26px;
+  height: 31px;
   flex: 1 1 0;
   overflow: hidden;
-  border: 1px solid rgba(49, 151, 214, 0.34);
+  border: 0;
+  outline: none;
+  box-shadow: none;
   padding: 0 5px;
-  background: rgba(7, 60, 99, 0.56);
+  background: transparent;
   color: #8ebbd6;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
+  transition: color 0.2s ease;
 }
 
 .sensor-tabs button:hover {
-  border-color: rgba(76, 210, 255, 0.68);
   color: #dff8ff;
+  outline: none;
+  box-shadow: none;
 }
 
 .sensor-tabs button.active {
-  border-color: #3ac9f5;
-  background: rgba(21, 126, 180, 0.78);
   color: #ffffff;
-  box-shadow: inset 0 -2px 0 #6eeaff, 0 0 8px rgba(30, 190, 242, 0.2);
+  font-weight: 600;
+  text-shadow: 0 0 8px rgba(110, 234, 255, 0.6);
+}
+
+.sensor-tabs button.active::after {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 20px;
+  height: 3px;
+  background: #6eeaff;
+  border-radius: 2px 2px 0 0;
+  box-shadow: 0 0 8px rgba(110, 234, 255, 0.8);
+  content: '';
+  transform: translateX(-50%);
 }
 
 .sensor-section {
