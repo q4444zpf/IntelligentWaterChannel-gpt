@@ -128,10 +128,12 @@
               <LocateIcon />
               <span>三维定位</span>
             </button>
-            <button type="button" class="gate-action-btn gate-action-btn--setting" @click="handleGateSetting">
-              <GateOpeningSettingIcon />
-              <span>设置开度</span>
-            </button>
+            <GateOpeningSettingPopover :value="selectedGateOpening" @confirm="confirmGateSetting">
+              <button type="button" class="gate-action-btn gate-action-btn--setting">
+                <GateOpeningSettingIcon />
+                <span>设置开度</span>
+              </button>
+            </GateOpeningSettingPopover>
           </div>
         </section>
 
@@ -207,6 +209,7 @@
       </DecorativePanel>
     </aside>
   </section>
+
 </template>
 
 <script setup>
@@ -221,6 +224,7 @@ import GateOpeningSettingIcon from '../components/common/GateOpeningSettingIcon.
 import LocateIcon from '../components/common/LocateIcon.vue';
 import PumpFrequencySettingIcon from '../components/common/PumpFrequencySettingIcon.vue';
 import ValveOpeningSettingIcon from '../components/common/ValveOpeningSettingIcon.vue';
+import GateOpeningSettingPopover from '../components/realtime/GateOpeningSettingPopover.vue';
 import GateStatusChart from '../components/realtime/GateStatusChart.vue';
 import PumpFrequencyGauge from '../components/realtime/PumpFrequencyGauge.vue';
 import SmartWaterFlumePreview from '../components/realtime/smart-water-flume-preview/SmartWaterFlumePreview.vue';
@@ -319,8 +323,8 @@ function handleGateLocate() {
   }
 }
 
-function handleGateSetting() {
-  // TODO: implement gate opening setting
+function confirmGateSetting(value) {
+  targetGateOpening.value = value;
 }
 
 function handlePumpLocate() {
