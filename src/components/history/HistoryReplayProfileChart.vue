@@ -55,6 +55,10 @@ const previousValues = computed(() => props.nodes
   .map((node) => parseReplayValue(props.previousRow?.[node.key])));
 
 function chartOption() {
+  const allValues = [...currentValues.value, ...previousValues.value].filter((v) => v !== null && v !== undefined && !Number.isNaN(v));
+  const dataMax = allValues.length ? Math.max(...allValues) : 0;
+  const yMax = Math.max(0.6, dataMax);
+
   return {
 
     textStyle: { color: '#a9bdd5', fontFamily: 'Microsoft YaHei, sans-serif' },
@@ -88,6 +92,7 @@ function chartOption() {
       type: 'value',
       name: '水位 (m)',
       min: 0,
+      max: yMax,
       axisLine: { show: true, lineStyle: { color: '#47627e' } },
       axisLabel: { color: '#8da8c8', formatter: (value) => Number(value).toFixed(2) },
       splitLine: { lineStyle: { color: 'rgba(93, 139, 181, .16)' } },
@@ -157,7 +162,12 @@ function renderChart() {
     chart.setOption(chartOption(), true);
     return;
   }
+  const allValues = [...currentValues.value, ...previousValues.value].filter((v) => v !== null && v !== undefined && !Number.isNaN(v));
+  const dataMax = allValues.length ? Math.max(...allValues) : 0;
+  const yMax = Math.max(0.6, dataMax);
+
   chart.setOption({
+    yAxis: { max: yMax },
     series: [
       { id: 'previous-frame', data: previousValues.value, },
       { id: 'current-frame', data: currentValues.value },
