@@ -1,6 +1,10 @@
 import { WEB_TOPO_CONFIG } from '../config/webTopoConfig.js';
 import { TREND_PRODUCT_TYPES } from '../config/trendConfig.ts';
-import { buildGateOpeningControlRequest } from '../realtime-control.js';
+import {
+  buildGateOpeningControlRequest,
+  buildPumpControlRequest,
+  buildValveOpeningControlRequest,
+} from '../realtime-control.js';
 import { ApiError, http } from '../utils/request.js';
 
 export async function getRealtimeGroupDevices(groupId = WEB_TOPO_CONFIG.deviceGroupId) {
@@ -25,6 +29,34 @@ export async function setGateOpening(uid, opening) {
   if (response?.code !== 200) {
     throw new ApiError(
       response?.message || response?.msg || '闸门开度设置失败',
+      response?.code,
+    );
+  }
+
+  return response.data;
+}
+
+export async function setPumpControl(uid, control) {
+  const request = buildPumpControlRequest(uid, control);
+  const response = await http.post(request.url, request.payload);
+
+  if (response?.code !== 200) {
+    throw new ApiError(
+      response?.message || response?.msg || '水泵控制失败',
+      response?.code,
+    );
+  }
+
+  return response.data;
+}
+
+export async function setValveOpening(uid, opening) {
+  const request = buildValveOpeningControlRequest(uid, opening);
+  const response = await http.post(request.url, request.payload);
+
+  if (response?.code !== 200) {
+    throw new ApiError(
+      response?.message || response?.msg || '阀门开度设置失败',
       response?.code,
     );
   }

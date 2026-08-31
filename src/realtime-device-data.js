@@ -22,10 +22,37 @@ function gateColor(state) {
   return state === '在线' ? 'green' : 'off';
 }
 
+function booleanValue(value) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value !== 'string') return false;
+  return ['true', '1', 'on', 'open', 'running', '开', '开启'].includes(value.trim().toLowerCase());
+}
+
+function numberValue(value) {
+  const normalizedValue = Number(value);
+  return Number.isFinite(normalizedValue) ? normalizedValue : 0;
+}
+
+function objectValue(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value !== 'string' || !value.trim().startsWith('{')) return {};
+  try {
+    const parsedValue = JSON.parse(value);
+    return parsedValue && typeof parsedValue === 'object' && !Array.isArray(parsedValue)
+      ? parsedValue
+      : {};
+  } catch {
+    return {};
+  }
+}
+
 export function buildRealtimeTableData(deviceGroups, values = {}) {
   const gates = [];
   const gateList = [];
+  const valves = [];
   const sensorGroupMap = new Map();
+  let pump = null;
 
   for (const deviceGroup of Array.isArray(deviceGroups) ? deviceGroups : []) {
     for (const gate of Array.isArray(deviceGroup?.gate) ? deviceGroup.gate : []) {
@@ -45,6 +72,44 @@ export function buildRealtimeTableData(deviceGroups, values = {}) {
       };
       gates.push(gateData);
       gateList.push(gateData);
+    }
+
+    if (!pump && deviceGroup?.pump) {
+      const pumpConfig = deviceGroup.pump;
+      const tag = pumpConfig.tag || 'Pump';
+      const statusField = pumpConfig.statusField || 'stats';
+      const frequencyField = pumpConfig.frequencyField || 'frequency';
+      const telemetry = objectValue(tagValue(values, tag));
+      const maxFrequency = Number(pumpConfig.maxFrequency);
+      pump = {
+        uid: pumpConfig.uid == null ? '' : String(pumpConfig.uid),
+        name: pumpConfig.name || '水泵',
+        tag,
+        statusField,
+        frequencyField,
+        maxFrequency: Number.isFinite(maxFrequency) && maxFrequency > 0 ? maxFrequency : 50,
+        running: booleanValue(telemetry[statusField]),
+        frequency: numberValue(telemetry[frequencyField]),
+        state: deviceState(values, [tag]),
+      };
+    }
+
+    for (const valveConfig of Array.isArray(deviceGroup?.valve) ? deviceGroup.valve : []) {
+      const tag = valveConfig.tag || '';
+      const openingField = valveConfig.openingField || 'opening';
+      const telemetry = objectValue(tagValue(values, tag));
+      const maxOpening = Number(valveConfig.maxOpening);
+      valves.push({
+        id: tag || valveConfig.name || '--',
+        uid: valveConfig.uid == null ? '' : String(valveConfig.uid),
+        name: valveConfig.name || tag || '阀门',
+        label: tag ? tag.toUpperCase() : (valveConfig.name || '--'),
+        tag,
+        openingField,
+        maxOpening: Number.isFinite(maxOpening) && maxOpening > 0 ? maxOpening : 100,
+        opening: numberValue(telemetry[openingField]),
+        state: deviceState(values, [tag]),
+      });
     }
 
     for (const sensorGroup of Array.isArray(deviceGroup?.other) ? deviceGroup.other : []) {
@@ -67,7 +132,7 @@ export function buildRealtimeTableData(deviceGroups, values = {}) {
     }
   }
 
-  return { gates, gateList, sensorGroups: [...sensorGroupMap.values()] };
+  return { gates, gateList, pump, valves, sensorGroups: [...sensorGroupMap.values()] };
 }
 
 export function mergeRealtimeValues(target, payload) {

@@ -145,7 +145,7 @@
 
         <section class="control-section pump-control-section">
           <div class="gate-header pump-header">
-            <h2 class="gate-title">水泵</h2>
+            <h2 class="gate-title">{{ pump?.name || '水泵' }}</h2>
             <div class="pump-switch-control">
               <span>{{ pumpRunning ? '开' : '关' }}</span>
               <button
@@ -155,28 +155,41 @@
                 :aria-checked="pumpRunning"
                 :aria-label="pumpRunning ? '关闭水泵' : '开启水泵'"
                 :class="{ 'is-checked': pumpRunning }"
-                @click="pumpRunning = !pumpRunning"
+                :disabled="!pump?.uid || pumpControlSubmitting"
+                @click="togglePumpRunning"
               >
                 <span aria-hidden="true"></span>
               </button>
             </div>
           </div>
 
-          <PumpFrequencyGauge :value="pumpRunning ? targetPumpFrequency : 0" :max="50" />
+          <PumpFrequencyGauge
+            :value="pumpRunning ? pumpFrequency : 0"
+            :max="pumpMaxFrequency"
+          />
 
           <div class="gate-actions pump-actions">
-            <button type="button" class="gate-action-btn" @click="handlePumpLocate">
+            <button
+              type="button"
+              class="gate-action-btn"
+              :disabled="!pump?.name"
+              @click="handlePumpLocate"
+            >
               <LocateIcon />
               <span>三维定位</span>
             </button>
             <ControlValueSettingPopover
-              :value="targetPumpFrequency"
-              :max="50"
+              :value="pumpFrequency"
+              :max="pumpMaxFrequency"
               label="目标频率："
               unit="Hz"
-              @confirm="confirmPumpFrequency"
+              :submit="confirmPumpFrequency"
             >
-              <button type="button" class="gate-action-btn pump-frequency-action">
+              <button
+                type="button"
+                class="gate-action-btn pump-frequency-action"
+                :disabled="!pump?.uid || pumpControlSubmitting"
+              >
                 <PumpFrequencySettingIcon />
                 <span>设置频率</span>
               </button>
@@ -190,38 +203,47 @@
             <div class="gate-tabs" role="tablist" aria-label="阀门列表">
               <button
                 v-for="valve in valves"
-                :key="valve"
+                :key="valve.id"
                 type="button"
                 role="tab"
-                :aria-selected="selectedValve === valve"
-                :class="{ active: selectedValve === valve }"
+                :aria-selected="selectedValve?.id === valve.id"
+                :class="{ active: selectedValve?.id === valve.id }"
                 @click="selectedValve = valve"
               >
-                {{ valve }}
+                {{ valve.label }}
               </button>
             </div>
           </div>
 
           <PumpFrequencyGauge
-            :value="targetValveOpening"
-            :max="100"
+            :value="selectedValveOpening"
+            :max="selectedValveMaxOpening"
             label="当前开度"
             unit="%"
           />
 
           <div class="gate-actions valve-actions">
-            <button type="button" class="gate-action-btn" @click="handleValveLocate">
+            <button
+              type="button"
+              class="gate-action-btn"
+              :disabled="!selectedValve?.name"
+              @click="handleValveLocate"
+            >
               <LocateIcon />
               <span>三维定位</span>
             </button>
             <ControlValueSettingPopover
-              :value="targetValveOpening"
-              :max="100"
+              :value="selectedValveOpening"
+              :max="selectedValveMaxOpening"
               label="目标开度："
               unit="%"
-              @confirm="confirmValveSetting"
+              :submit="confirmValveSetting"
             >
-              <button type="button" class="gate-action-btn gate-action-btn--setting">
+              <button
+                type="button"
+                class="gate-action-btn gate-action-btn--setting"
+                :disabled="!selectedValve?.uid || valveControlSubmitting"
+              >
                 <ValveOpeningSettingIcon />
                 <span>设置开度</span>
               </button>
@@ -242,6 +264,8 @@ import {
   getRealtimeGroupDevices,
   getRealtimeWaterProfileTopology,
   setGateOpening,
+  setPumpControl,
+  setValveOpening,
 } from '../api/realtime.js';
 import DecorativePanel from '../components/common/DecorativePanel.vue';
 import GateOpeningSettingIcon from '../components/common/GateOpeningSettingIcon.vue';
@@ -262,11 +286,8 @@ const props = defineProps({
 
 const previewRef = ref(null);
 const targetGateOpening = ref(50);
-const targetPumpFrequency = ref(35);
-const targetValveOpening = ref(52);
-const pumpRunning = ref(true);
-const valves = Object.freeze(['V1', 'V2', 'V3', 'V4', 'V5', 'V6']);
-const selectedValve = ref('V3');
+const pumpControlSubmitting = ref(false);
+const valveControlSubmitting = ref(false);
 const deviceGroups = ref([]);
 const deviceLoading = ref(true);
 const deviceError = ref('');
@@ -282,6 +303,14 @@ let pendingRealtimePayload = null;
 const tableData = computed(() => buildRealtimeTableData(deviceGroups.value, realtimeValues));
 const gates = computed(() => tableData.value.gates);
 const gateList = computed(() => tableData.value.gateList || []);
+const pump = computed(() => tableData.value.pump);
+const pumpRunning = computed(() => pump.value?.running ?? false);
+const pumpFrequency = computed(() => pump.value?.frequency ?? 0);
+const pumpMaxFrequency = computed(() => pump.value?.maxFrequency ?? 50);
+const valves = computed(() => tableData.value.valves || []);
+const selectedValve = ref(null);
+const selectedValveOpening = computed(() => selectedValve.value?.opening ?? 0);
+const selectedValveMaxOpening = computed(() => selectedValve.value?.maxOpening ?? 100);
 const selectedGate = ref(null);
 const selectedGateOpening = computed(() => {
   const gate = selectedGate.value;
@@ -365,20 +394,89 @@ async function confirmGateSetting(value) {
   }
 }
 
-function confirmPumpFrequency(value) {
-  targetPumpFrequency.value = value;
+async function togglePumpRunning() {
+  const currentPump = pump.value;
+  if (!currentPump?.uid || pumpControlSubmitting.value) return;
+
+  const nextRunning = !pumpRunning.value;
+  pumpControlSubmitting.value = true;
+  try {
+    await setPumpControl(currentPump.uid, {
+      running: nextRunning,
+      frequency: pumpFrequency.value,
+    });
+    realtimeValues[currentPump.tag] = {
+      [currentPump.statusField]: nextRunning,
+      [currentPump.frequencyField]: pumpFrequency.value,
+    };
+    message.success(`${currentPump.name}已${nextRunning ? '开启' : '关闭'}`);
+  } catch (error) {
+    message.error(error?.message || '水泵开关控制失败');
+  } finally {
+    pumpControlSubmitting.value = false;
+  }
 }
 
-function confirmValveSetting(value) {
-  targetValveOpening.value = value;
+async function confirmPumpFrequency(value) {
+  const currentPump = pump.value;
+  if (!currentPump?.uid) {
+    const error = new Error('当前水泵缺少设备标识，无法下发频率');
+    message.error(error.message);
+    throw error;
+  }
+
+  pumpControlSubmitting.value = true;
+  try {
+    await setPumpControl(currentPump.uid, {
+      running: pumpRunning.value,
+      frequency: value,
+    });
+    realtimeValues[currentPump.tag] = {
+      [currentPump.statusField]: pumpRunning.value,
+      [currentPump.frequencyField]: value,
+    };
+    message.success(`${currentPump.name}目标频率已设置为 ${value} Hz`);
+  } catch (error) {
+    message.error(error?.message || '水泵频率设置失败');
+    throw error;
+  } finally {
+    pumpControlSubmitting.value = false;
+  }
+}
+
+async function confirmValveSetting(value) {
+  const currentValve = selectedValve.value;
+  if (!currentValve?.uid) {
+    const error = new Error('当前阀门缺少设备标识，无法下发开度');
+    message.error(error.message);
+    throw error;
+  }
+
+  valveControlSubmitting.value = true;
+  try {
+    await setValveOpening(currentValve.uid, value);
+    realtimeValues[currentValve.tag] = {
+      [currentValve.openingField]: value,
+    };
+    message.success(`${currentValve.name}目标开度已设置为 ${value}%`);
+  } catch (error) {
+    message.error(error?.message || '阀门开度设置失败');
+    throw error;
+  } finally {
+    valveControlSubmitting.value = false;
+  }
 }
 
 function handlePumpLocate() {
-  previewRef.value?.focusSceneTreeGroupByName('水泵');
+  if (pump.value?.name) {
+    previewRef.value?.focusSceneTreeGroupByName(pump.value.name);
+  }
 }
 
 function handleValveLocate() {
-  previewRef.value?.focusSceneTreeGroupByName('阀门');
+  if (selectedValve.value?.name) {
+    previewRef.value?.focusSceneTreeGroupByName(selectedValve.value.name);
+  }
 }
 
 async function loadAlarmNotificationTopic() {
@@ -430,6 +528,16 @@ watch(gateList, (list) => {
 
   const selectedGateId = selectedGate.value?.id;
   selectedGate.value = list.find((gate) => gate.id === selectedGateId) || list[0];
+}, { immediate: true });
+
+watch(valves, (list) => {
+  if (!list?.length) {
+    selectedValve.value = null;
+    return;
+  }
+
+  const selectedValveId = selectedValve.value?.id;
+  selectedValve.value = list.find((valve) => valve.id === selectedValveId) || list[0];
 }, { immediate: true });
 
 onMounted(() => {
@@ -980,6 +1088,17 @@ onBeforeUnmount(() => {
 .gate-action-btn:hover {
   border-color: rgba(103, 219, 255, 0.86);
   background: rgba(15, 104, 163, 0.82);
+}
+
+.gate-action-btn:disabled,
+.pump-switch:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.gate-action-btn:disabled:hover {
+  border-color: rgba(103, 207, 255, 0.42);
+  background: rgba(17, 78, 121, 0.62);
 }
 
 .gate-action-btn svg {

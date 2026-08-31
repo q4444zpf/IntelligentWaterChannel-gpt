@@ -9,6 +9,14 @@ import {
 } from '../src/realtime-device-data.js';
 
 const deviceGroups = [{
+  pump: {
+    uid: '2092915057435348994',
+    name: '水泵',
+    tag: 'Pump',
+    statusField: 'stats',
+    frequencyField: 'frequency',
+    maxFrequency: 50,
+  },
   gate: [{
     uid: '2082047504001417217',
     openingTag: 'G1',
@@ -16,6 +24,22 @@ const deviceGroups = [{
     name: '闸门1',
     upLevelTag: 'wl1',
   }],
+  valve: [
+    {
+      uid: '2094374545467707394',
+      name: '阀门1',
+      tag: 'v1',
+      openingField: 'opening',
+      maxOpening: 100,
+    },
+    {
+      uid: '2094374967620210690',
+      name: '阀门2',
+      tag: 'v2',
+      openingField: 'opening',
+      maxOpening: 100,
+    },
+  ],
   other: [{
     name: '水位计',
     data: [
@@ -30,7 +54,13 @@ test('uses the configured realtime device group', () => {
 });
 
 test('builds realtime tables from API metadata and MQTT values', () => {
-  const result = buildRealtimeTableData(deviceGroups, { G1: 0, wl1: 120.5 });
+  const result = buildRealtimeTableData(deviceGroups, {
+    G1: 0,
+    wl1: 120.5,
+    Pump: { stats: true, frequency: 35 },
+    v1: { opening: 52 },
+    v2: JSON.stringify({ opening: '68.5' }),
+  });
 
   assert.deepEqual(result.gates[0], {
     id: 'G1',
@@ -49,6 +79,51 @@ test('builds realtime tables from API metadata and MQTT values', () => {
   assert.equal(result.sensorGroups[0].rows[0].state, '在线');
   assert.equal(result.sensorGroups[0].rows[1].location, '--');
   assert.equal(result.sensorGroups[0].rows[1].state, '离线');
+  assert.deepEqual(result.pump, {
+    uid: '2092915057435348994',
+    name: '水泵',
+    tag: 'Pump',
+    statusField: 'stats',
+    frequencyField: 'frequency',
+    maxFrequency: 50,
+    running: true,
+    frequency: 35,
+    state: '在线',
+  });
+  assert.deepEqual(result.valves, [
+    {
+      id: 'v1',
+      uid: '2094374545467707394',
+      name: '阀门1',
+      label: 'V1',
+      tag: 'v1',
+      openingField: 'opening',
+      maxOpening: 100,
+      opening: 52,
+      state: '在线',
+    },
+    {
+      id: 'v2',
+      uid: '2094374967620210690',
+      name: '阀门2',
+      label: 'V2',
+      tag: 'v2',
+      openingField: 'opening',
+      maxOpening: 100,
+      opening: 68.5,
+      state: '在线',
+    },
+  ]);
+});
+
+test('normalizes string pump telemetry values', () => {
+  const result = buildRealtimeTableData(deviceGroups, {
+    Pump: JSON.stringify({ stats: 'false', frequency: '42.5' }),
+  });
+
+  assert.equal(result.pump.running, false);
+  assert.equal(result.pump.frequency, 42.5);
+  assert.equal(result.pump.state, '在线');
 });
 
 test('merges flat MQTT payloads while retaining previous tag values', () => {
