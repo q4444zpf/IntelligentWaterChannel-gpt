@@ -1,10 +1,12 @@
 <template>
   <div
-    ref="chartElement"
     class="pump-frequency-gauge"
     role="img"
     :aria-label="`水泵当前频率 ${displayValue} 赫兹`"
-  ></div>
+  >
+    <div ref="chartElement" class="pump-frequency-gauge__canvas"></div>
+    <span class="pump-frequency-gauge__value" aria-hidden="true">{{ Math.round(displayValue) }}</span>
+  </div>
 </template>
 
 <script setup>
@@ -123,12 +125,7 @@ function buildGaugeOption() {
         textShadowColor: 'rgba(0, 0, 0, 0.72)',
       },
       detail: {
-        offsetCenter: [0, '-42%'],
-        color: '#ffd45c',
-        fontSize: 23,
-        fontWeight: 700,
-        valueAnimation: true,
-        formatter: (value) => Number(value).toFixed(0),
+        show: false,
       },
       data: [{ value: normalizeValue(), name: '当前频率' }],
     }],
@@ -158,7 +155,29 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .pump-frequency-gauge {
+  position: relative;
   width: 100%;
   height: 146px;
+}
+
+.pump-frequency-gauge__canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.pump-frequency-gauge__value {
+  position: absolute;
+  top: 51.5%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(180deg, #facb64 0%, #ffffff 55%, #e0a115 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
 }
 </style>
