@@ -237,30 +237,94 @@
           </div>
         </section>
 
-        <section class="control-section">
-          <div class="control-section__head">
-            <h2><PoweroffOutlined aria-hidden="true" />水泵</h2>
-            <span class="running-state"><span aria-hidden="true"></span>运行中</span>
+        <section class="control-section pump-control-section">
+          <div class="gate-header pump-header">
+            <h2 class="gate-title">水泵</h2>
+            <div class="pump-switch-control">
+              <span>{{ pumpRunning ? '开' : '关' }}</span>
+              <button
+                type="button"
+                class="pump-switch"
+                role="switch"
+                :aria-checked="pumpRunning"
+                :aria-label="pumpRunning ? '关闭水泵' : '开启水泵'"
+                :class="{ 'is-checked': pumpRunning }"
+                @click="pumpRunning = !pumpRunning"
+              >
+                <span aria-hidden="true"></span>
+              </button>
+            </div>
           </div>
-          <div class="control-device-row">
-            <label for="pump-device">设备</label>
-            <select id="pump-device"><option>P1</option><option>P2</option></select>
-            <strong>当前 32Hz</strong>
-          </div>
-          <div class="control-value"><span>目标频率</span><b>{{ targetPumpFrequency }}<small>Hz</small></b></div>
-          <input
-            v-model.number="targetPumpFrequency"
-            type="range"
-            min="0"
-            max="50"
-            step="1"
-            aria-label="水泵目标频率"
-            :style="{ '--range-progress': `${(targetPumpFrequency / 50) * 100}%` }"
-          >
-          <div class="button-row">
-            <button type="button"><PlayCircleOutlined aria-hidden="true" /><span>启动</span></button>
-            <button class="danger-command" type="button"><PauseCircleOutlined aria-hidden="true" /><span>停止</span></button>
-            <button type="button"><SettingOutlined aria-hidden="true" /><span>设置频率</span></button>
+
+          <PumpFrequencyGauge :value="pumpRunning ? targetPumpFrequency : 0" :max="50" />
+
+          <div class="gate-actions pump-actions">
+            <button type="button" class="gate-action-btn" @click="handlePumpLocate">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="22" viewBox="0 0 25 22.66" fill="none" aria-hidden="true">
+                <defs>
+                  <filter id="pump-locate-shadow" filterUnits="objectBoundingBox" color-interpolation-filters="sRGB" x="0" y="0" width="1" height="1">
+                    <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+                    <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+                    <feColorMatrix in="SourceAlpha" type="matrix" result="hardAlpha" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"/>
+                    <feOffset dy="0" dx="0"/>
+                    <feGaussianBlur stdDeviation="2.5"/>
+                    <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+                    <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.5 0"/>
+                    <feBlend mode="normal" in2="shape" result="effect1_innerShadow"/>
+                  </filter>
+                  <linearGradient id="pump-locate-grad1" x1="0.638" y1="0" x2="0.469" y2="0.995">
+                    <stop offset="15.7%" stop-color="#9D9DFF"/>
+                    <stop offset="38.7%" stop-color="#123A56"/>
+                    <stop offset="53.3%" stop-color="#123A56"/>
+                    <stop offset="100%" stop-color="#05FCFD"/>
+                  </linearGradient>
+                  <linearGradient id="pump-locate-grad2" x1="1" y1="0.71" x2="-0.057" y2="0.099">
+                    <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.8"/>
+                    <stop offset="87%" stop-color="#FFFFFF" stop-opacity="0.3"/>
+                  </linearGradient>
+                </defs>
+                <g filter="url(#pump-locate-shadow)">
+                  <path d="M2.37 0.77C1.58 0.66 0.98 1.48 1.33 2.2L9.94 19.9C10.33 20.72 11.52 20.63 11.79 19.77L14.45 11.36C14.51 11.15 14.65 10.97 14.82 10.84L22.45 5.46C23.19 4.94 22.92 3.78 22.02 3.65L2.37 0.77Z" fill="url(#pump-locate-grad1)"/>
+                  <path d="M12.27 19.92L14.92 11.51Q14.97 11.35 15.11 11.25L22.74 5.86Q23.57 5.28 23.34 4.29Q23.1 3.3 22.1 3.15L2.44 0.28Q1.55 0.15 1.02 0.88Q0.48 1.61 0.88 2.42L9.49 20.12Q9.93 21.04 10.95 20.96Q11.96 20.89 12.27 19.92ZM14.54 10.43Q14.12 10.73 13.97 11.21L11.32 19.62Q11.21 19.94 10.88 19.96Q10.54 19.99 10.39 19.68L1.78 1.98Q1.65 1.71 1.82 1.47Q2 1.22 2.3 1.27L21.95 4.14Q22.29 4.19 22.36 4.52Q22.44 4.85 22.17 5.05L14.54 10.43Z" fill-rule="evenodd" fill="url(#pump-locate-grad2)"/>
+                </g>
+              </svg>
+              <span>三维定位</span>
+            </button>
+            <button type="button" class="gate-action-btn pump-frequency-action">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+                <defs>
+                  <filter id="pump-frequency-shadow" filterUnits="objectBoundingBox" color-interpolation-filters="sRGB" x="0" y="0" width="1" height="1">
+                    <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+                    <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+                    <feColorMatrix in="SourceAlpha" type="matrix" result="hardAlpha" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"/>
+                    <feOffset dy="0" dx="0"/>
+                    <feGaussianBlur stdDeviation="5"/>
+                    <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+                    <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.3 0"/>
+                    <feBlend mode="normal" in2="shape" result="effect1_innerShadow"/>
+                  </filter>
+                  <linearGradient id="pump-frequency-grad1" x1="0.243" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#C0A1FE"/>
+                    <stop offset="35.714%" stop-color="#0D548D"/>
+                    <stop offset="64.645%" stop-color="#0D548D"/>
+                    <stop offset="100%" stop-color="#05FCFD"/>
+                  </linearGradient>
+                  <linearGradient id="pump-frequency-grad2" x1="0.172" y1="-0.018" x2="0.693" y2="0.787">
+                    <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0"/>
+                    <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.5"/>
+                  </linearGradient>
+                  <clipPath id="pump-frequency-clip"><rect x="2" y="2" width="20" height="20"/></clipPath>
+                </defs>
+                <g filter="url(#pump-frequency-shadow)">
+                  <rect width="24" height="24" rx="2" fill="url(#pump-frequency-grad1)"/>
+                  <rect x="0.5" y="0.5" width="23" height="23" rx="1.5" stroke="url(#pump-frequency-grad2)" fill="none"/>
+                </g>
+                <g clip-path="url(#pump-frequency-clip)">
+                  <path d="M10.6537504,4.8125C11.0495682,4.812520790101,11.4027271,5.06113282,11.5362501,5.43375015L14.58125,13.9137506L15.135001,11.9262505C15.248351,11.5209489,15.617899,11.24085,16.038752,11.2412505L20.75,11.2412505C21.267767,11.2412505,21.6875,11.6609836,21.6875,12.1787505C21.6875,12.6965179,21.267767,13.116251,20.75,13.116251L16.75,13.116251L15.595,17.252501C15.484862,17.645247,15.133418,17.921706999999998,14.725782,17.936266C14.318145,17.950826,13.947874,17.700139,13.81,17.316251L10.6537504,8.5250001L9.5162501,11.6912498C9.3828821,12.063437,9.0303597,12.3119521,8.6349998,12.3125L3.25,12.3125C2.73223296,12.3125,2.3125,11.8927674,2.3125,11.375C2.3125,10.8572326,2.73223296,10.4375,3.25,10.4375L7.9749999,10.4375L9.7712502,5.43375015C9.9047732,5.06113243,10.2579317,4.81252040863,10.6537504,4.8125Z" fill="#FFFFFF"/>
+                </g>
+              </svg>
+              <span>设置频率</span>
+            </button>
           </div>
         </section>
 
@@ -299,8 +363,6 @@
 import {
   ControlOutlined,
   PauseCircleOutlined,
-  PlayCircleOutlined,
-  PoweroffOutlined,
   ReloadOutlined,
   SettingOutlined,
 } from '@ant-design/icons-vue';
@@ -312,6 +374,7 @@ import {
 } from '../api/realtime.js';
 import DecorativePanel from '../components/common/DecorativePanel.vue';
 import GateStatusChart from '../components/realtime/GateStatusChart.vue';
+import PumpFrequencyGauge from '../components/realtime/PumpFrequencyGauge.vue';
 import SmartWaterFlumePreview from '../components/realtime/smart-water-flume-preview/SmartWaterFlumePreview.vue';
 import TrendAnalysis from '../components/realtime/trend/TrendAnalysis.vue';
 import { VIEW_ACTIONS } from '../data/monitoring-data.js';
@@ -325,6 +388,7 @@ const previewRef = ref(null);
 const targetGateOpening = ref(50);
 const targetPumpFrequency = ref(35);
 const targetValveOpening = ref(52);
+const pumpRunning = ref(true);
 const deviceGroups = ref([]);
 const deviceLoading = ref(true);
 const deviceError = ref('');
@@ -407,6 +471,10 @@ function handleGateLocate() {
 
 function handleGateSetting() {
   // TODO: implement gate opening setting
+}
+
+function handlePumpLocate() {
+  previewRef.value?.focusSceneTreeGroupByName('水泵');
 }
 
 async function loadAlarmNotificationTopic() {
@@ -1022,6 +1090,73 @@ onBeforeUnmount(() => {
 }
 
 /* End gate control section */
+
+.pump-control-section {
+  padding: 8px 2px 12px;
+}
+
+.pump-header {
+  margin-bottom: 0;
+}
+
+.pump-switch-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+  color: #cde8f7;
+  font-size: 12px;
+}
+
+.pump-switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  padding: 0;
+  flex: 0 0 36px;
+  border: 1px solid rgba(121, 158, 182, 0.72);
+  border-radius: 10px;
+  outline: 0;
+  background: rgba(63, 83, 101, 0.78);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pump-switch span {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #c7d4dc;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.34);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.pump-switch.is-checked {
+  border-color: #4adce7;
+  background: rgba(10, 156, 176, 0.82);
+  box-shadow: 0 0 8px rgba(5, 252, 253, 0.35);
+}
+
+.pump-switch.is-checked span {
+  transform: translateX(16px);
+  background: #ffffff;
+}
+
+.pump-switch:focus-visible {
+  box-shadow: 0 0 0 2px rgba(100, 222, 255, 0.38);
+}
+
+.pump-actions {
+  margin-top: -5px;
+}
+
+.pump-frequency-action svg {
+  width: 20px;
+  height: 20px;
+}
 
 .control-section + .control-section {
   border-top: 1px solid rgba(70, 171, 228, 0.34);
