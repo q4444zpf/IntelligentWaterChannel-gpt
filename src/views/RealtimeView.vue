@@ -345,7 +345,7 @@ const selectedGateOpening = computed(() => {
   const gate = selectedGate.value;
   if (!gate) return 0;
   const val = parseFloat(gate.open);
-  return Number.isNaN(val) ? 0 : Math.round(val);
+  return Number.isNaN(val) ? 0 : Math.round(val * 100);
 });
 const sensorGroups = computed(() => tableData.value.sensorGroups);
 const activeSensorGroup = ref('');
@@ -451,10 +451,14 @@ watch(() => props.sceneTarget, async (target) => {
 });
 
 watch(gateList, (list) => {
-  if (list?.length && !selectedGate.value) {
-    selectedGate.value = list[0];
+  if (!list?.length) {
+    selectedGate.value = null;
+    return;
   }
-}, { immediate: true, deep: true });
+
+  const selectedGateId = selectedGate.value?.id;
+  selectedGate.value = list.find((gate) => gate.id === selectedGateId) || list[0];
+}, { immediate: true });
 
 onMounted(() => {
   void loadAlarmNotificationTopic();
@@ -911,8 +915,8 @@ onBeforeUnmount(() => {
 }
 
 .gate-arrow {
-  width: 80px;
-  height: 80px;
+  width: 75px;
+  height: 98px;
   border: 0;
   outline: none;
   box-shadow: none;
