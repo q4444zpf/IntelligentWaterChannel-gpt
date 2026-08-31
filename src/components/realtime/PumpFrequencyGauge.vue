@@ -114,7 +114,7 @@ function buildGaugeOption() {
         fontSize: 9,
       },
       title: {
-        offsetCenter: [0, '-17%'],
+        offsetCenter: [0, '-22%'],
         color: '#e3edf3',
         fontSize: 11,
         textBorderColor: 'rgba(2, 27, 47, 0.94)',
@@ -123,7 +123,7 @@ function buildGaugeOption() {
         textShadowColor: 'rgba(0, 0, 0, 0.72)',
       },
       detail: {
-        offsetCenter: [0, '-37%'],
+        offsetCenter: [0, '-42%'],
         color: '#ffd45c',
         fontSize: 23,
         fontWeight: 700,
