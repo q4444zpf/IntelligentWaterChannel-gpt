@@ -12,6 +12,9 @@ function formatValue(value) {
 
 export function buildRealtimeWaterProfileOption(snapshot) {
   const nodes = snapshot?.nodes ?? [];
+  const values = nodes.map((node) => node.measured).filter((v) => v !== null && v !== undefined && !Number.isNaN(v));
+  const dataMax = values.length ? Math.max(...values) : 0;
+  const yMax = Math.max(0.6, dataMax);
   const tooltipFormatter = (params) => {
     const node = nodes[params?.[0]?.dataIndex];
     if (!node) return '';
@@ -43,7 +46,7 @@ export function buildRealtimeWaterProfileOption(snapshot) {
       splitLine: { lineStyle: { color: 'rgba(91, 139, 181, .12)' } }
     },
     yAxis: {
-      type: 'value', min: 0, name: '水位（m）', nameLocation: 'middle', nameRotate: 90, nameGap: 42,
+      type: 'value', min: 0, max: yMax, name: '水位（m）', nameLocation: 'middle', nameRotate: 90, nameGap: 42,
       axisLine: { show: true, lineStyle: { color: '#55718c' } }, axisLabel: { color: '#91abc4', formatter: '{value}' },
       splitLine: { lineStyle: { color: 'rgba(91, 139, 181, .17)' } }
     },
