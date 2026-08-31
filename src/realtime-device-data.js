@@ -32,6 +32,7 @@ export function buildRealtimeTableData(deviceGroups, values = {}) {
       const state = deviceState(values, [gate.openingTag]);
       const gateData = {
         id: gate.openingTag || gate.name || '--',
+        uid: gate.uid == null ? '' : String(gate.uid),
         name: gate.name || gate.openingTag || '--',
         openingTag: gate.openingTag || '',
         upLevelTag: gate.upLevelTag || '',

@@ -20,7 +20,7 @@
             :step="step"
             :tooltip="{ formatter: formatValue }"
           />
-          <a-button type="primary" block @click="confirm">确定</a-button>
+          <a-button type="primary" block :loading="submitting" @click="confirm">确定</a-button>
         </div>
       </template>
       <slot />
@@ -45,10 +45,12 @@ const props = defineProps({
   step: { type: Number, default: 1 },
   label: { type: String, required: true },
   unit: { type: String, default: '' },
+  submit: { type: Function, default: null },
 });
 
 const emit = defineEmits(['confirm']);
 const open = ref(false);
+const submitting = ref(false);
 const dialogLabel = computed(() => props.label.replace(/[：:]$/, ''));
 const unitSeparator = computed(() => (props.unit && props.unit !== '%' ? ' ' : ''));
 
@@ -65,13 +67,30 @@ function formatValue(value) {
 const draftValue = ref(normalizeValue(props.value));
 
 function handleOpenChange(nextOpen) {
+  if (submitting.value) return;
   open.value = nextOpen;
   if (nextOpen) draftValue.value = normalizeValue(props.value);
 }
 
-function confirm() {
-  emit('confirm', normalizeValue(draftValue.value));
-  open.value = false;
+async function confirm() {
+  if (submitting.value) return;
+
+  const value = normalizeValue(draftValue.value);
+  if (!props.submit) {
+    emit('confirm', value);
+    open.value = false;
+    return;
+  }
+
+  submitting.value = true;
+  try {
+    await props.submit(value);
+    open.value = false;
+  } catch {
+    // 提交失败时保留弹窗，由调用方展示具体错误。
+  } finally {
+    submitting.value = false;
+  }
 }
 
 const popoverTheme = {

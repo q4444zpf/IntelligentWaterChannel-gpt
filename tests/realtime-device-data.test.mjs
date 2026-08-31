@@ -10,6 +10,7 @@ import {
 
 const deviceGroups = [{
   gate: [{
+    uid: '2082047504001417217',
     openingTag: 'G1',
     downLevelTag: 'wl2',
     name: '闸门1',
@@ -33,6 +34,7 @@ test('builds realtime tables from API metadata and MQTT values', () => {
 
   assert.deepEqual(result.gates[0], {
     id: 'G1',
+    uid: '2082047504001417217',
     name: '闸门1',
     openingTag: 'G1',
     upLevelTag: 'wl1',

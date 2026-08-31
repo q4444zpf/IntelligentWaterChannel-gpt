@@ -133,7 +133,7 @@
               :max="80"
               label="目标开度："
               unit="mm"
-              @confirm="confirmGateSetting"
+              :submit="confirmGateSetting"
             >
               <button type="button" class="gate-action-btn gate-action-btn--setting">
                 <GateOpeningSettingIcon />
@@ -236,10 +236,12 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, watchEffect } from 'vue';
+import { message } from 'ant-design-vue';
 import { getBigWaterChannelAlarmNotificationTopic } from '../api/alarm.js';
 import {
   getRealtimeGroupDevices,
   getRealtimeWaterProfileTopology,
+  setGateOpening,
 } from '../api/realtime.js';
 import DecorativePanel from '../components/common/DecorativePanel.vue';
 import GateOpeningSettingIcon from '../components/common/GateOpeningSettingIcon.vue';
@@ -345,8 +347,22 @@ function handleGateLocate() {
   }
 }
 
-function confirmGateSetting(value) {
-  targetGateOpening.value = value;
+async function confirmGateSetting(value) {
+  const gate = selectedGate.value;
+  if (!gate?.uid) {
+    const error = new Error('当前闸门缺少设备标识，无法下发开度');
+    message.error(error.message);
+    throw error;
+  }
+
+  try {
+    await setGateOpening(gate.uid, value);
+    targetGateOpening.value = value;
+    message.success(`${gate.name}目标开度已设置为 ${value} mm`);
+  } catch (error) {
+    message.error(error?.message || '闸门开度设置失败');
+    throw error;
+  }
 }
 
 function confirmPumpFrequency(value) {

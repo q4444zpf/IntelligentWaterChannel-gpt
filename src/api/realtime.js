@@ -1,5 +1,6 @@
 import { WEB_TOPO_CONFIG } from '../config/webTopoConfig.js';
 import { TREND_PRODUCT_TYPES } from '../config/trendConfig.ts';
+import { buildGateOpeningControlRequest } from '../realtime-control.js';
 import { ApiError, http } from '../utils/request.js';
 
 export async function getRealtimeGroupDevices(groupId = WEB_TOPO_CONFIG.deviceGroupId) {
@@ -10,6 +11,20 @@ export async function getRealtimeGroupDevices(groupId = WEB_TOPO_CONFIG.deviceGr
   if (response?.code !== 200 || !Array.isArray(response.data)) {
     throw new ApiError(
       response?.message || response?.msg || '获取实时设备配置失败',
+      response?.code,
+    );
+  }
+
+  return response.data;
+}
+
+export async function setGateOpening(uid, opening) {
+  const request = buildGateOpeningControlRequest(uid, opening);
+  const response = await http.post(request.url, request.payload);
+
+  if (response?.code !== 200) {
+    throw new ApiError(
+      response?.message || response?.msg || '闸门开度设置失败',
       response?.code,
     );
   }
