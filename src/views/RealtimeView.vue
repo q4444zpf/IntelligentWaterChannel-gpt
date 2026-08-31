@@ -340,8 +340,8 @@ function cycleGate(direction) {
 }
 
 function handleGateLocate() {
-  if (selectedGate.value?.location) {
-    previewRef.value?.focusSceneTreeGroupByName(selectedGate.value.location);
+  if (selectedGate.value?.name) {
+    previewRef.value?.focusSceneTreeGroupByName(selectedGate.value.name);
   }
 }
 

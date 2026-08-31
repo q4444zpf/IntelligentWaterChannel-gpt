@@ -701,7 +701,6 @@ function focusSceneTreeGroupByName(groupName) {
   }
   expandedSceneTreeUuids.value = expanded;
   sceneTreeSearch.value = '';
-  sceneTreeOpen.value = true;
   focusSceneTreeNode(node.uuid);
   return true;
 }
