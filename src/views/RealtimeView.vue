@@ -287,8 +287,8 @@ function handleAlarmNotification(payload) {
 }
 
 function handleLocate(row) {
-  if (row?.tag) {
-    previewRef.value?.focusSceneTreeGroupByName(row.tag);
+  if (row?.location) {
+    previewRef.value?.focusSceneTreeGroupByName(row.location);
   }
 }
 

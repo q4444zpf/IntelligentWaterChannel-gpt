@@ -18,19 +18,19 @@
         <span class="scene-control-hint" aria-hidden="true">标签设置</span>
         <TagsOutlined aria-hidden="true" />
       </button>
-      <button
-        v-if="modelGroupTree.length"
-        type="button"
-        class="selected-model-isolation"
-        :class="{ active: selectedModelIsolationEnabled }"
-        :aria-pressed="selectedModelIsolationEnabled"
-        aria-label="只显示选中对象"
-        title="只显示选中对象"
-        @click="setSelectedModelIsolation(!selectedModelIsolationEnabled)"
-      >
-        <span class="scene-control-hint" aria-hidden="true">选中定位</span>
-        <AimOutlined aria-hidden="true" />
-      </button>
+<!--      <button-->
+<!--        v-if="modelGroupTree.length"-->
+<!--        type="button"-->
+<!--        class="selected-model-isolation"-->
+<!--        :class="{ active: selectedModelIsolationEnabled }"-->
+<!--        :aria-pressed="selectedModelIsolationEnabled"-->
+<!--        aria-label="只显示选中对象"-->
+<!--        title="只显示选中对象"-->
+<!--        @click="setSelectedModelIsolation(!selectedModelIsolationEnabled)"-->
+<!--      >-->
+<!--        <span class="scene-control-hint" aria-hidden="true">选中定位</span>-->
+<!--        <AimOutlined aria-hidden="true" />-->
+<!--      </button>-->
       <button
         v-if="modelGroupTree.length"
         type="button"
