@@ -84,6 +84,7 @@ export function buildRealtimeTableData(deviceGroups, values = {}) {
         id: gate.openingTag || gate.name || '--',
         uid: gate.uid == null ? '' : String(gate.uid),
         name: gate.name || gate.openingTag || '--',
+        location: gate.location || gate.place || '',
         openingTag: gate.openingTag || '',
         upLevelTag: gate.upLevelTag || '',
         downLevelTag: gate.downLevelTag || '',
@@ -107,6 +108,7 @@ export function buildRealtimeTableData(deviceGroups, values = {}) {
       pump = {
         uid: pumpConfig.uid == null ? '' : String(pumpConfig.uid),
         name: pumpConfig.name || '水泵',
+        location: pumpConfig.location || pumpConfig.place || '',
         tag,
         statusField,
         frequencyField,
@@ -128,6 +130,7 @@ export function buildRealtimeTableData(deviceGroups, values = {}) {
         id: tag || valveConfig.name || '--',
         uid: valveConfig.uid == null ? '' : String(valveConfig.uid),
         name: valveConfig.name || tag || '阀门',
+        location: valveConfig.location || valveConfig.place || '',
         label: tag ? tag.toUpperCase() : (valveConfig.name || '--'),
         tag,
         openingField,

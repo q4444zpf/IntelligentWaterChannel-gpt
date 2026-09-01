@@ -172,7 +172,7 @@
             <button
               type="button"
               class="gate-action-btn"
-              :disabled="!pump?.name"
+              :disabled="!pump?.location"
               @click="handlePumpLocate"
             >
               <LocateIcon />
@@ -226,7 +226,7 @@
             <button
               type="button"
               class="gate-action-btn"
-              :disabled="!selectedValve?.name"
+              :disabled="!selectedValve?.location"
               @click="handleValveLocate"
             >
               <LocateIcon />
@@ -468,14 +468,14 @@ async function confirmValveSetting(value) {
 }
 
 function handlePumpLocate() {
-  if (pump.value?.name) {
-    previewRef.value?.focusSceneTreeGroupByName(pump.value.name);
+  if (pump.value?.location) {
+    previewRef.value?.focusSceneTreeGroupByName(pump.value.location);
   }
 }
 
 function handleValveLocate() {
-  if (selectedValve.value?.name) {
-    previewRef.value?.focusSceneTreeGroupByName(selectedValve.value.name);
+  if (selectedValve.value?.location) {
+    previewRef.value?.focusSceneTreeGroupByName(selectedValve.value.location);
   }
 }
 
