@@ -14,31 +14,22 @@ import {
   createTodayHistoryRange,
   validateHistoryQuery
 } from '../history-data.js';
-import {
-  DOSING_PROTOTYPE_DEFAULT_DEVICE_IDS,
-  DOSING_PROTOTYPE_DEVICES,
-  buildDosingPrototypeHistoryPage,
-} from '../data/dosing-prototype-data.js';
+import { getPrototypeSceneData } from '../data/prototype-scene-data.js';
 import { normalizeHistoryChartResults } from '../history-chart-data.js';
 import { normalizeHistoryPage } from '../history-table-data.js';
 
 const USE_PROTOTYPE_DATA = true;
 
-const DEFAULT_QUERY = Object.freeze({
-  deviceIds: [...DOSING_PROTOTYPE_DEFAULT_DEVICE_IDS],
-  deviceType: '全部',
-  channel: '全部',
-  intervalSeconds: 300,
-  status: '全部'
-});
-
-const createDefaultQuery = () => ({
-  ...DEFAULT_QUERY,
-  ...createTodayHistoryRange(),
-  deviceIds: [...DEFAULT_QUERY.deviceIds],
-});
-
-export function useHistoryQuery() {
+export function useHistoryQuery(scene = 'dosing') {
+  const prototypeScene = getPrototypeSceneData(scene);
+  const createDefaultQuery = () => ({
+    ...createTodayHistoryRange(),
+    deviceIds: [...prototypeScene.defaultDeviceIds],
+    deviceType: '全部',
+    channel: '全部',
+    intervalSeconds: 300,
+    status: '全部',
+  });
   const deviceSearch = ref('');
   const devicesLoading = ref(false);
   const exporting = ref(false);
@@ -79,7 +70,7 @@ export function useHistoryQuery() {
     devicesLoading.value = true;
     try {
       const source = USE_PROTOTYPE_DATA
-        ? DOSING_PROTOTYPE_DEVICES
+        ? prototypeScene.devices
         : await getBigWaterChannelHistoryDevices();
       const devices = normalizeHistoryDevices(source);
       historyDevices.value = devices;
@@ -123,7 +114,7 @@ export function useHistoryQuery() {
       deviceIds: query.deviceIds,
     };
     const responsePage = USE_PROTOTYPE_DATA
-      ? buildDosingPrototypeHistoryPage(options)
+      ? prototypeScene.buildHistoryPage(options)
       : await getBigWaterChannelHistory(options);
     const normalized = normalizeHistoryPage(responsePage);
     rows.value = normalized.rows;

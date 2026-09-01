@@ -27,7 +27,7 @@
               <a-form-item label="报警类型">
                 <a-select v-model:value="draft.warnConfigName">
                   <a-select-option value="">全部</a-select-option>
-                  <a-select-option :value="DOSING_PROTOTYPE_ALARM_NAME">{{ DOSING_PROTOTYPE_ALARM_NAME }}</a-select-option>
+                  <a-select-option v-for="type in alarmTypes" :key="type" :value="type">{{ type }}</a-select-option>
                 </a-select>
               </a-form-item>
               <a-form-item label="报警等级">
@@ -151,10 +151,12 @@ import 'dayjs/locale/zh-cn';
 import AlarmStatIcon from '../components/alarm/AlarmStatIcon.vue';
 import StatusText from '../components/common/StatusText.vue';
 import { useAlarmQuery } from '../composables/useAlarmQuery.js';
-import { DOSING_PROTOTYPE_ALARM_NAME } from '../data/dosing-prototype-data.js';
 
 dayjs.locale('zh-cn');
 
+const props = defineProps({
+  monitoringScene: { type: String, default: 'dosing' },
+});
 const emit = defineEmits(['navigate', 'open-alarm', 'view-history']);
 const alarmGrades = [
   { value: 'fatal', label: '严重' },
@@ -175,7 +177,11 @@ const alarmColumns = [
   { title: '处理状态', dataIndex: 'handlingStatus', key: 'handlingStatus', width: 110 },
   { title: '操作', key: 'action', width: 160, fixed: 'right' },
 ];
-const alarmTableLocale = { emptyText: '当前条件下没有告警记录' };
+const alarmTableLocale = computed(() => ({
+  emptyText: props.monitoringScene === 'aeration'
+    ? '当前曝气场景暂无报警项'
+    : '当前条件下没有告警记录',
+}));
 const alarmTheme = {
   algorithm: antTheme.darkAlgorithm,
   token: {
@@ -191,6 +197,7 @@ const alarmTheme = {
   },
 };
 const {
+  alarmTypes,
   canExport,
   channels,
   changePage,
@@ -213,14 +220,18 @@ const {
   runQuery,
   statistics,
   total,
-} = useAlarmQuery();
+} = useAlarmQuery(props.monitoringScene);
 const alarmQuickRange = ref('day');
-const alarmStats = computed(() => [
-  { key: 'total', label: '报警总数', value: statistics.value.total, icon: 'total', tone: 'cyan' },
-  { key: 'unhandled', label: '未处理', value: statistics.value.unhandled, icon: 'unhandled', tone: 'orange' },
-  { key: 'handled', label: '已处理', value: statistics.value.handled, icon: 'handled', tone: 'green' },
-  { key: 'water', label: 'PAC配药箱水位过低', value: statistics.value.waterLevel, icon: 'water', tone: 'red' },
-]);
+const alarmStats = computed(() => {
+  const commonStats = [
+    { key: 'total', label: '报警总数', value: statistics.value.total, icon: 'total', tone: 'cyan' },
+    { key: 'unhandled', label: '未处理', value: statistics.value.unhandled, icon: 'unhandled', tone: 'orange' },
+    { key: 'handled', label: '已处理', value: statistics.value.handled, icon: 'handled', tone: 'green' },
+  ];
+  return props.monitoringScene === 'dosing'
+    ? [...commonStats, { key: 'water', label: 'PAC配药箱水位过低', value: statistics.value.waterLevel, icon: 'water', tone: 'red' }]
+    : commonStats;
+});
 const alarmPagination = computed(() => ({
   current: current.value,
   pageSize: pageSize.value,
@@ -468,7 +479,7 @@ defineExpose({ refresh });
 .alarm-stat-grid {
   display: grid;
   flex: 0 0 auto;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 10px;
 }
 

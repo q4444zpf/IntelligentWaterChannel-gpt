@@ -88,6 +88,7 @@ function buildChartOption() {
         name: '前馈浊度',
         data: props.data.preTurbidity,
         markLine: {
+          animation: false,
           silent: true,
           symbol: 'none',
           lineStyle: { color: '#a7e8d1', width: 1, type: 'dashed', opacity: 0.78 },

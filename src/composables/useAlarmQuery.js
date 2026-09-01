@@ -12,11 +12,7 @@ import {
 } from '../alarm-data.js';
 import { normalizeHistoryDevices } from '../history-device-data.js';
 import { createTodayHistoryRange } from '../history-data.js';
-import {
-  DOSING_PROTOTYPE_ALARM_DEVICES,
-  buildDosingPrototypeAlarmPage,
-  buildDosingPrototypeAlarmStatistics,
-} from '../data/dosing-prototype-data.js';
+import { getPrototypeSceneData } from '../data/prototype-scene-data.js';
 
 const USE_PROTOTYPE_DATA = true;
 
@@ -31,7 +27,8 @@ const createDefaultQuery = () => ({
   channel: '全部',
 });
 
-export function useAlarmQuery() {
+export function useAlarmQuery(scene = 'dosing') {
+  const prototypeScene = getPrototypeSceneData(scene);
   const draft = ref(createDefaultQuery());
   const appliedQuery = ref(createDefaultQuery());
   const rows = ref([]);
@@ -59,7 +56,7 @@ export function useAlarmQuery() {
     devicesLoading.value = true;
     try {
       const source = USE_PROTOTYPE_DATA
-        ? DOSING_PROTOTYPE_ALARM_DEVICES
+        ? prototypeScene.alarmDevices
         : await getBigWaterChannelHistoryDevices();
       historyDevices.value = normalizeHistoryDevices(source);
     } catch (requestError) {
@@ -76,8 +73,8 @@ export function useAlarmQuery() {
     try {
       const [pageResponse, statisticsResponse] = USE_PROTOTYPE_DATA
         ? [
-            buildDosingPrototypeAlarmPage(query, nextCurrent, nextPageSize),
-            includeStatistics ? buildDosingPrototypeAlarmStatistics(query) : null,
+            prototypeScene.buildAlarmPage(query, nextCurrent, nextPageSize),
+            includeStatistics ? prototypeScene.buildAlarmStatistics(query) : null,
           ]
         : await Promise.all([
             getBigWaterChannelAlarms({
@@ -170,6 +167,7 @@ export function useAlarmQuery() {
   }
 
   return {
+    alarmTypes: prototypeScene.alarmTypes,
     canExport,
     channels,
     changePage,

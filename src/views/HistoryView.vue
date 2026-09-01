@@ -136,6 +136,7 @@ dayjs.locale('zh-cn');
 
 const props = defineProps({
   alarmContext: { type: Object, default: null },
+  monitoringScene: { type: String, default: 'dosing' },
 });
 const emit = defineEmits(['alarm-context-consumed']);
 const resultTab = ref('combined');
@@ -153,7 +154,7 @@ const historyColumns = [
   { title: '状态', dataIndex: 'state', key: 'state', width: 90 },
 ];
 const historyTableLocale = { emptyText: '当前条件下没有历史数据' };
-const { applyDeviceFilters, canExport, chartRowCount, clearDevices, devicesLoading, draft, error, exportCsv, exportExcel, exportPdf, exporting, historyChannels, historyDevices, historyDeviceTypes, historyTotal, initialize, loading, rangeLabel, resetQuery, results, rows, runQuery, selectAllDevices, selectableDevices } = useHistoryQuery();
+const { applyDeviceFilters, canExport, chartRowCount, clearDevices, devicesLoading, draft, error, exportCsv, exportExcel, exportPdf, exporting, historyChannels, historyDevices, historyDeviceTypes, historyTotal, initialize, loading, rangeLabel, resetQuery, results, rows, runQuery, selectAllDevices, selectableDevices } = useHistoryQuery(props.monitoringScene);
 const selectedSelectableDeviceCount = computed(() => {
   const selectedIds = new Set(draft.value.deviceIds);
   return selectableDevices.value.filter((device) => selectedIds.has(device.id)).length;

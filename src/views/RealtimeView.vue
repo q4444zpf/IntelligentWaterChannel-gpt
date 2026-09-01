@@ -202,9 +202,16 @@
               <div><input type="number" min="0" max="80" step="1" :value="realtimeDisplay.targetMax" @change="handleTargetInput('targetMax', $event)" /><b>NTU</b></div>
             </label>
           </div>
-          <div class="target-scale" aria-hidden="true">
-            <span class="target-scale__range" :style="targetRangeStyle"></span>
-          </div>
+          <a-slider
+            class="target-range-slider"
+            range
+            :min="0"
+            :max="80"
+            :step="1"
+            :value="[realtimeDisplay.targetMin, realtimeDisplay.targetMax]"
+            aria-label="目标浊度范围"
+            @change="handleTargetRangeChange"
+          />
           <div class="target-scale__labels" aria-hidden="true"><span>0</span><span>40</span><span>80 NTU</span></div>
           <p class="prototype-note">当前为原型数据，设置操作仅更新页面状态。</p>
         </section>
@@ -281,9 +288,16 @@
                 <div><input type="number" min="0" max="10" step="0.1" :value="aerationDisplay.targetMax" @change="handleAerationTargetInput('targetMax', $event)" /></div>
               </label>
             </div>
-            <div class="target-scale" aria-hidden="true">
-              <span class="target-scale__range" :style="aerationTargetRangeStyle"></span>
-            </div>
+            <a-slider
+              class="target-range-slider"
+              range
+              :min="0"
+              :max="10"
+              :step="0.1"
+              :value="[aerationDisplay.targetMin, aerationDisplay.targetMax]"
+              aria-label="DO目标范围"
+              @change="handleAerationTargetRangeChange"
+            />
             <div class="target-scale__labels" aria-hidden="true"><span>0</span><span>5</span><span>10</span></div>
             <p class="prototype-note">当前为原型数据，设置操作仅更新页面状态。</p>
           </section>
@@ -294,6 +308,7 @@
 </template>
 
 <script setup>
+import { Slider as ASlider } from 'ant-design-vue';
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { getBigWaterChannelAlarmNotificationTopic } from '../api/alarm.js';
 import DecorativePanel from '../components/common/DecorativePanel.vue';
@@ -442,16 +457,6 @@ const aerationTrendDisplay = computed(() => {
   };
 });
 
-const targetRangeStyle = computed(() => ({
-  left: `${(realtimeDisplay.value.targetMin / 80) * 100}%`,
-  width: `${((realtimeDisplay.value.targetMax - realtimeDisplay.value.targetMin) / 80) * 100}%`,
-}));
-
-const aerationTargetRangeStyle = computed(() => ({
-  left: `${(aerationDisplay.value.targetMin / 10) * 100}%`,
-  width: `${((aerationDisplay.value.targetMax - aerationDisplay.value.targetMin) / 10) * 100}%`,
-}));
-
 function switchScene(direction) {
   const currentIndex = scenes.findIndex((scene) => scene.key === activeScene.value);
   const nextIndex = (currentIndex + direction + scenes.length) % scenes.length;
@@ -476,17 +481,25 @@ function handlePumpPercentInput(event) {
   updatePacPump({ pumpPercent: finiteNumber(event.target?.value, realtimeDisplay.value.pumpPercent) });
 }
 
-function handleTargetInput(field, event) {
-  const value = Math.min(80, Math.max(0, finiteNumber(event.target?.value, realtimeDisplay.value[field])));
-  const patch = field === 'targetMin'
-    ? { targetMin: Math.min(value, realtimeDisplay.value.targetMax) }
-    : { targetMax: Math.max(value, realtimeDisplay.value.targetMin) };
+function updateTargetRange(patch) {
   if (props.prototypeData) {
     emit('target-range-change', patch);
     return;
   }
   Object.assign(prototypeState, patch);
   emit('target-range-change', { ...patch, prototype: true });
+}
+
+function handleTargetInput(field, event) {
+  const value = Math.min(80, Math.max(0, finiteNumber(event.target?.value, realtimeDisplay.value[field])));
+  const patch = field === 'targetMin'
+    ? { targetMin: Math.min(value, realtimeDisplay.value.targetMax) }
+    : { targetMax: Math.max(value, realtimeDisplay.value.targetMin) };
+  updateTargetRange(patch);
+}
+
+function handleTargetRangeChange(values) {
+  updateTargetRange({ targetMin: values[0], targetMax: values[1] });
 }
 
 function updateAerationBlower(patch) {
@@ -506,18 +519,26 @@ function handleBlowerPercentInput(event) {
   updateAerationBlower({ blowerPercent: finiteNumber(event.target?.value, aerationDisplay.value.blowerPercent) });
 }
 
-function handleAerationTargetInput(field, event) {
-  const rawValue = Math.min(10, Math.max(0, finiteNumber(event.target?.value, aerationDisplay.value[field])));
-  const value = Math.round(rawValue * 10) / 10;
-  const patch = field === 'targetMin'
-    ? { targetMin: Math.min(value, aerationDisplay.value.targetMax) }
-    : { targetMax: Math.max(value, aerationDisplay.value.targetMin) };
+function updateAerationTargetRange(patch) {
   if (props.prototypeData?.aeration) {
     emit('aeration-target-range-change', patch);
     return;
   }
   Object.assign(aerationPrototypeState, patch);
   emit('aeration-target-range-change', { ...patch, prototype: true });
+}
+
+function handleAerationTargetInput(field, event) {
+  const rawValue = Math.min(10, Math.max(0, finiteNumber(event.target?.value, aerationDisplay.value[field])));
+  const value = Math.round(rawValue * 10) / 10;
+  const patch = field === 'targetMin'
+    ? { targetMin: Math.min(value, aerationDisplay.value.targetMax) }
+    : { targetMax: Math.max(value, aerationDisplay.value.targetMin) };
+  updateAerationTargetRange(patch);
+}
+
+function handleAerationTargetRangeChange(values) {
+  updateAerationTargetRange({ targetMin: values[0], targetMax: values[1] });
 }
 
 function handleMqttData(payload) {
@@ -711,8 +732,13 @@ onMounted(() => {
 .target-inputs input { width: 100%; min-width: 0; height: 100%; padding: 0 5px 0 9px; border: 0; outline: 0; background: transparent; color: #effaff; font-size: 14px; }
 .target-inputs--unitless input { padding-right: 9px; }
 .target-inputs b { padding-right: 7px; color: #789bb5; font-size: 9px; font-weight: 500; }
-.target-scale { position: relative; height: 7px; margin-top: 16px; overflow: hidden; border-radius: 4px; background: rgba(32, 75, 105, 0.82); }
-.target-scale__range { position: absolute; top: 0; bottom: 0; min-width: 2px; border-radius: 4px; background: #52dfa2; box-shadow: 0 0 8px rgba(82, 223, 162, 0.7); }
+.target-range-slider { margin: 12px 6px 0; }
+.target-range-slider :deep(.ant-slider-rail) { height: 7px; background: rgba(32, 75, 105, 0.82); }
+.target-range-slider :deep(.ant-slider-track) { height: 7px; background: #52dfa2; box-shadow: 0 0 8px rgba(82, 223, 162, 0.55); }
+.target-range-slider :deep(.ant-slider-handle) { width: 16px; height: 16px; margin-top: -1px; }
+.target-range-slider :deep(.ant-slider-handle::after) { width: 16px; height: 16px; box-shadow: 0 0 0 2px #b9ffe0, 0 0 8px rgba(82, 223, 162, 0.78); }
+.target-range-slider :deep(.ant-slider-handle:hover::after),
+.target-range-slider :deep(.ant-slider-handle:focus::after) { box-shadow: 0 0 0 3px #d9ffec, 0 0 10px rgba(82, 223, 162, 0.9); }
 .target-scale__labels { display: flex; justify-content: space-between; margin-top: 4px; color: #62849d; font-size: 9px; }
 .prototype-note { margin: auto 2px 0; padding-top: 6px; color: #65859e; font-size: 9px; text-align: center; }
 
@@ -737,7 +763,7 @@ onMounted(() => {
   .control-summary div { height: 28px; }
   .target-control-panel { flex-basis: 196px; }
   .target-control__value { margin-bottom: 7px; }
-  .target-scale { margin-top: 10px; }
+  .target-range-slider { margin-top: 6px; }
   .prototype-note { padding-top: 3px; }
 }
 </style>

@@ -88,6 +88,7 @@ function buildChartOption() {
         name: 'DO',
         data: props.data.dissolvedOxygen,
         markLine: {
+          animation: false,
           silent: true,
           symbol: 'none',
           lineStyle: { color: '#a7e8d1', width: 1, type: 'dashed', opacity: 0.82 },

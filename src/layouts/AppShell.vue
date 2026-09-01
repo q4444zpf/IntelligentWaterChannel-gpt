@@ -8,7 +8,7 @@
       <img class="app-shell__frame-side app-shell__frame-side--left" :src="borderImage" alt="">
       <img class="app-shell__frame-side app-shell__frame-side--right" :src="borderImage" alt="">
     </div>
-    <AppHeader :active-page="activePage" @navigate="$emit('navigate', $event)" />
+    <AppHeader :active-page="activePage" :monitoring-scene="monitoringScene" @navigate="$emit('navigate', $event)" />
     <main><slot /></main>
   </div>
 </template>
@@ -19,7 +19,8 @@ import backgroundImage from '../assets/login/bg.jpg';
 import AppHeader from '../components/AppHeader.vue';
 
 defineProps({
-  activePage: { type: String, required: true }
+  activePage: { type: String, required: true },
+  monitoringScene: { type: String, default: 'dosing' },
 });
 
 defineEmits(['navigate']);

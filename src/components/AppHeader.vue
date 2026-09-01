@@ -46,7 +46,7 @@
       </Transition>
     </div>
 
-    <div class="brand">智能水槽监控系统</div>
+    <div class="brand">智能污水处理监控系统</div>
 
     <div class="header-status">
       <div class="plc-status" role="status">
@@ -96,13 +96,13 @@ import {
   LogoutOutlined,
   MenuOutlined,
 } from '@ant-design/icons-vue';
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import headerBackground from '../assets/bg-header.png';
 import { getBigWaterChannelAlarmStatistics } from '../api/alarm.js';
 import { normalizeAlarmStatistics } from '../alarm-data.js';
 import { PROTOTYPE_ACCESS_TOKEN } from '../constants/auth.js';
-import { buildDosingPrototypeAlarmStatistics } from '../data/dosing-prototype-data.js';
+import { getPrototypeSceneData } from '../data/prototype-scene-data.js';
 import { PAGE_TABS } from '../data/monitoring-data.js';
 import { authState, signOut } from '../stores/auth.js';
 import { getToken } from '../utils/auth.js';
@@ -114,8 +114,9 @@ const PAGE_ICONS = {
 };
 const router = useRouter();
 
-defineProps({
+const props = defineProps({
   activePage: { type: String, required: true },
+  monitoringScene: { type: String, default: 'dosing' },
 });
 
 defineEmits(['navigate']);
@@ -160,7 +161,7 @@ async function handleLogout() {
 async function refreshUnhandledAlarmCount() {
   try {
     const source = getToken() === PROTOTYPE_ACCESS_TOKEN
-      ? buildDosingPrototypeAlarmStatistics()
+      ? getPrototypeSceneData(props.monitoringScene).buildAlarmStatistics()
       : await getBigWaterChannelAlarmStatistics();
     const statistics = normalizeAlarmStatistics(source);
     unhandledAlarmCount.value = statistics.unhandled;
@@ -176,6 +177,10 @@ function scheduleUnhandledAlarmRefresh() {
     void refreshUnhandledAlarmCount();
   }, 300);
 }
+
+watch(() => props.monitoringScene, () => {
+  void refreshUnhandledAlarmCount();
+});
 
 onMounted(() => {
   void refreshUnhandledAlarmCount();

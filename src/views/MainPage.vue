@@ -1,18 +1,21 @@
 <template>
-  <AppShell :active-page="activePage" @navigate="showPage">
+  <AppShell :active-page="activePage" :monitoring-scene="monitoringScene" @navigate="showPage">
     <RealtimeView
       v-show="activePage === 'realtime'"
       :scene-target="realtimeSceneTarget"
       @navigate="showPage"
+      @scene-change="handleMonitoringSceneChange"
     />
     <HistoryView
       v-if="activePage === 'history'"
       :alarm-context="historyAlarmContext"
+      :monitoring-scene="monitoringScene"
       @alarm-context-consumed="historyAlarmContext = null"
     />
     <AlarmView
       v-if="activePage === 'alarm'"
       ref="alarmView"
+      :monitoring-scene="monitoringScene"
       @navigate="showPage"
       @open-alarm="openAlarm"
       @view-history="openAlarmHistory"
@@ -70,6 +73,7 @@ import HistoryView from './HistoryView.vue';
 import RealtimeView from './RealtimeView.vue';
 
 const activePage = ref('realtime');
+const monitoringScene = ref('dosing');
 const selectedAlarm = ref(null);
 const alarmView = ref(null);
 const historyAlarmContext = ref(null);
@@ -93,6 +97,10 @@ const alarmSoundPromptTheme = {
 };
 let realtimeAlarmSequence = 0;
 let realtimeSceneTargetSequence = 0;
+
+function handleMonitoringSceneChange(scene) {
+  monitoringScene.value = scene === 'aeration' ? 'aeration' : 'dosing';
+}
 
 function enableAlarmSound() {
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
