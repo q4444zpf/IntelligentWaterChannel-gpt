@@ -1,15 +1,6 @@
 <template>
   <section class="page page-history active history-page">
-    <header class="history-mode-nav" aria-label="历史数据视图切换">
-      <span class="history-mode-arrow history-mode-arrow-left" aria-hidden="true"></span>
-      <div class="history-mode-tabs">
-        <button :class="{ active: activeTab === 'analysis' }" @click="showTab('analysis')">历史数据查询与曲线分析</button>
-        <button :class="{ active: activeTab === 'replay' }" @click="showTab('replay')">传感器时序总览与节点水位回放</button>
-      </div>
-      <span class="history-mode-arrow history-mode-arrow-right" aria-hidden="true"></span>
-    </header>
-
-    <section v-show="activeTab === 'analysis'" class="history-tab active history-analysis-tab">
+    <section class="history-tab active history-analysis-tab">
       <a-config-provider :locale="zhCN" :theme="historyTheme">
         <div class="history-analysis-layout">
           <aside class="history-filter-panel" aria-label="历史数据筛选条件">
@@ -127,122 +118,19 @@
       </a-config-provider>
     </section>
 
-    <section v-show="activeTab === 'replay'" class="history-tab active history-analysis-tab history-replay-tab">
-      <a-config-provider :locale="zhCN" :theme="historyTheme">
-        <div class="history-analysis-layout history-replay-layout">
-          <aside class="history-filter-panel history-replay-filter-panel" aria-label="时序回放查询条件">
-            <span class="history-filter-corner-mark" aria-hidden="true">
-              <span class="history-filter-corner-line history-filter-corner-line--horizontal"></span>
-              <span class="history-filter-corner-line history-filter-corner-line--vertical"></span>
-            </span>
-            <span class="history-filter-arrow" aria-hidden="true"></span>
-
-            <div class="history-filter-scroll">
-              <a-form class="history-filter-form history-replay-filter-form" :model="replayDraft" layout="vertical">
-                <a-form-item label="快捷时间">
-                  <div class="history-quick-range-options">
-                    <a-button :type="replayQuickRange === 'day' ? 'primary' : 'default'" :disabled="replayLoading" @click="queryReplayQuickRange('day')">本日</a-button>
-                    <a-button :type="replayQuickRange === 'week' ? 'primary' : 'default'" :disabled="replayLoading" @click="queryReplayQuickRange('week')">本周</a-button>
-                    <a-button :type="replayQuickRange === 'month' ? 'primary' : 'default'" :disabled="replayLoading" @click="queryReplayQuickRange('month')">本月</a-button>
-                  </div>
-                </a-form-item>
-                <a-form-item label="开始时间">
-                  <a-date-picker v-model:value="replayStartTimeValue" show-time format="YYYY-MM-DD HH:mm:ss" :allow-clear="false" />
-                </a-form-item>
-                <a-form-item label="结束时间">
-                  <a-date-picker v-model:value="replayEndTimeValue" show-time format="YYYY-MM-DD HH:mm:ss" :allow-clear="false" />
-                </a-form-item>
-                <a-form-item label="数据粒度">
-                  <a-select v-model:value="replayDraft.intervalSeconds">
-                    <a-select-option :value="5">5秒</a-select-option><a-select-option :value="10">10秒</a-select-option><a-select-option :value="30">30秒</a-select-option><a-select-option :value="60">1分钟</a-select-option><a-select-option :value="300">5分钟</a-select-option>
-                  </a-select>
-                </a-form-item>
-                <a-form-item label="渠道范围">
-                  <a-select
-                    v-model:value="replayDraft.channels"
-                    mode="multiple"
-                    allow-clear
-                    :max-tag-count="2"
-                    placeholder="全部渠道"
-                  >
-                    <a-select-option v-for="channel in replayChannels" :key="channel" :value="channel">{{ channel }}</a-select-option>
-                  </a-select>
-                </a-form-item>
-              </a-form>
-            </div>
-
-            <div class="history-filter-actions">
-              <div class="history-filter-primary-actions">
-                <a-button type="primary" :loading="replayLoading" @click="runReplayQuery">查询</a-button>
-                <a-button :disabled="replayLoading" @click="resetReplayQuery">重置</a-button>
-                <a-button :disabled="replayLoading" @click="runReplayQuery">刷新</a-button>
-              </div>
-              <a-button class="success history-export-button" :disabled="!replayCanExport" @click="exportReplayCsv">导出CSV</a-button>
-              <a-button class="success history-export-button" :loading="replayExporting" :disabled="!replayCanExport || replayExporting" @click="exportReplayFile('excel')">导出Excel</a-button>
-              <a-button class="success history-export-button" :loading="replayExporting" :disabled="!replayCanExport || replayExporting" @click="exportReplayFile('pdf')">导出PDF</a-button>
-            </div>
-            <p v-if="replayError" class="query-error history-filter-feedback" role="alert">{{ replayError }}</p>
-          </aside>
-
-          <section class="history-results-panel history-workspace-panel history-replay-workspace">
-            <HistoryReplayProfileChart
-              class="history-replay-profile"
-              :nodes="replayNodes"
-              :current-row="replayCurrentRow"
-              :previous-row="replayPreviousRow"
-              :loading="replayLoading"
-            />
-
-            <section class="timeline panel replay-timeline">
-              <a-button type="primary" :disabled="replayRows.length < 2 || replayPlaying" @click="replayPlay">播放</a-button>
-              <a-button :disabled="!replayPlaying" @click="replayPause">暂停</a-button>
-              <a-button :disabled="!replayRows.length" @click="stopReplay">停止</a-button>
-              <input type="range" min="0" :max="Math.max(0, replayRows.length - 1)" :value="Math.max(0, replayActiveIndex)" :disabled="!replayRows.length" @input="setReplayIndex($event.target.value)">
-              <span>{{ replayRows.length ? replayActiveIndex + 1 : 0 }} / {{ replayRows.length }}</span>
-              <strong>当前时间：{{ replayCurrentRow?.timestamp || '--' }}</strong>
-            </section>
-
-            <section class="panel replay-table-panel">
-              <div class="panel-head">
-                <h2>传感器时序总览表</h2>
-                <span>{{ replayRangeLabel }} · {{ replayRows.length }} 个时间点</span>
-              </div>
-              <a-table
-                class="history-ant-table replay-ant-table"
-                size="small"
-                :columns="replayColumns"
-                :data-source="replayRows"
-                :loading="replayLoading"
-                :locale="historyTableLocale"
-                :pagination="replayPagination"
-                :scroll="{ x: replayTableWidth }"
-                :custom-row="replayCustomRow"
-                :row-class-name="replayRowClassName"
-                row-key="key"
-                @change="handleReplayTableChange"
-              />
-            </section>
-          </section>
-        </div>
-      </a-config-provider>
-    </section>
   </section>
 </template>
 
 <script setup>
-import { computed, h, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { Button as AButton, Checkbox as ACheckbox, ConfigProvider as AConfigProvider, DatePicker as ADatePicker, Form as AForm, FormItem as AFormItem, Select as ASelect, SelectOption as ASelectOption, Table as ATable, theme as antTheme } from 'ant-design-vue';
 import zhCN from 'ant-design-vue/es/locale/zh_CN';
 import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
 import CombinedHistoryChart from '../components/history/CombinedHistoryChart.vue';
 import DeviceHistoryChart from '../components/history/DeviceHistoryChart.vue';
-import HistoryReplayProfileChart from '../components/history/HistoryReplayProfileChart.vue';
 import StatusText from '../components/common/StatusText.vue';
-import { exportBigWaterChannelHistoryReplay } from '../api/history.js';
 import { useHistoryQuery } from '../composables/useHistoryQuery.js';
-import { useHistoryReplay } from '../composables/useHistoryReplay.js';
-import { formatReplayValue } from '../history-replay-data.js';
 
 dayjs.locale('zh-cn');
 
@@ -250,12 +138,9 @@ const props = defineProps({
   alarmContext: { type: Object, default: null },
 });
 const emit = defineEmits(['alarm-context-consumed']);
-const activeTab = ref('analysis');
 const resultTab = ref('combined');
 const tablePage = ref(1);
-const replayTablePage = ref(1);
 const historyQuickRange = ref('day');
-const replayQuickRange = ref('day');
 const resultTabs = [{ key: 'combined', label: '综合曲线' }, { key: 'devices', label: '分设备曲线' }, { key: 'table', label: '数据表格' }];
 const historyColumns = [
   { title: '时间', dataIndex: 'timestamp', key: 'timestamp', width: 180 },
@@ -269,7 +154,6 @@ const historyColumns = [
 ];
 const historyTableLocale = { emptyText: '当前条件下没有历史数据' };
 const { applyDeviceFilters, canExport, chartRowCount, clearDevices, devicesLoading, draft, error, exportCsv, exportExcel, exportPdf, exporting, historyChannels, historyDevices, historyDeviceTypes, historyTotal, initialize, loading, rangeLabel, resetQuery, results, rows, runQuery, selectAllDevices, selectableDevices } = useHistoryQuery();
-const replayExporting = ref(false);
 const selectedSelectableDeviceCount = computed(() => {
   const selectedIds = new Set(draft.value.deviceIds);
   return selectableDevices.value.filter((device) => selectedIds.has(device.id)).length;
@@ -287,76 +171,6 @@ const historyPagination = computed(() => ({
   total: historyTotal.value,
   showSizeChanger: false,
   showQuickJumper: historyTotal.value > 50,
-  showTotal: (total) => `共 ${total} 条`,
-}));
-const {
-  activeIndex: replayActiveIndex,
-  appliedQuery: replayAppliedQuery,
-  canExport: replayCanExport,
-  channels: replayChannels,
-  currentRow: replayCurrentRow,
-  draft: replayDraft,
-  error: replayError,
-  exportCsv: exportReplayCsv,
-  initialize: initializeReplay,
-  loading: replayLoading,
-  nodes: replayNodes,
-  pause: replayPause,
-  play: replayPlay,
-  playing: replayPlaying,
-  previousRow: replayPreviousRow,
-  rangeLabel: replayRangeLabel,
-  resetQuery: resetReplay,
-  rows: replayRows,
-  runQuery: queryReplay,
-  selectRow: selectReplayRow,
-  setActiveIndex: setReplayActiveIndex,
-} = useHistoryReplay();
-
-async function exportReplayFile(format) {
-  if (!replayCanExport.value || replayExporting.value) return;
-  replayError.value = '';
-  replayExporting.value = true;
-  try {
-    const { blob, fileName } = await exportBigWaterChannelHistoryReplay({
-      ...replayAppliedQuery.value,
-      format,
-    });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = fileName;
-    document.body.append(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(url);
-  } catch (requestError) {
-    replayError.value = requestError?.message || '导出节点水位回放失败';
-  } finally {
-    replayExporting.value = false;
-  }
-}
-const replayColumns = computed(() => [
-  { title: '时间', dataIndex: 'timestamp', key: 'timestamp', width: 180, fixed: 'left' },
-  ...replayNodes.value.map((node) => ({
-    title: () => h('span', [
-      node.name,
-      h('br'),
-      `${node.label} / ${node.unit}`,
-    ]),
-    dataIndex: node.key,
-    key: node.key,
-    width: 120,
-    customRender: ({ text }) => formatReplayValue(text),
-  })),
-]);
-const replayTableWidth = computed(() => 180 + replayNodes.value.length * 120);
-const replayPagination = computed(() => ({
-  current: replayTablePage.value,
-  pageSize: 50,
-  total: replayRows.value.length,
-  showSizeChanger: false,
-  showQuickJumper: replayRows.value.length > 50,
   showTotal: (total) => `共 ${total} 条`,
 }));
 const historyTheme = {
@@ -387,25 +201,6 @@ const endTimeValue = computed({
     historyQuickRange.value = '';
   },
 });
-const replayStartTimeValue = computed({
-  get: () => replayDraft.value.start ? dayjs(replayDraft.value.start) : null,
-  set: (value) => {
-    replayDraft.value.start = value ? value.format('YYYY-MM-DDTHH:mm:ss') : '';
-    replayQuickRange.value = '';
-  },
-});
-const replayEndTimeValue = computed({
-  get: () => replayDraft.value.end ? dayjs(replayDraft.value.end) : null,
-  set: (value) => {
-    replayDraft.value.end = value ? value.format('YYYY-MM-DDTHH:mm:ss') : '';
-    replayQuickRange.value = '';
-  },
-});
-
-function showTab(tab) {
-  activeTab.value = tab;
-  if (tab === 'replay') initializeReplay().then(syncReplayTablePage);
-}
 async function queryAndClose() { tablePage.value = 1; await runQuery(); }
 async function resetAndClose() { historyQuickRange.value = 'day'; tablePage.value = 1; await resetQuery(); }
 async function queryQuickRange(range) {
@@ -417,37 +212,14 @@ async function queryQuickRange(range) {
   await queryAndClose();
 }
 function handleHistoryTableChange(pagination) { tablePage.value = pagination.current || 1; }
-function syncReplayTablePage(success) {
-  if (success) replayTablePage.value = 1;
-}
-async function runReplayQuery() { replayTablePage.value = 1; syncReplayTablePage(await queryReplay()); }
-async function resetReplayQuery() { replayQuickRange.value = 'day'; replayTablePage.value = 1; syncReplayTablePage(await resetReplay()); }
-async function queryReplayQuickRange(range) {
-  const now = dayjs();
-  const unit = range === 'week' ? 'week' : range === 'month' ? 'month' : 'day';
-  replayDraft.value.start = now.startOf(unit).format('YYYY-MM-DDTHH:mm:ss');
-  replayDraft.value.end = now.endOf(unit).format('YYYY-MM-DDTHH:mm:ss');
-  replayQuickRange.value = range;
-  await runReplayQuery();
-}
-function handleReplayTableChange(pagination) { replayTablePage.value = pagination.current || 1; }
-function replayCustomRow(record) { return { onClick: () => selectReplayRow(record) }; }
-function replayRowClassName(record) { return record.key === replayActiveIndex.value ? 'selected' : ''; }
-function setReplayIndex(value) { replayPause(); setReplayActiveIndex(value); }
-function stopReplay() { replayPause(); setReplayActiveIndex(0); }
 function filterDeviceOption(input, option) {
   const device = selectableDevices.value.find((item) => item.id === option.value);
   return device ? `${device.id} ${device.name} ${device.type} ${device.location}`.toLocaleLowerCase('zh-CN').includes(input.toLocaleLowerCase('zh-CN')) : false;
 }
 
-watch(replayActiveIndex, (index) => {
-  if (index >= 0) replayTablePage.value = Math.floor(index / 50) + 1;
-});
-
 onMounted(async () => {
   const alarmContext = props.alarmContext ? { ...props.alarmContext } : null;
   if (alarmContext) {
-    activeTab.value = 'analysis';
     resultTab.value = 'combined';
   }
   await initialize(alarmContext);
@@ -459,77 +231,6 @@ onMounted(async () => {
 .history-page {
   gap: 0;
   overflow: hidden;
-}
-
-.history-mode-nav {
-  position: relative;
-  display: flex;
-  flex: 0 0 48px;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-}
-
-.history-mode-tabs {
-  display: flex;
-  align-items: stretch;
-  height: 40px;
-}
-
-.history-mode-tabs button {
-  position: relative;
-  min-width: 250px;
-  padding: 0 18px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  color: #8da9c6;
-  font-size: 13px;
-}
-
-.history-mode-tabs button:hover,
-.history-mode-tabs button.active {
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  color: #38caff;
-  font-weight: 700;
-}
-
-.history-mode-tabs button.active {
-  background: url('../assets/preview-actions.png') center / 100% 100% no-repeat;
-}
-
-.history-mode-tabs button.active::after {
-  position: absolute;
-  right: 0;
-  bottom: -4px;
-  left: 0;
-  width: 0;
-  margin: auto;
-  border: 5px solid transparent;
-  border-top-color: #38caff;
-  content: '';
-  filter: drop-shadow(0 0 5px #38caff);
-}
-
-.history-mode-arrow {
-  position: relative;
-  display: block;
-  flex: 0 0 auto;
-  height: 34px;
-}
-
-.history-mode-arrow-left,
-.history-mode-arrow-right {
-  width: 52px;
-  background: url('../assets/preview-title.png') center / contain no-repeat;
-  filter: drop-shadow(0 0 6px rgba(35, 199, 255, 0.65));
-}
-
-.history-mode-arrow-right {
-  transform: scaleX(-1);
 }
 
 .history-analysis-tab {
@@ -731,26 +432,6 @@ onMounted(async () => {
   overflow: hidden;
 }
 
-.history-replay-workspace {
-  gap: 8px;
-  padding: 12px;
-  overflow-x: hidden;
-  overflow-y: auto;
-  scrollbar-color: rgba(47, 155, 225, 0.55) transparent;
-  scrollbar-width: thin;
-}
-
-.history-replay-workspace > .history-replay-profile,
-.history-replay-workspace > .replay-timeline,
-.history-replay-workspace > .replay-table-panel {
-  flex: 0 0 auto;
-  margin: 0;
-  border: 0;
-  border-radius: 0;
-  background: rgba(2, 28, 53, 0.42);
-  box-shadow: none;
-}
-
 .history-results-head {
   z-index: 2;
   display: block;
@@ -875,36 +556,25 @@ onMounted(async () => {
 
 @media (max-width: 1100px) {
   .history-analysis-layout { grid-template-columns: 190px minmax(0, 1fr); gap: 10px; }
-  .history-mode-tabs button { min-width: 220px; }
   .history-result-tabs button { min-width: 140px; padding-inline: 24px; }
 }
 
 @media (max-width: 900px) {
   .history-page { overflow-y: auto; }
-  .history-mode-tabs button { min-width: 0; }
-  .history-mode-arrow { display: none; }
   .history-analysis-tab { overflow: visible; }
   .history-analysis-layout { grid-template-columns: 1fr; overflow: visible; }
   .history-filter-panel { overflow: visible; }
   .history-filter-scroll { overflow: visible; }
   :deep(.history-filter-form) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
   .history-workspace-panel { min-height: 620px; }
-  .history-replay-workspace { overflow: visible; }
 }
 
 @media (max-width: 640px) {
   .history-page { padding-inline: 6px; }
-  .history-mode-nav { flex-basis: auto; min-height: 72px; }
-  .history-mode-tabs { width: 100%; height: auto; flex-direction: column; }
-  .history-mode-tabs button { min-height: 34px; }
-  .history-mode-tabs button.active::after { display: none; }
   :deep(.history-filter-form) { grid-template-columns: 1fr; }
   .history-result-tabs-ribbon { padding: 0 4px; }
   .history-result-tabs button { min-width: 0; flex: 1; padding-inline: 5px; }
   .history-result-tabs button span { display: none; }
   .history-workspace-panel .history-chart-grid { grid-template-columns: 1fr; }
-  .history-replay-workspace .replay-timeline { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .history-replay-workspace .replay-timeline input,
-  .history-replay-workspace .replay-timeline strong { grid-column: 1 / -1; }
 }
 </style>
