@@ -5,7 +5,7 @@ import {
   login as loginRequest,
   logout as logoutRequest,
 } from '../api/auth.js';
-import { ACCESS_TOKEN_KEY, SUCCESS_CODE } from '../constants/auth.js';
+import { ACCESS_TOKEN_KEY, PROTOTYPE_ACCESS_TOKEN, SUCCESS_CODE } from '../constants/auth.js';
 import {
   getToken,
   removeToken,
@@ -90,6 +90,14 @@ export function clearAuth() {
   permissions.value = [];
   initialized.value = false;
   authContextRequest = null;
+}
+
+export function activatePrototypeSession() {
+  setToken(PROTOTYPE_ACCESS_TOKEN);
+  setCompatibleSystemStore(PROTOTYPE_ACCESS_TOKEN);
+  user.value = { name: '原型预览' };
+  permissions.value = [];
+  initialized.value = true;
 }
 
 export async function signOut() {

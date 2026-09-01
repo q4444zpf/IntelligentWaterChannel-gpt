@@ -1,7 +1,17 @@
 <template>
   <section class="page page-realtime active">
     <div class="scene-stage">
+      <FiveStageDosingProcess
+        v-if="showProcessPrototype"
+        :pre-turbidity="realtimeDisplay.preTurbidity"
+        :post-turbidity="realtimeDisplay.postTurbidity"
+        :pump-percent="realtimeDisplay.pumpPercent"
+        :pump-running="realtimeDisplay.pumpRunning"
+      />
+
+      <!-- 原三维组件继续保留，后续接入真实模型时切换展示状态即可。 -->
       <SmartWaterFlumePreview
+        v-else
         ref="previewRef"
         :alarm-topic="alarmNotificationTopic"
         performance-mode
@@ -13,470 +23,202 @@
     <header class="preview-console">
       <div class="preview-title">
         <span class="preview-title__arrow preview-title__arrow--left" aria-hidden="true"></span>
-        <h1>三维水槽工艺监控</h1>
+        <h1>智能加药五段闭环工艺监控</h1>
         <span class="preview-title__arrow preview-title__arrow--right" aria-hidden="true"></span>
       </div>
-      <div class="preview-actions" aria-label="三维视角控制">
-        <button
-          v-for="action in VIEW_ACTIONS"
-          :key="action"
-          type="button"
-          @click="handleViewAction(action)"
-        >{{ action }}</button>
+      <div class="process-status" aria-label="工艺运行状态">
+        <span><i class="status-dot"></i>自动闭环</span>
+        <span>TUB-02 目标 10-20 NTU</span>
+        <span>PAC 配药箱液位正常</span>
       </div>
     </header>
 
     <aside class="left-stack">
-      <DecorativePanel class="panel gate-panel" title="闸门实时状态">
-        <GateStatusChart :gates="gates" :empty-text="deviceMessage" />
+      <DecorativePanel class="panel turbidity-panel" title="浊度仪实时数据">
+        <RealtimeMetricBarChart
+          :items="turbidityItems"
+          :max="80"
+          unit="NTU"
+          aria-label="前馈浊度仪和后馈浊度仪实时数据柱状图"
+        />
       </DecorativePanel>
 
-      <DecorativePanel class="panel sensor-panel" title="传感器实时状态">
-        <div v-if="sensorGroups.length" class="sensor-tabs" role="tablist" aria-label="传感器类型">
-          <div class="sensor-tabs__bg"></div>
-          <button
-            v-for="group in sensorGroups"
-            :key="group.name"
-            type="button"
-            role="tab"
-            :aria-selected="selectedSensorGroup?.name === group.name"
-            :class="{ active: selectedSensorGroup?.name === group.name }"
-            @click="activeSensorGroup = group.name"
-          >
-            {{ group.name }}
-          </button>
+      <DecorativePanel class="panel pump-state-panel" title="PAC泵实时状态">
+        <div class="pump-state-head">
+          <span class="running-state" :class="{ stopped: !realtimeDisplay.pumpRunning }">
+            <i></i>{{ realtimeDisplay.pumpRunning ? '运行中' : '已停止' }}
+          </span>
+          <strong>{{ activePumpPercent }}<small>%</small></strong>
         </div>
-        <div class="sensor-list">
-          <div v-if="selectedSensorGroup" class="sensor-section" role="tabpanel">
-            <table class="data-table compact sensor-status-table">
-              <thead>
-                <tr>
-                  <th class="col-status">状态</th>
-                  <th class="col-name">水位</th>
-                  <th class="col-location">所属渠道</th>
-                  <th class="col-value">计量</th>
-                  <th class="col-locate">三维定位</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in selectedSensorGroup.rows" :key="row.tag || row.name">
-                  <td :class="row.state === '在线' ? 'status-online' : 'status-offline'">
-                    <span class="status-dot" :class="row.state === '在线' ? 'dot-online' : 'dot-offline'"></span>
-                  </td>
-                  <td>{{ row.name }}</td>
-                  <td>{{ row.location }}</td>
-                  <td>{{ row.value }} {{ row.unit }}</td>
-                  <td>
-                    <button type="button" class="locate-btn" title="三维定位" @click="handleLocate(row)">
-                      <LocateIcon />
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div v-else class="realtime-empty">{{ deviceMessage }}</div>
-        </div>
+        <RealtimeMetricBarChart
+          :items="pumpItems"
+          :max="100"
+          unit="%"
+          aria-label="PAC泵实时状态柱状图"
+        />
       </DecorativePanel>
 
-      <TrendAnalysis
-        class="realtime-info-panel"
-        :profile-nodes="profileNodes"
-        :realtime-values="realtimeValues"
-        :profile-loading="profileLoading"
-        :profile-error="profileError"
-        :profile-timestamp="latestMqttAt"
-      />
+      <DecorativePanel class="panel trend-panel" title="实时趋势分析">
+        <PacRealtimeTrendChart :data="trendDisplay" />
+      </DecorativePanel>
     </aside>
 
     <aside class="right-stack">
-      <DecorativePanel class="panel control-panel" title="手动控制设备">
-        <section class="control-section gate-control-section">
-          <div class="gate-header">
-            <h2 class="gate-title">闸门</h2>
-            <div class="gate-tabs" role="tablist" aria-label="闸门列表">
-              <button
-                v-for="gate in gateList"
-                :key="gate.id"
-                type="button"
-                role="tab"
-                :aria-selected="selectedGate?.id === gate.id"
-                :class="{ active: selectedGate?.id === gate.id }"
-                @click="selectedGate = gate"
-              >
-                {{ gate.openingTag || gate.name }}
-              </button>
+      <DecorativePanel class="panel control-panel" direction="left" title="PAC泵控制">
+        <section class="pac-control-card">
+          <header class="pac-control-card__head">
+            <div>
+              <span class="device-code">PAC-01</span>
+              <h2>PAC 计量泵</h2>
             </div>
-          </div>
-          <div class="gate-display" v-if="selectedGate">
-            <button type="button" class="gate-arrow gate-arrow--left" @click="cycleGate(-1)" aria-label="上一个闸门">
-              <img src="../assets/arrow.png" alt="" />
-            </button>
-            <div class="gate-value-display">
-              <div class="gate-value-bg"></div>
-              <div class="gate-value-content">
-                <span class="gate-value-number">{{ selectedGateOpening }}</span>
-                <span class="gate-value-label">当前开度</span>
-              </div>
-            </div>
-            <button type="button" class="gate-arrow gate-arrow--right" @click="cycleGate(1)" aria-label="下一个闸门">
-              <img src="../assets/arrow.png" alt="" />
-            </button>
-          </div>
-          <div class="gate-actions">
-            <button type="button" class="gate-action-btn" @click="handleGateLocate">
-              <LocateIcon />
-              <span>三维定位</span>
-            </button>
-            <ControlValueSettingPopover
-              :value="selectedGateOpening"
-              :max="80"
-              label="目标开度："
-              unit="mm"
-              :submit="confirmGateSetting"
-            >
-              <button type="button" class="gate-action-btn gate-action-btn--setting">
-                <GateOpeningSettingIcon />
-                <span>设置开度</span>
-              </button>
-            </ControlValueSettingPopover>
-          </div>
-        </section>
-
-        <section class="control-section pump-control-section">
-          <div class="gate-header pump-header">
-            <h2 class="gate-title">{{ pump?.name || '水泵' }}</h2>
             <div class="pump-switch-control">
-              <span>{{ pumpRunning ? '开' : '关' }}</span>
+              <span>{{ realtimeDisplay.pumpRunning ? '开' : '关' }}</span>
               <button
                 type="button"
                 class="pump-switch"
                 role="switch"
-                :aria-checked="pumpRunning"
-                :aria-label="pumpRunning ? '关闭水泵' : '开启水泵'"
-                :class="{ 'is-checked': pumpRunning }"
-                :disabled="!pump?.uid || pumpControlSubmitting"
-                @click="togglePumpRunning"
-              >
-                <span aria-hidden="true"></span>
-              </button>
+                :aria-checked="realtimeDisplay.pumpRunning"
+                :aria-label="realtimeDisplay.pumpRunning ? '关闭PAC泵' : '开启PAC泵'"
+                :class="{ 'is-checked': realtimeDisplay.pumpRunning }"
+                @click="togglePacPump"
+              ><span aria-hidden="true"></span></button>
             </div>
-          </div>
+          </header>
 
           <PumpFrequencyGauge
-            :value="pumpRunning ? pumpFrequency : 0"
-            :max="pumpMaxFrequency"
-          />
-
-          <div class="gate-actions pump-actions">
-            <button
-              type="button"
-              class="gate-action-btn"
-              :disabled="!pump?.location"
-              @click="handlePumpLocate"
-            >
-              <LocateIcon />
-              <span>三维定位</span>
-            </button>
-            <ControlValueSettingPopover
-              :value="pumpFrequency"
-              :max="pumpMaxFrequency"
-              label="目标频率："
-              unit="Hz"
-              :submit="confirmPumpFrequency"
-            >
-              <button
-                type="button"
-                class="gate-action-btn pump-frequency-action"
-                :disabled="!pump?.uid || pumpControlSubmitting"
-              >
-                <PumpFrequencySettingIcon />
-                <span>设置频率</span>
-              </button>
-            </ControlValueSettingPopover>
-          </div>
-        </section>
-
-        <section class="control-section valve-control-section">
-          <div class="gate-header valve-header">
-            <h2 class="gate-title">阀门</h2>
-            <div class="gate-tabs" role="tablist" aria-label="阀门列表">
-              <button
-                v-for="valve in valves"
-                :key="valve.id"
-                type="button"
-                role="tab"
-                :aria-selected="selectedValve?.id === valve.id"
-                :class="{ active: selectedValve?.id === valve.id }"
-                @click="selectedValve = valve"
-              >
-                {{ valve.label }}
-              </button>
-            </div>
-          </div>
-
-          <PumpFrequencyGauge
-            :value="selectedValveOpening"
-            :max="selectedValveMaxOpening"
-            label="当前开度"
+            :value="activePumpPercent"
+            :max="100"
+            label="当前输出"
             unit="%"
           />
 
-          <div class="gate-actions valve-actions">
-            <button
-              type="button"
-              class="gate-action-btn"
-              :disabled="!selectedValve?.location"
-              @click="handleValveLocate"
-            >
-              <LocateIcon />
-              <span>三维定位</span>
-            </button>
-            <ControlValueSettingPopover
-              :value="selectedValveOpening"
-              :max="selectedValveMaxOpening"
-              label="目标开度："
-              unit="%"
-              :submit="confirmValveSetting"
-            >
-              <button
-                type="button"
-                class="gate-action-btn gate-action-btn--setting"
-                :disabled="!selectedValve?.uid || valveControlSubmitting"
-              >
-                <ValveOpeningSettingIcon />
-                <span>设置开度</span>
-              </button>
-            </ControlValueSettingPopover>
+          <div class="control-value-row">
+            <span>输出设定</span>
+            <strong>{{ realtimeDisplay.pumpPercent }}<small>%</small></strong>
           </div>
+          <input
+            class="pump-range"
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            :value="realtimeDisplay.pumpPercent"
+            :style="{ '--range-progress': `${realtimeDisplay.pumpPercent}%` }"
+            aria-label="PAC泵输出百分比"
+            @input="handlePumpPercentInput"
+          />
+          <div class="range-scale" aria-hidden="true"><span>0%</span><span>50%</span><span>100%</span></div>
+
+          <div class="control-summary">
+            <div><span>控制模式</span><strong>AUTO</strong></div>
+            <div><span>运行状态</span><strong :class="{ stopped: !realtimeDisplay.pumpRunning }">{{ realtimeDisplay.pumpRunning ? '正常' : '停止' }}</strong></div>
+            <div><span>配药箱液位</span><strong>正常</strong></div>
+          </div>
+
+          <p class="prototype-note">当前为原型数据，控制操作仅更新页面状态。</p>
         </section>
       </DecorativePanel>
     </aside>
   </section>
-
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, watchEffect } from 'vue';
-import { message } from 'ant-design-vue';
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { getBigWaterChannelAlarmNotificationTopic } from '../api/alarm.js';
-import {
-  getRealtimeGroupDevices,
-  getRealtimeWaterProfileTopology,
-  setGateOpening,
-  setPumpControl,
-  setValveOpening,
-} from '../api/realtime.js';
 import DecorativePanel from '../components/common/DecorativePanel.vue';
-import GateOpeningSettingIcon from '../components/common/GateOpeningSettingIcon.vue';
-import LocateIcon from '../components/common/LocateIcon.vue';
-import PumpFrequencySettingIcon from '../components/common/PumpFrequencySettingIcon.vue';
-import ValveOpeningSettingIcon from '../components/common/ValveOpeningSettingIcon.vue';
-import ControlValueSettingPopover from '../components/realtime/ControlValueSettingPopover.vue';
-import GateStatusChart from '../components/realtime/GateStatusChart.vue';
+import FiveStageDosingProcess from '../components/realtime/FiveStageDosingProcess.vue';
+import PacRealtimeTrendChart from '../components/realtime/PacRealtimeTrendChart.vue';
 import PumpFrequencyGauge from '../components/realtime/PumpFrequencyGauge.vue';
+import RealtimeMetricBarChart from '../components/realtime/RealtimeMetricBarChart.vue';
 import SmartWaterFlumePreview from '../components/realtime/smart-water-flume-preview/SmartWaterFlumePreview.vue';
-import TrendAnalysis from '../components/realtime/trend/TrendAnalysis.vue';
-import { VIEW_ACTIONS } from '../data/monitoring-data.js';
-import { buildRealtimeTableData, mergeRealtimeValues } from '../realtime-device-data.js';
 
 const props = defineProps({
   sceneTarget: { type: Object, default: null },
+  prototypeData: { type: Object, default: null },
 });
 
+const emit = defineEmits(['pump-control-change', 'realtime-data']);
 const previewRef = ref(null);
-const targetGateOpening = ref(50);
-const pumpControlSubmitting = ref(false);
-const valveControlSubmitting = ref(false);
-const deviceGroups = ref([]);
-const deviceLoading = ref(true);
-const deviceError = ref('');
-const realtimeValues = reactive({});
-const profileNodes = ref([]);
-const profileLoading = ref(true);
-const profileError = ref('');
-const latestMqttAt = ref(null);
+const showProcessPrototype = ref(true);
 const alarmNotificationTopic = ref('');
-let realtimeUpdateTimer = null;
-let pendingRealtimePayload = null;
 
-const tableData = computed(() => buildRealtimeTableData(deviceGroups.value, realtimeValues));
-const gates = computed(() => tableData.value.gates);
-const gateList = computed(() => tableData.value.gateList || []);
-const pump = computed(() => tableData.value.pump);
-const pumpRunning = computed(() => pump.value?.running ?? false);
-const pumpFrequency = computed(() => pump.value?.frequency ?? 0);
-const pumpMaxFrequency = computed(() => pump.value?.maxFrequency ?? 50);
-const valves = computed(() => tableData.value.valves || []);
-const selectedValve = ref(null);
-const selectedValveOpening = computed(() => selectedValve.value?.opening ?? 0);
-const selectedValveMaxOpening = computed(() => selectedValve.value?.maxOpening ?? 100);
-const selectedGate = ref(null);
-const selectedGateOpening = computed(() => {
-  const gate = selectedGate.value;
-  if (!gate) return 0;
-  const val = parseFloat(gate.open);
-  return Number.isNaN(val) ? 0 : Math.round(val * 100);
-});
-const sensorGroups = computed(() => tableData.value.sensorGroups);
-const activeSensorGroup = ref('');
-const selectedSensorGroup = computed(() => sensorGroups.value.find(
-  (group) => group.name === activeSensorGroup.value,
-) || sensorGroups.value[0] || null);
-const deviceMessage = computed(() => {
-  if (deviceLoading.value) return '正在加载设备配置...';
-  return deviceError.value || '暂无设备配置';
+const prototypeState = reactive({
+  preTurbidity: 42,
+  postTurbidity: 16,
+  pumpPercent: 48,
+  pumpRunning: true,
+  trend: {
+    times: ['10:00', '10:05', '10:10', '10:15', '10:20', '10:25', '10:30', '10:35', '10:40', '10:45', '10:50', '10:55'],
+    preTurbidity: [36, 38, 41, 45, 48, 46, 44, 43, 45, 44, 43, 42],
+    postTurbidity: [18.2, 17.8, 17.4, 17.1, 16.8, 16.5, 16.2, 15.8, 15.7, 15.8, 15.9, 16],
+    pumpPercent: [40, 42, 45, 49, 54, 53, 51, 49, 50, 49, 48, 48],
+  },
 });
 
-function flushRealtimePayload() {
-  realtimeUpdateTimer = null;
-  const payload = pendingRealtimePayload;
-  pendingRealtimePayload = null;
-  if (!payload) return;
-  mergeRealtimeValues(realtimeValues, payload);
-  latestMqttAt.value = Date.now();
+function finiteNumber(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+const realtimeDisplay = computed(() => {
+  const source = props.prototypeData || prototypeState;
+  return {
+    preTurbidity: finiteNumber(source.preTurbidity, prototypeState.preTurbidity),
+    postTurbidity: finiteNumber(source.postTurbidity, prototypeState.postTurbidity),
+    pumpPercent: Math.min(100, Math.max(0, finiteNumber(source.pumpPercent, prototypeState.pumpPercent))),
+    pumpRunning: typeof source.pumpRunning === 'boolean' ? source.pumpRunning : prototypeState.pumpRunning,
+    trend: source.trend || prototypeState.trend,
+  };
+});
+
+const activePumpPercent = computed(() => (
+  realtimeDisplay.value.pumpRunning ? realtimeDisplay.value.pumpPercent : 0
+));
+
+const turbidityItems = computed(() => [
+  { label: '前馈浊度仪', value: realtimeDisplay.value.preTurbidity, color: '#39d8ff' },
+  { label: '后馈浊度仪', value: realtimeDisplay.value.postTurbidity, color: '#64e59b' },
+]);
+
+const pumpItems = computed(() => [
+  { label: 'PAC泵', value: activePumpPercent.value, color: '#ffc65c' },
+]);
+
+const trendDisplay = computed(() => {
+  const trend = realtimeDisplay.value.trend;
+  const pumpValues = [...(trend.pumpPercent || [])];
+  if (pumpValues.length) pumpValues[pumpValues.length - 1] = activePumpPercent.value;
+  return {
+    times: trend.times || [],
+    preTurbidity: trend.preTurbidity || [],
+    postTurbidity: trend.postTurbidity || [],
+    pumpPercent: pumpValues,
+  };
+});
+
+function updatePacPump(patch) {
+  if (props.prototypeData) {
+    emit('pump-control-change', patch);
+    return;
+  }
+  Object.assign(prototypeState, patch);
+  emit('pump-control-change', { ...patch, prototype: true });
+}
+
+function togglePacPump() {
+  updatePacPump({ pumpRunning: !realtimeDisplay.value.pumpRunning });
+}
+
+function handlePumpPercentInput(event) {
+  updatePacPump({ pumpPercent: finiteNumber(event.target?.value, realtimeDisplay.value.pumpPercent) });
 }
 
 function handleMqttData(payload) {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return;
-  pendingRealtimePayload = { ...(pendingRealtimePayload || {}), ...payload };
-  if (realtimeUpdateTimer === null) {
-    realtimeUpdateTimer = window.setTimeout(flushRealtimePayload, 100);
-  }
-}
-
-function handleViewAction(action) {
-  if (action === '刷新') {
-    void previewRef.value?.reload();
-    return;
-  }
-  previewRef.value?.handleAction(action);
+  emit('realtime-data', payload);
 }
 
 function handleAlarmNotification(payload) {
   window.dispatchEvent(new CustomEvent('alarm-notification', { detail: payload }));
-}
-
-function handleLocate(row) {
-  if (row?.location) {
-    previewRef.value?.focusSceneTreeGroupByName(row.location);
-  }
-}
-
-function cycleGate(direction) {
-  if (!gateList.value.length) return;
-  const idx = gateList.value.findIndex((g) => g.id === selectedGate.value?.id);
-  const next = (idx + direction + gateList.value.length) % gateList.value.length;
-  selectedGate.value = gateList.value[next];
-}
-
-function handleGateLocate() {
-  if (selectedGate.value?.name) {
-    previewRef.value?.focusSceneTreeGroupByName(selectedGate.value.name);
-  }
-}
-
-async function confirmGateSetting(value) {
-  const gate = selectedGate.value;
-  if (!gate?.uid) {
-    const error = new Error('当前闸门缺少设备标识，无法下发开度');
-    message.error(error.message);
-    throw error;
-  }
-
-  try {
-    await setGateOpening(gate.uid, value);
-    targetGateOpening.value = value;
-    message.success(`${gate.name}目标开度已设置为 ${value} mm`);
-  } catch (error) {
-    message.error(error?.message || '闸门开度设置失败');
-    throw error;
-  }
-}
-
-async function togglePumpRunning() {
-  const currentPump = pump.value;
-  if (!currentPump?.uid || pumpControlSubmitting.value) return;
-
-  const nextRunning = !pumpRunning.value;
-  pumpControlSubmitting.value = true;
-  try {
-    await setPumpControl(currentPump.uid, {
-      running: nextRunning,
-      frequency: pumpFrequency.value,
-    });
-    realtimeValues[currentPump.tag] = {
-      [currentPump.statusField]: nextRunning,
-      [currentPump.frequencyField]: pumpFrequency.value,
-    };
-    message.success(`${currentPump.name}已${nextRunning ? '开启' : '关闭'}`);
-  } catch (error) {
-    message.error(error?.message || '水泵开关控制失败');
-  } finally {
-    pumpControlSubmitting.value = false;
-  }
-}
-
-async function confirmPumpFrequency(value) {
-  const currentPump = pump.value;
-  if (!currentPump?.uid) {
-    const error = new Error('当前水泵缺少设备标识，无法下发频率');
-    message.error(error.message);
-    throw error;
-  }
-
-  pumpControlSubmitting.value = true;
-  try {
-    await setPumpControl(currentPump.uid, {
-      running: pumpRunning.value,
-      frequency: value,
-    });
-    realtimeValues[currentPump.tag] = {
-      [currentPump.statusField]: pumpRunning.value,
-      [currentPump.frequencyField]: value,
-    };
-    message.success(`${currentPump.name}目标频率已设置为 ${value} Hz`);
-  } catch (error) {
-    message.error(error?.message || '水泵频率设置失败');
-    throw error;
-  } finally {
-    pumpControlSubmitting.value = false;
-  }
-}
-
-async function confirmValveSetting(value) {
-  const currentValve = selectedValve.value;
-  if (!currentValve?.uid) {
-    const error = new Error('当前阀门缺少设备标识，无法下发开度');
-    message.error(error.message);
-    throw error;
-  }
-
-  valveControlSubmitting.value = true;
-  try {
-    await setValveOpening(currentValve.uid, value);
-    realtimeValues[currentValve.tag] = {
-      [currentValve.openingField]: value,
-    };
-    message.success(`${currentValve.name}目标开度已设置为 ${value}%`);
-  } catch (error) {
-    message.error(error?.message || '阀门开度设置失败');
-    throw error;
-  } finally {
-    valveControlSubmitting.value = false;
-  }
-}
-
-function handlePumpLocate() {
-  if (pump.value?.location) {
-    previewRef.value?.focusSceneTreeGroupByName(pump.value.location);
-  }
-}
-
-function handleValveLocate() {
-  if (selectedValve.value?.location) {
-    previewRef.value?.focusSceneTreeGroupByName(selectedValve.value.location);
-  }
 }
 
 async function loadAlarmNotificationTopic() {
@@ -487,75 +229,22 @@ async function loadAlarmNotificationTopic() {
   }
 }
 
-async function loadRealtimeDevices() {
-  deviceLoading.value = true;
-  deviceError.value = '';
-
-  try {
-    deviceGroups.value = await getRealtimeGroupDevices();
-  } catch (error) {
-    deviceError.value = error?.message || '获取实时设备配置失败';
-  } finally {
-    deviceLoading.value = false;
-  }
-}
-
-async function loadRealtimeProfileTopology() {
-  profileLoading.value = true;
-  profileError.value = '';
-
-  try {
-    profileNodes.value = await getRealtimeWaterProfileTopology();
-  } catch (error) {
-    profileError.value = error?.message || '获取节点水位拓扑失败';
-  } finally {
-    profileLoading.value = false;
-  }
-}
-
 watch(() => props.sceneTarget, async (target) => {
   const channelName = typeof target?.channelName === 'string' ? target.channelName.trim() : '';
-  if (!channelName) return;
+  if (!channelName || showProcessPrototype.value) return;
   await nextTick();
   previewRef.value?.focusSceneTreeGroupByName(channelName);
 });
 
-watch(gateList, (list) => {
-  if (!list?.length) {
-    selectedGate.value = null;
-    return;
-  }
-
-  const selectedGateId = selectedGate.value?.id;
-  selectedGate.value = list.find((gate) => gate.id === selectedGateId) || list[0];
-}, { immediate: true });
-
-watch(valves, (list) => {
-  if (!list?.length) {
-    selectedValve.value = null;
-    return;
-  }
-
-  const selectedValveId = selectedValve.value?.id;
-  selectedValve.value = list.find((valve) => valve.id === selectedValveId) || list[0];
-}, { immediate: true });
-
 onMounted(() => {
   void loadAlarmNotificationTopic();
-  void loadRealtimeDevices();
-  void loadRealtimeProfileTopology();
-});
-
-onBeforeUnmount(() => {
-  if (realtimeUpdateTimer !== null) window.clearTimeout(realtimeUpdateTimer);
-  realtimeUpdateTimer = null;
-  pendingRealtimePayload = null;
 });
 </script>
 
 <style scoped>
 .page-realtime {
   position: relative;
+  width: 100%;
   height: 100%;
   min-height: 0;
   overflow: hidden;
@@ -564,18 +253,20 @@ onBeforeUnmount(() => {
 
 .scene-stage {
   position: absolute;
-  inset: 0;
-}
-
-.scene-stage {
-  z-index: 0;
+  top: 126px;
+  right: clamp(300px, 19vw, 372px);
+  bottom: 24px;
+  left: clamp(310px, 20vw, 392px);
+  z-index: 1;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
 }
 
-.scene-stage :deep(.flume-preview) {
-  position: absolute;
-  inset: 0;
-}
+.scene-stage > :deep(.process-wrap) { width: 100%; }
+.scene-stage > :deep(.flume-preview) { position: absolute; inset: 0; }
 
 .preview-console {
   position: absolute;
@@ -583,848 +274,117 @@ onBeforeUnmount(() => {
   left: 50%;
   z-index: 6;
   display: flex;
-  width: min(720px, calc(100% - 840px));
-  min-width: 430px;
+  width: min(720px, calc(100% - 760px));
+  min-width: 450px;
   flex-direction: column;
   align-items: center;
   pointer-events: none;
   transform: translateX(-50%);
 }
 
-.preview-title {
-  display: flex;
-  min-height: 38px;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-}
-
+.preview-title { display: flex; min-height: 38px; align-items: center; justify-content: center; color: #fff; }
 .preview-title h1 {
   margin: 0;
   padding: 0 10px;
   color: #fff;
   font-family: 'SimHei', 'Microsoft YaHei', sans-serif;
-  font-size: 30px;
+  font-size: 29px;
   font-weight: normal;
   line-height: 38px;
   text-shadow: 0 0 13px rgba(64, 195, 255, 0.42);
   white-space: nowrap;
 }
+.preview-title__arrow { display: block; width: 53px; height: 36px; flex: 0 0 53px; background: url('../assets/preview-title.png') center / 100% 100% no-repeat; }
+.preview-title__arrow--right { transform: scaleX(-1); }
 
-.preview-title__arrow {
-  display: block;
-  width: 53px;
-  height: 36px;
-  flex: 0 0 53px;
-  background: url('../assets/preview-title.png') center / 100% 100% no-repeat;
-}
-
-.preview-title__arrow--right {
-  transform: scaleX(-1);
-}
-
-.preview-actions {
-  display: flex;
-  width: max-content;
-  max-width: 100%;
-  height: 48px;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: 0 24px;
-  background: url('../assets/preview-actions.png') center / 100% 100% no-repeat;
-  pointer-events: auto;
-}
-
-.preview-actions button {
-  position: relative;
-  height: 32px;
-  padding: 0 9px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  color: #caeaff;
-  font-size: 13px;
-  line-height: 32px;
-  white-space: nowrap;
-}
-
-.preview-actions button:hover,
-.preview-actions button:focus-visible {
-  outline: 0;
-  background: transparent;
-  box-shadow: none;
-  color: #28d9ff;
-}
-
-.preview-actions button:hover::after,
-.preview-actions button:focus-visible::after {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  width: 0;
-  height: 0;
-  border-top: 5px solid #28d9ff;
-  border-right: 4px solid transparent;
-  border-left: 4px solid transparent;
-  content: '';
-  transform: translateX(-50%);
-}
+.process-status { display: flex; height: 36px; align-items: center; justify-content: center; margin-top: 7px; padding: 0 20px; border: 1px solid rgba(54, 160, 219, 0.28); background: rgba(3, 36, 64, 0.72); color: #a9c9de; font-size: 11px; }
+.process-status span { display: inline-flex; align-items: center; padding: 0 14px; white-space: nowrap; }
+.process-status span + span { border-left: 1px solid rgba(76, 148, 191, 0.28); }
+.status-dot { width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: #4be49d; box-shadow: 0 0 7px rgba(75, 228, 157, 0.84); }
 
 .left-stack,
-.right-stack {
-  position: absolute;
-  z-index: 5;
-  top: 22px;
-  bottom: 18px;
-  display: flex;
-  min-height: 0;
-  flex-direction: column;
-  gap: 10px;
-}
-
+.right-stack { position: absolute; z-index: 5; top: 22px; bottom: 18px; display: flex; min-height: 0; flex-direction: column; gap: 10px; }
 .left-stack {
+  --stack-width: clamp(300px, 19vw, 370px);
   left: 0;
-  width: clamp(340px, 20vw, 392px);
+  width: var(--stack-width);
+  min-width: var(--stack-width);
+  max-width: var(--stack-width);
+  flex: 0 0 var(--stack-width);
 }
-
 .right-stack {
+  --stack-width: clamp(292px, 18vw, 352px);
   right: 0;
-  width: clamp(336px, 19vw, 372px);
-}
-
-.panel,
-.realtime-info-panel {
-  min-height: 0;
-  background: rgba(1, 28, 55, 0.54);
-  backdrop-filter: blur(3px);
-}
-
-.gate-panel {
-  flex: 0 0 214px;
-}
-
-.sensor-panel {
-  flex: 0 0 268px;
-}
-
-.realtime-info-panel {
-  flex: 1 1 0;
-}
-
-.sensor-panel :deep(.decorative-panel__content) {
-  padding: 5px 10px 9px;
-}
-
-.gate-panel :deep(.decorative-panel__content) {
-  display: flex;
-  min-height: 0;
-  padding: 0 10px 7px;
-  overflow: hidden;
-}
-
-.sensor-panel :deep(.decorative-panel__content) {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.data-table {
-  width: 100%;
-  margin: 0;
-  border: 0;
-  border-collapse: separate;
-  border-spacing: 0 1px;
-  border-radius: 0;
-  background: transparent;
-  table-layout: fixed;
-}
-
-.data-table th,
-.data-table td {
-  height: 30px;
-  padding: 0 5px;
-  overflow: hidden;
-  border: 0;
-  color: #b9d4e8;
-  font-size: 11px;
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.data-table th {
-  background: rgba(32, 101, 150, 0.82);
-  color: #e7f6ff;
-  font-weight: 600;
-}
-
-.data-table tbody tr:nth-child(even) td {
-  background: rgba(32, 101, 150, 0.16);
-}
-
-.status-online {
-  color: #43ff86 !important;
-}
-
-.status-offline {
-  color: #ff6862 !important;
-}
-
-.sensor-list {
-  min-height: 0;
-  flex: 1 1 auto;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(55, 175, 237, 0.5) transparent;
-}
-
-.sensor-tabs {
-  position: relative;
-  display: flex;
-  min-width: 0;
-  flex: 0 0 31px;
-  align-items: center;
-  margin-bottom: 4px;
-  padding: 0;
-}
-
-.sensor-tabs__bg {
-  position: absolute;
-  inset: 0;
-  background: url('../assets/table-header.png') center / 100% 100% no-repeat, #206596;
-  pointer-events: none;
-}
-
-.sensor-tabs button {
-  position: relative;
-  min-width: 0;
-  height: 31px;
-  flex: 1 1 0;
-  overflow: hidden;
-  border: 0;
-  outline: none;
-  box-shadow: none;
-  padding: 0 5px;
-  background: transparent;
-  color: #8ebbd6;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: color 0.2s ease;
-}
-
-.sensor-tabs button:hover {
-  color: #dff8ff;
-  outline: none;
-  box-shadow: none;
-}
-
-.sensor-tabs button.active {
-  color: #ffffff;
-  font-weight: 600;
-  text-shadow: 0 0 8px rgba(110, 234, 255, 0.6);
-}
-
-.sensor-tabs button.active::after {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  width: 20px;
-  height: 3px;
-  background: #6eeaff;
-  border-radius: 2px 2px 0 0;
-  box-shadow: 0 0 8px rgba(110, 234, 255, 0.8);
-  content: '';
-  transform: translateX(-50%);
-}
-
-.sensor-section {
-  margin: 0;
-  border: 0;
-  background: transparent;
-}
-
-.sensor-status-table th:nth-child(1),
-.sensor-status-table td:nth-child(1) { width: 12%; }
-.sensor-status-table th:nth-child(2),
-.sensor-status-table td:nth-child(2) { width: 22%; }
-.sensor-status-table th:nth-child(3),
-.sensor-status-table td:nth-child(3) { width: 22%; }
-.sensor-status-table th:nth-child(4),
-.sensor-status-table td:nth-child(4) { width: 26%; }
-.sensor-status-table th:nth-child(5),
-.sensor-status-table td:nth-child(5) { width: 18%; }
-
-.status-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.status-dot.dot-online {
-  background: #43ff86;
-  box-shadow: 0 0 6px rgba(67, 255, 134, 0.8);
-}
-
-.status-dot.dot-offline {
-  background: #ff6862;
-  box-shadow: 0 0 6px rgba(255, 104, 98, 0.8);
-}
-
-.locate-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border: 0;
-  outline: none;
-  box-shadow: none;
-  padding: 0;
-  background: transparent;
-  cursor: pointer;
-  transition: filter 0.2s ease;
-}
-
-.locate-btn:hover {
-  outline: none;
-  box-shadow: none;
-  filter: brightness(1.3) drop-shadow(0 0 4px rgba(110, 234, 255, 0.8));
-}
-
-.locate-btn svg {
-  width: 18px;
-  height: 16px;
-}
-
-.realtime-empty {
-  padding: 14px 8px;
-  color: #7f9db3;
-  text-align: center;
-}
-
-.realtime-info-panel :deep(.water-profile-shell) {
-  min-height: 0;
-}
-
-.control-panel {
-  height: 100%;
-}
-
-.control-panel :deep(.decorative-panel__content) {
-  padding: 2px 14px 7px;
-  overflow-y: auto;
-}
-
-.control-section {
-  padding: 11px 2px 13px;
-}
-
-/* Gate control section */
-.gate-control-section {
-  padding: 8px 2px 10px;
-}
-
-.gate-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.gate-title {
-  margin: 0;
-  padding: 0;
-  flex-shrink: 0;
-  background: linear-gradient(180deg, #ffffff 48%, #05fcfd 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-fill-color: transparent;
-  font-size: 18px;
-  font-weight: 600;
-  line-height: 1.2;
-}
-
-.gate-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.gate-tabs button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 28px;
-  height: 28px;
-  padding: 0 6px;
-  border: 1px solid #5A7E9B;
-  border-radius: 50%;
-  background: #47657D;
-  box-sizing: border-box;
-  color: #cfe3f4;
-  font-size: 11px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.gate-tabs button:hover {
-  border-color: #6fb4e8;
-  color: #eaf8ff;
-}
-
-.gate-tabs button.active {
-  border-color: #6fb4e8;
-  background: #2a7ab0;
-  color: #eaf8ff;
-}
-
-.gate-display {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-  margin-bottom: 16px;
-}
-
-.gate-arrow {
-  width: 75px;
-  height: 98px;
-  border: 0;
-  outline: none;
-  box-shadow: none;
-  padding: 0;
-  background: transparent;
-  cursor: pointer;
-  opacity: 0.75;
-  transition: opacity 0.2s ease;
-}
-
-.gate-arrow:hover {
-  opacity: 1;
-}
-
-.gate-arrow img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.gate-arrow--right img {
-  transform: scaleX(-1);
-}
-
-.gate-value-display {
-  position: relative;
-  width: 120px;
-  height: 120px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.gate-value-bg {
-  position: absolute;
-  inset: 0;
-  background: url('../assets/value_bg.png') center / contain no-repeat;
-}
-
-.gate-value-content {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding-top: 8px;
-}
-
-.gate-value-number {
-  background: linear-gradient(180deg, #facb64 0%, #ffffff 55%, #e0a115 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-fill-color: transparent;
-  font-size: 36px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.gate-value-label {
-  margin-top: 4px;
-  color: #8fb4cd;
-  font-size: 11px;
-}
-
-.gate-actions {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-}
-
-.gate-action-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 16px;
-  border: 1px solid rgba(103, 207, 255, 0.42);
-  border-radius: 16px;
-  background: rgba(17, 78, 121, 0.62);
-  color: #eaf8ff;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.gate-action-btn:hover {
-  border-color: rgba(103, 219, 255, 0.86);
-  background: rgba(15, 104, 163, 0.82);
-}
-
-.gate-action-btn:disabled,
-.pump-switch:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.gate-action-btn:disabled:hover {
-  border-color: rgba(103, 207, 255, 0.42);
-  background: rgba(17, 78, 121, 0.62);
-}
-
-.gate-action-btn svg {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-}
-
-.gate-action-btn--setting svg {
-  width: 20px;
-  height: 20px;
-}
-
-/* End gate control section */
-
-.pump-control-section,
-.valve-control-section {
-  padding: 8px 2px 12px;
-}
-
-.pump-header,
-.valve-header {
-  margin-bottom: 0;
-}
-
-.pump-switch-control {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  margin-left: auto;
-  color: #cde8f7;
-  font-size: 12px;
-}
-
-.pump-switch {
-  position: relative;
-  width: 36px;
-  height: 20px;
-  padding: 0;
-  flex: 0 0 36px;
-  border: 1px solid rgba(121, 158, 182, 0.72);
-  border-radius: 10px;
-  outline: 0;
-  background: rgba(63, 83, 101, 0.78);
-  cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
-}
-
-.pump-switch span {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #c7d4dc;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.34);
-  transition: transform 0.2s ease, background 0.2s ease;
-}
-
-.pump-switch.is-checked {
-  border-color: #4adce7;
-  background: rgba(10, 156, 176, 0.82);
-  box-shadow: 0 0 8px rgba(5, 252, 253, 0.35);
-}
-
-.pump-switch.is-checked span {
-  transform: translateX(16px);
-  background: #ffffff;
-}
-
-.pump-switch:focus-visible {
-  box-shadow: 0 0 0 2px rgba(100, 222, 255, 0.38);
-}
-
-.pump-actions,
-.valve-actions {
-  margin-top: -5px;
-}
-
-.pump-frequency-action svg {
-  width: 20px;
-  height: 20px;
-}
-
-.control-section + .control-section {
-  border-top: 1px solid rgba(70, 171, 228, 0.34);
-}
-
-.control-section__head,
-.control-device-row,
-.control-value {
-  display: flex;
-  align-items: center;
-}
-
-.control-section__head {
-  justify-content: space-between;
-  margin-bottom: 9px;
-}
-
-.control-section__head h2 {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  margin: 0;
-  padding: 0;
-  color: #eff9ff;
-  font-size: 14px;
-  line-height: 22px;
-}
-
-.control-section__head h2 :deep(svg) {
-  color: #43cfff;
-}
-
-.running-state {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: #70e7a2;
-  font-size: 11px;
-}
-
-.running-state > span {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #58e29a;
-  box-shadow: 0 0 7px rgba(88, 226, 154, 0.75);
-}
-
-.control-device-row {
-  gap: 7px;
-  color: #8fb4cd;
-  font-size: 11px;
-}
-
-.control-device-row label {
-  flex: 0 0 auto;
-}
-
-.control-device-row select {
-  width: 78px;
-  height: 28px;
-  padding: 0 24px 0 8px;
-  border: 1px solid rgba(73, 175, 232, 0.55);
-  border-radius: 3px;
-  outline: 0;
-  background: rgba(3, 43, 76, 0.88);
-  color: #e4f5ff;
-  font-size: 11px;
-}
-
-.control-device-row strong {
-  margin-left: auto;
-  color: #dceeff;
-  font-size: 11px;
-  font-weight: 500;
-}
-
-.control-value {
-  justify-content: space-between;
-  margin: 7px 0 -1px;
-  color: #8fb4cd;
-  font-size: 11px;
-}
-
-.control-value b {
-  color: #ffd45c;
-  font-size: 24px;
-  line-height: 28px;
-}
-
-.control-value small {
-  margin-left: 3px;
-  color: #d7e9f6;
-  font-size: 11px;
-  font-weight: 500;
-}
-
-.control-section input[type='range'] {
-  width: 100%;
-  height: 14px;
-  margin: 7px 0 10px;
-  appearance: none;
-  outline: 0;
-  background: transparent;
-}
-
-.control-section input[type='range']::-webkit-slider-runnable-track {
-  height: 7px;
-  border: 1px solid #0b9dcc;
-  border-radius: 4px;
-  background: linear-gradient(90deg, #30c6ec 0%, #087ebc var(--range-progress), rgba(3, 45, 78, 0.92) var(--range-progress), rgba(3, 45, 78, 0.92) 100%);
-}
-
-.control-section input[type='range']::-webkit-slider-thumb {
-  width: 15px;
-  height: 15px;
-  margin-top: -5px;
-  appearance: none;
-  border: 1px solid #8be3ff;
-  border-radius: 50%;
-  background: #57c9ef;
-  box-shadow: 0 0 7px rgba(75, 201, 255, 0.8);
-}
-
-.control-section input[type='range']::-moz-range-track {
-  height: 7px;
-  border: 1px solid #0b9dcc;
-  border-radius: 4px;
-  background: linear-gradient(90deg, #30c6ec 0%, #087ebc var(--range-progress), rgba(3, 45, 78, 0.92) var(--range-progress), rgba(3, 45, 78, 0.92) 100%);
-}
-
-.control-section input[type='range']::-moz-range-thumb {
-  width: 15px;
-  height: 15px;
-  border: 1px solid #8be3ff;
-  border-radius: 50%;
-  background: #57c9ef;
-  box-shadow: 0 0 7px rgba(75, 201, 255, 0.8);
-}
-
-.button-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.button-row button {
-  display: inline-flex;
-  min-width: 0;
-  height: 30px;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 0 4px;
-  border: 1px solid rgba(103, 207, 255, 0.42);
-  border-radius: 3px;
-  background: rgba(17, 78, 121, 0.62);
-  box-shadow: inset 0 3px 9px rgba(133, 192, 251, 0.26);
-  color: #eaf8ff;
-  font-size: 10px;
-  white-space: nowrap;
-}
-
-.button-row button:hover,
-.button-row button:focus-visible {
-  border-color: rgba(103, 219, 255, 0.86);
-  outline: 0;
-  background: rgba(15, 104, 163, 0.82);
-}
-
-.button-row button :deep(svg) {
-  width: 13px;
-  height: 13px;
-  flex: 0 0 13px;
-  color: #4fe1ff;
-}
-
-.button-row .danger-command :deep(svg) {
-  color: #ff7b77;
-}
+  width: var(--stack-width);
+  min-width: var(--stack-width);
+  max-width: var(--stack-width);
+  flex: 0 0 var(--stack-width);
+}
+.panel { min-height: 0; background: rgba(1, 28, 55, 0.64); backdrop-filter: blur(3px); }
+.turbidity-panel { flex: 0 0 28%; }
+.pump-state-panel { flex: 0 0 25%; }
+.trend-panel { flex: 1 1 0; }
+.turbidity-panel :deep(.decorative-panel__content),
+.trend-panel :deep(.decorative-panel__content) { display: flex; min-height: 0; padding: 0 8px 7px; overflow: hidden; }
+.pump-state-panel :deep(.decorative-panel__content) { display: flex; min-height: 0; flex-direction: column; padding: 0 8px 6px; overflow: hidden; }
+
+.pump-state-head { display: flex; height: 30px; flex: 0 0 30px; align-items: center; justify-content: space-between; padding: 0 12px; border-bottom: 1px solid rgba(67, 143, 190, 0.2); }
+.running-state { display: inline-flex; align-items: center; gap: 6px; color: #65e6a4; font-size: 11px; }
+.running-state i { width: 7px; height: 7px; border-radius: 50%; background: #54df9c; box-shadow: 0 0 6px rgba(84, 223, 156, 0.74); }
+.running-state.stopped { color: #ff8a81; }
+.running-state.stopped i { background: #ff6e66; box-shadow: 0 0 6px rgba(255, 110, 102, 0.74); }
+.pump-state-head > strong { color: #ffd268; font-size: 21px; font-weight: 700; }
+.pump-state-head small { margin-left: 2px; color: #a9c9de; font-size: 11px; }
+
+.control-panel { height: 100%; }
+.control-panel :deep(.decorative-panel__content) { padding: 8px 14px 12px; overflow: hidden; }
+.pac-control-card { display: flex; height: 100%; min-height: 0; flex-direction: column; }
+.pac-control-card__head { display: flex; align-items: center; justify-content: space-between; padding: 8px 4px 14px; border-bottom: 1px solid rgba(70, 171, 228, 0.3); }
+.device-code { color: #63dfff; font-size: 11px; }
+.pac-control-card__head h2 { margin: 3px 0 0; padding: 0; color: #f2fbff; font-size: 18px; font-weight: 600; }
+.pump-switch-control { display: inline-flex; align-items: center; gap: 7px; color: #cde8f7; font-size: 12px; }
+.pump-switch { position: relative; width: 40px; height: 22px; padding: 0; border: 1px solid rgba(121, 158, 182, 0.72); border-radius: 11px; outline: 0; background: rgba(63, 83, 101, 0.78); cursor: pointer; }
+.pump-switch > span { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #c7d4dc; transition: transform 0.2s ease; }
+.pump-switch.is-checked { border-color: #4adce7; background: rgba(10, 156, 176, 0.82); box-shadow: 0 0 8px rgba(5, 252, 253, 0.35); }
+.pump-switch.is-checked > span { transform: translateX(18px); background: #fff; }
+.pump-switch:focus-visible { box-shadow: 0 0 0 2px rgba(100, 222, 255, 0.38); }
+
+.pac-control-card :deep(.pump-frequency-gauge) { height: 180px; margin-top: 18px; flex: 0 0 180px; }
+.control-value-row { display: flex; align-items: baseline; justify-content: space-between; margin: 6px 8px 3px; color: #8fb4cd; font-size: 12px; }
+.control-value-row strong { color: #ffd268; font-size: 26px; }
+.control-value-row small { margin-left: 2px; color: #d7e9f6; font-size: 12px; }
+
+.pump-range { width: calc(100% - 16px); height: 18px; margin: 10px 8px 4px; appearance: none; outline: 0; background: transparent; }
+.pump-range::-webkit-slider-runnable-track { height: 7px; border: 1px solid #0b9dcc; border-radius: 4px; background: linear-gradient(90deg, #30c6ec 0%, #087ebc var(--range-progress), rgba(3, 45, 78, 0.92) var(--range-progress), rgba(3, 45, 78, 0.92) 100%); }
+.pump-range::-webkit-slider-thumb { width: 17px; height: 17px; margin-top: -6px; appearance: none; border: 2px solid #c5f4ff; border-radius: 50%; background: #57c9ef; box-shadow: 0 0 7px rgba(75, 201, 255, 0.8); }
+.pump-range::-moz-range-track { height: 7px; border: 1px solid #0b9dcc; border-radius: 4px; background: linear-gradient(90deg, #30c6ec 0%, #087ebc var(--range-progress), rgba(3, 45, 78, 0.92) var(--range-progress), rgba(3, 45, 78, 0.92) 100%); }
+.pump-range::-moz-range-thumb { width: 15px; height: 15px; border: 2px solid #c5f4ff; border-radius: 50%; background: #57c9ef; box-shadow: 0 0 7px rgba(75, 201, 255, 0.8); }
+.range-scale { display: flex; justify-content: space-between; margin: 0 8px 18px; color: #62849d; font-size: 9px; }
+
+.control-summary { display: grid; gap: 1px; margin-top: 4px; border: 1px solid rgba(71, 151, 200, 0.25); background: rgba(2, 31, 55, 0.58); }
+.control-summary div { display: flex; height: 40px; align-items: center; justify-content: space-between; padding: 0 12px; }
+.control-summary div + div { border-top: 1px solid rgba(71, 151, 200, 0.18); }
+.control-summary span { color: #8fb4cd; font-size: 11px; }
+.control-summary strong { color: #5fe4a2; font-size: 12px; }
+.control-summary strong.stopped { color: #ff8a81; }
+.prototype-note { margin: auto 4px 0; padding-top: 14px; color: #65859e; font-size: 10px; text-align: center; }
 
 @media (max-width: 1500px) {
-  .left-stack {
-    width: 330px;
-  }
-
-  .right-stack {
-    width: 324px;
-  }
-
-  .preview-console {
-    width: calc(100% - 720px);
-    min-width: 390px;
-  }
-
-  .preview-title h1 {
-    font-size: 26px;
-  }
-
-  .preview-actions button {
-    padding: 0 5px;
-    font-size: 11px;
-  }
+  .left-stack { --stack-width: 300px; }
+  .right-stack { --stack-width: 290px; }
+  .scene-stage { right: 300px; left: 310px; }
+  .preview-console { width: calc(100% - 660px); min-width: 430px; }
+  .preview-title h1 { font-size: 25px; }
+  .process-status span { padding: 0 8px; }
 }
 
 @media (max-height: 820px) {
-  .gate-panel {
-    flex-basis: 176px;
-  }
-
-  .sensor-panel {
-    flex-basis: 210px;
-  }
-
-  .control-section {
-    padding-top: 4px;
-    padding-bottom: 5px;
-  }
-
-  .control-section__head {
-    margin-bottom: 4px;
-  }
-
-  .control-device-row select {
-    height: 24px;
-  }
-
-  .control-value {
-    margin-top: 3px;
-  }
-
-  .control-section input[type='range'] {
-    margin-top: 4px;
-    margin-bottom: 6px;
-  }
-
-  .button-row button {
-    height: 27px;
-  }
-
-  .control-value b {
-    font-size: 20px;
-  }
+  .scene-stage { top: 110px; bottom: 10px; }
+  .turbidity-panel { flex-basis: 27%; }
+  .pump-state-panel { flex-basis: 24%; }
+  .pac-control-card :deep(.pump-frequency-gauge) { height: 140px; margin-top: 5px; flex-basis: 140px; }
+  .range-scale { margin-bottom: 8px; }
+  .control-summary div { height: 33px; }
+  .prototype-note { padding-top: 6px; }
 }
 </style>

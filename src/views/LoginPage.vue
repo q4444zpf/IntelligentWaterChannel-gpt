@@ -92,7 +92,7 @@
                   type="button"
                   title="点击刷新验证码"
                   aria-label="刷新验证码"
-                  :disabled="loading"
+                  :disabled="loading || PROTOTYPE_LOGIN_ENABLED"
                   @click="refreshCaptcha"
                 >
                   <img v-if="captchaUrl" :src="captchaUrl" alt="验证码" />
@@ -108,7 +108,7 @@
             <button
               class="login-button"
               type="submit"
-              :disabled="loading || !username || !password || !captchaInput"
+              :disabled="loading || (!PROTOTYPE_LOGIN_ENABLED && (!username || !password || !captchaInput))"
             >
               <LoadingOutlined v-if="loading" class="loading-icon" />
               <span v-else>登录</span>
@@ -184,7 +184,9 @@ import sloganImage from '../assets/login/slogan.png';
 import titleImage from '../assets/login/title.png';
 import { getCaptchaUrl, getCode } from '../api/auth.js';
 import { SUCCESS_CODE } from '../constants/auth.js';
-import { authenticate } from '../stores/auth.js';
+import { activatePrototypeSession, authenticate } from '../stores/auth.js';
+
+const PROTOTYPE_LOGIN_ENABLED = true;
 
 const router = useRouter();
 
@@ -215,13 +217,26 @@ async function refreshCaptcha() {
   }
 }
 
-onMounted(refreshCaptcha);
+onMounted(() => {
+  if (!PROTOTYPE_LOGIN_ENABLED) void refreshCaptcha();
+});
 
 async function handleLogin() {
   if (loading.value) return;
 
   errorMsg.value = '';
   shake.value = false;
+
+  // 原型阶段使用本地会话直通，关闭后继续使用下方真实认证流程。
+  if (PROTOTYPE_LOGIN_ENABLED) {
+    loading.value = true;
+    activatePrototypeSession();
+    const form = router.currentRoute.value.query.form;
+    const target = typeof form === 'string' && form.startsWith('/') ? form : { name: 'main' };
+    await router.replace(target);
+    loading.value = false;
+    return;
+  }
 
   if (!username.value.trim() || !password.value.trim()) {
     errorMsg.value = '请输入用户名和密码';

@@ -1,0 +1,2137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>智能曝气 Agent HMI V0.3.1</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #edf1f0;
+        --surface: #ffffff;
+        --soft: #f6f8f7;
+        --line: #d5dedb;
+        --ink: #182421;
+        --muted: #64716d;
+        --green: #23745d;
+        --blue: #3169a8;
+        --teal: #227d87;
+        --amber: #b06d16;
+        --red: #b64a3e;
+        --violet: #645ca3;
+        --ok-bg: #ecf8f3;
+        --warn-bg: #fff6e7;
+        --danger-bg: #fff0ee;
+        --blue-bg: #eef5ff;
+        --shadow: 0 10px 24px rgba(24, 36, 33, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--ink);
+        background: var(--bg);
+        font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", Arial, sans-serif;
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0 auto 0 0;
+        z-index: 30;
+        width: 5px;
+        background: var(--green);
+      }
+
+      body[data-state="safe"]::before {
+        background: var(--red);
+      }
+
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      .hmi-shell {
+        width: min(1640px, calc(100vw - 28px));
+        margin: 0 auto;
+        padding: 14px 0 28px;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        display: grid;
+        grid-template-columns: minmax(290px, 0.42fr) minmax(820px, 1.58fr);
+        gap: 10px;
+        margin-bottom: 10px;
+        padding-top: 8px;
+        background: color-mix(in srgb, var(--bg) 90%, transparent);
+        backdrop-filter: blur(12px);
+      }
+
+      .brand,
+      .status-strip article,
+      .panel,
+      .scenario-summary,
+      .health-cluster {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+      }
+
+      .brand {
+        min-height: 96px;
+        padding: 16px;
+      }
+
+      .brand p,
+      .kicker {
+        margin: 0 0 7px;
+        color: var(--teal);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        margin-bottom: 0;
+        font-size: 27px;
+        line-height: 1.18;
+      }
+
+      h2 {
+        margin-bottom: 0;
+        font-size: 18px;
+        line-height: 1.3;
+      }
+
+      h3 {
+        margin-bottom: 8px;
+        font-size: 17px;
+      }
+
+      .subtitle {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .status-strip {
+        display: grid;
+        grid-template-columns: repeat(8, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .status-strip article {
+        position: relative;
+        overflow: hidden;
+        min-height: 96px;
+        padding: 12px;
+        background: var(--soft);
+        box-shadow: none;
+      }
+
+      .status-strip article::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 4px;
+        background: var(--line);
+      }
+
+      .is-normal::before {
+        background: var(--green) !important;
+      }
+
+      .is-warn::before {
+        background: var(--amber) !important;
+      }
+
+      .is-danger::before {
+        background: var(--red) !important;
+      }
+
+      .is-blue::before {
+        background: var(--blue) !important;
+      }
+
+      .status-strip span,
+      .metric-grid span,
+      .chain-grid span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .status-strip strong,
+      .metric-grid strong,
+      .chain-grid strong {
+        display: block;
+        margin-top: 8px;
+        font-size: 17px;
+        line-height: 1.2;
+      }
+
+      .ops-banner {
+        display: grid;
+        grid-template-columns: minmax(300px, 1fr) auto;
+        gap: 10px;
+        align-items: stretch;
+        margin-bottom: 10px;
+      }
+
+      .scenario-summary {
+        display: grid;
+        grid-template-columns: auto auto minmax(0, 1fr);
+        gap: 10px;
+        align-items: center;
+        min-height: 56px;
+        padding: 10px 12px;
+        border-left: 5px solid var(--green);
+      }
+
+      body[data-state="safe"] .scenario-summary {
+        border-left-color: var(--red);
+      }
+
+      .scenario-summary span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .scenario-summary strong {
+        font-size: 16px;
+      }
+
+      .scenario-summary p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .health-cluster {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        justify-content: flex-end;
+        min-height: 56px;
+        padding: 10px;
+      }
+
+      .health-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 34px;
+        padding: 6px 11px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 900;
+        white-space: nowrap;
+      }
+
+      .normal {
+        color: var(--green);
+        border-color: #c8e3d8;
+        background: var(--ok-bg);
+      }
+
+      .warn {
+        color: var(--amber);
+        border-color: #efd6ad;
+        background: var(--warn-bg);
+      }
+
+      .danger {
+        color: var(--red);
+        border-color: #e9c4bf;
+        background: var(--danger-bg);
+      }
+
+      .scenario-row {
+        display: grid;
+        grid-template-columns: repeat(8, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .scenario-btn,
+      .mode-btn,
+      .primary-btn,
+      .secondary-btn {
+        min-height: 38px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        font-weight: 800;
+      }
+
+      .scenario-btn {
+        padding: 8px 10px;
+        color: var(--ink);
+        background: var(--surface);
+        text-align: center;
+        transition: border-color 0.16s ease, background-color 0.16s ease, transform 0.16s ease;
+      }
+
+      .scenario-btn:hover,
+      .mode-btn:hover,
+      .primary-btn:hover,
+      .secondary-btn:hover {
+        border-color: #9eb1ac;
+        transform: translateY(-1px);
+      }
+
+      .scenario-btn.active {
+        color: #fff;
+        border-color: var(--green);
+        background: var(--green);
+      }
+
+      .dashboard {
+        display: grid;
+        grid-template-columns: 350px minmax(0, 1fr) 370px;
+        grid-template-areas:
+          "control process process"
+          "control output output"
+          "trend trend trend"
+          "io io narrative";
+        gap: 10px;
+        align-items: stretch;
+      }
+
+      .panel {
+        min-width: 0;
+        padding: 14px;
+      }
+
+      .control-panel {
+        grid-area: control;
+      }
+
+      .process-panel {
+        grid-area: process;
+      }
+
+      .output-panel {
+        grid-area: output;
+        display: grid;
+        grid-template-columns: minmax(280px, 370px) minmax(0, 1fr);
+        gap: 10px;
+        align-items: stretch;
+      }
+
+      .output-panel .panel-head {
+        grid-column: 1 / -1;
+        margin-bottom: 0;
+      }
+
+      .trend-panel {
+        grid-area: trend;
+      }
+
+      .io-panel {
+        grid-area: io;
+      }
+
+      .narrative-panel {
+        grid-area: narrative;
+      }
+
+      .panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .mode-badge,
+      .target-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 32px;
+        padding: 6px 10px;
+        border: 1px solid #c8e3d8;
+        border-radius: 8px;
+        color: var(--green);
+        background: var(--ok-bg);
+        font-size: 12px;
+        font-weight: 900;
+        white-space: nowrap;
+      }
+
+      .run-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .primary-btn {
+        color: #fff;
+        border-color: var(--green);
+        background: var(--green);
+      }
+
+      .primary-btn.is-paused {
+        color: var(--amber);
+        border-color: #efd6ad;
+        background: var(--warn-bg);
+      }
+
+      .secondary-btn {
+        color: var(--ink);
+        background: var(--soft);
+      }
+
+      .mode-switch {
+        display: inline-flex;
+        gap: 4px;
+        padding: 3px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #edf3f1;
+      }
+
+      .mode-btn {
+        min-height: 32px;
+        padding: 5px 9px;
+        color: var(--muted);
+        background: transparent;
+        border-color: transparent;
+      }
+
+      .mode-btn.active {
+        color: #fff;
+        background: var(--blue);
+      }
+
+      .control-list {
+        display: grid;
+        gap: 12px;
+      }
+
+      .control-list label,
+      .select-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 6px 10px;
+        align-items: center;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--soft);
+      }
+
+      .control-list label span,
+      .select-row span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .control-list label strong {
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      .control-list input[type="range"] {
+        grid-column: 1 / -1;
+        width: 100%;
+        accent-color: var(--green);
+        background: linear-gradient(90deg, var(--green) var(--range-progress, 50%), #dce5e2 var(--range-progress, 50%));
+        border-radius: 999px;
+        appearance: none;
+        height: 7px;
+      }
+
+      .control-list input[type="range"]::-webkit-slider-thumb {
+        width: 18px;
+        height: 18px;
+        border: 3px solid #ffffff;
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 2px 8px rgba(24, 36, 33, 0.2);
+        appearance: none;
+      }
+
+      .select-row select {
+        width: 160px;
+        min-height: 34px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--ink);
+        font-weight: 800;
+      }
+
+      .switch-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .switch-grid label {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 34px;
+        padding: 7px 8px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .switch-grid input {
+        accent-color: var(--green);
+      }
+
+      .switch-grid label:has(input:not(:checked)) {
+        color: var(--red);
+        border-color: #e9c4bf;
+        background: var(--danger-bg);
+      }
+
+      .process-wrap {
+        width: 100%;
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8faf9;
+      }
+
+      .process-svg {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      .air-line {
+        animation: air-flow 0.9s linear infinite;
+      }
+
+      .air-line.idle {
+        animation: none;
+        opacity: 0.32;
+      }
+
+      .bubble {
+        animation: bubble-rise 1.7s ease-in-out infinite;
+      }
+
+      .bubble.b2 {
+        animation-delay: 0.35s;
+      }
+
+      .bubble.b3 {
+        animation-delay: 0.75s;
+      }
+
+      @keyframes air-flow {
+        to {
+          stroke-dashoffset: -30;
+        }
+      }
+
+      @keyframes bubble-rise {
+        0% {
+          transform: translateY(12px);
+          opacity: 0.18;
+        }
+        45% {
+          opacity: 0.9;
+        }
+        100% {
+          transform: translateY(-42px);
+          opacity: 0;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .air-line,
+        .bubble {
+          animation: none;
+        }
+      }
+
+      .metric-grid,
+      .chain-grid {
+        display: grid;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .metric-grid {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+      }
+
+      .chain-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .metric-grid article,
+      .chain-grid article,
+      .decision-card,
+      .state-lane,
+      .event-list {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--soft);
+      }
+
+      .metric-grid article,
+      .chain-grid article {
+        min-height: 76px;
+        padding: 10px;
+      }
+
+      .metric-grid article.normal,
+      .chain-grid article.normal {
+        background: var(--ok-bg);
+      }
+
+      .metric-grid article.warn,
+      .chain-grid article.warn {
+        background: var(--warn-bg);
+      }
+
+      .metric-grid article.danger,
+      .chain-grid article.danger {
+        background: var(--danger-bg);
+      }
+
+      .gauge-wrap {
+        display: grid;
+        grid-template-columns: 152px minmax(0, 1fr);
+        gap: 12px;
+        align-items: center;
+        min-height: 180px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--soft);
+      }
+
+      .gauge-wrap svg {
+        width: 152px;
+        height: 110px;
+      }
+
+      .gauge-wrap span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .gauge-wrap strong {
+        display: block;
+        margin-top: 6px;
+        font-size: 30px;
+        line-height: 1;
+      }
+
+      .gauge-wrap small {
+        display: block;
+        margin-top: 8px;
+        color: var(--muted);
+        font-weight: 800;
+      }
+
+      .trend-svg {
+        display: block;
+        width: 100%;
+        height: auto;
+        min-height: 260px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfc;
+      }
+
+      .legend-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 9px;
+      }
+
+      .legend {
+        display: inline-flex;
+        align-items: center;
+        min-height: 26px;
+        padding: 4px 8px;
+        border-radius: 8px;
+        color: var(--ink);
+        background: var(--soft);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .legend::before {
+        content: "";
+        width: 18px;
+        height: 3px;
+        margin-right: 6px;
+        border-radius: 2px;
+        background: currentColor;
+      }
+
+      .legend.do {
+        color: var(--teal);
+      }
+
+      .legend.band {
+        color: var(--violet);
+      }
+
+      .legend.blower {
+        color: var(--amber);
+      }
+
+      .legend.air {
+        color: var(--blue);
+      }
+
+      .io-table-wrap {
+        max-height: 312px;
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+
+      .io-table {
+        width: 100%;
+        min-width: 720px;
+        border-collapse: collapse;
+        background: #fff;
+      }
+
+      .io-table th,
+      .io-table td {
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--line);
+        font-size: 12px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .io-table th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        color: var(--muted);
+        background: var(--soft);
+      }
+
+      code {
+        color: var(--blue);
+        font-family: Consolas, "Microsoft YaHei", monospace;
+      }
+
+      .event-list {
+        display: grid;
+        gap: 7px;
+        max-height: 230px;
+        margin-top: 10px;
+        padding: 10px;
+        overflow: auto;
+      }
+
+      .event-item {
+        display: grid;
+        grid-template-columns: 58px minmax(0, 1fr);
+        gap: 8px;
+        align-items: start;
+        padding: 7px 8px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        font-size: 12px;
+      }
+
+      .event-item.info {
+        border-color: #c8d7e8;
+        background: var(--blue-bg);
+      }
+
+      .event-item.warn {
+        border-color: #efd6ad;
+        background: var(--warn-bg);
+      }
+
+      .event-item.danger {
+        border-color: #e9c4bf;
+        background: var(--danger-bg);
+      }
+
+      .event-time {
+        color: var(--muted);
+        font-weight: 800;
+      }
+
+      .decision-card {
+        min-height: 178px;
+        padding: 12px;
+      }
+
+      .decision-card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.65;
+      }
+
+      .state-lane {
+        display: grid;
+        gap: 7px;
+        margin-top: 10px;
+        padding: 10px;
+      }
+
+      .state-step {
+        display: grid;
+        grid-template-columns: 70px minmax(0, 1fr);
+        gap: 8px;
+        align-items: center;
+        min-height: 34px;
+        font-size: 12px;
+      }
+
+      .state-step b {
+        color: var(--muted);
+      }
+
+      .state-step span {
+        height: 8px;
+        border-radius: 999px;
+        background: var(--line);
+      }
+
+      .state-step.active span {
+        background: var(--green);
+      }
+
+      .state-step.warn span {
+        background: var(--amber);
+      }
+
+      .state-step.danger span {
+        background: var(--red);
+      }
+
+      @media (max-width: 1180px) {
+        .topbar,
+        .ops-banner,
+        .dashboard {
+          grid-template-columns: 1fr;
+          grid-template-areas:
+            "control"
+            "process"
+            "output"
+            "trend"
+            "io"
+            "narrative";
+        }
+
+        .status-strip {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .scenario-row,
+        .metric-grid,
+        .chain-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .output-panel {
+          grid-template-columns: minmax(260px, 370px) minmax(0, 1fr);
+        }
+      }
+
+      @media (max-width: 760px) {
+        .hmi-shell {
+          width: min(100vw - 16px, 720px);
+          padding-top: 8px;
+        }
+
+        h1 {
+          font-size: 22px;
+        }
+
+        .topbar {
+          position: static;
+          padding-top: 0;
+        }
+
+        .status-strip,
+        .scenario-row,
+        .metric-grid,
+        .chain-grid,
+        .switch-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .scenario-summary,
+        .panel-head,
+        .gauge-wrap,
+        .output-panel {
+          display: grid;
+          grid-template-columns: 1fr;
+        }
+
+        .health-cluster {
+          justify-content: stretch;
+        }
+
+        .health-pill {
+          flex: 1 1 140px;
+        }
+      }
+    </style>
+  </head>
+  <body data-state="normal">
+    <div class="hmi-shell">
+      <header class="topbar">
+        <div class="brand">
+          <p>Smart Aeration Agent</p>
+          <h1>智能曝气最小闭环 HMI</h1>
+          <p class="subtitle">V0.3.1｜清水演示目标区间 + DO-PI/PID 单闭环 + 主池 DO 扰动演示</p>
+        </div>
+        <div class="status-strip" aria-label="关键运行状态">
+          <article id="modeBlock">
+            <span>控制模式</span>
+            <strong id="modeTile">AUTO</strong>
+          </article>
+          <article id="stepBlock">
+            <span>运行时钟</span>
+            <strong id="clockTile">0:00</strong>
+          </article>
+          <article id="doBlock">
+            <span>DO-01 实测</span>
+            <strong><b id="doTile">6.20</b> mg/L</strong>
+          </article>
+          <article id="targetBlock">
+            <span>目标区间</span>
+            <strong id="targetTile">6.7-7.5</strong>
+          </article>
+          <article id="blowerBlock">
+            <span>风机命令</span>
+            <strong><b id="blowerTile">42</b>%</strong>
+          </article>
+          <article id="airBlock">
+            <span>气体流量</span>
+            <strong><b id="airTile">13.8</b> Nm3/h</strong>
+          </article>
+          <article id="actionBlock">
+            <span>控制动作</span>
+            <strong id="actionTile">INCREASE</strong>
+          </article>
+          <article id="stateBlock">
+            <span>Agent 状态</span>
+            <strong id="stateTile">NORMAL</strong>
+          </article>
+        </div>
+      </header>
+
+      <section class="ops-banner" aria-label="当前运行摘要">
+        <div class="scenario-summary">
+          <span>当前场景</span>
+          <strong id="scenarioName">清水基准</strong>
+          <p id="scenarioBrief">好氧池无污泥清水，采用 CLEAN_WATER_DEMO 目标区间，验证 DO 偏差到风机响应的最小闭环。</p>
+        </div>
+        <div class="health-cluster" aria-label="闭环健康状态">
+          <span id="targetStatus" class="health-pill warn">DO 低于清水演示目标</span>
+          <span id="safetyStatus" class="health-pill normal">PLC 联锁允许</span>
+          <span id="profileStatus" class="health-pill normal">P0 主控：DO 单闭环</span>
+        </div>
+      </section>
+
+      <nav class="scenario-row" aria-label="演示场景">
+        <button type="button" class="scenario-btn active" data-scenario="baseline">清水基准</button>
+        <button type="button" class="scenario-btn" data-scenario="lowDo">低 DO 增曝</button>
+        <button type="button" class="scenario-btn" data-scenario="disturbance">主池扰动</button>
+        <button type="button" class="scenario-btn" data-scenario="overDo">过曝回调</button>
+        <button type="button" class="scenario-btn" data-scenario="inBand">目标区间</button>
+        <button type="button" class="scenario-btn" data-scenario="lowLevel">低液位 SAFE</button>
+        <button type="button" class="scenario-btn" data-scenario="sensorFault">DO 异常</button>
+        <button type="button" class="scenario-btn" data-scenario="p0plus">P0+ 预留</button>
+      </nav>
+
+      <main class="dashboard">
+        <section class="panel control-panel">
+          <div class="panel-head">
+            <div>
+              <p class="kicker">01 / 操作</p>
+              <h2>清水联调输入</h2>
+            </div>
+            <span id="modeBadge" class="mode-badge">自动运行</span>
+          </div>
+
+          <div class="run-row">
+            <button id="runToggle" class="primary-btn" type="button">运行</button>
+            <button id="stepBtn" class="secondary-btn" type="button">单步调试</button>
+            <button id="resetBtn" class="secondary-btn" type="button">复位</button>
+          </div>
+
+          <div class="panel-head">
+            <div class="mode-switch" aria-label="控制模式">
+              <button id="autoMode" class="mode-btn active" type="button">AUTO</button>
+              <button id="manualMode" class="mode-btn" type="button">MANUAL</button>
+              <button id="safeMode" class="mode-btn" type="button">SAFE</button>
+            </div>
+          </div>
+
+          <div class="control-list">
+            <label>
+              <span>DO 实测 do_mg_l</span>
+              <strong><b id="doInputValue">6.2</b> mg/L</strong>
+              <input id="doInput" type="range" min="0.2" max="9.0" step="0.1" value="6.2" />
+            </label>
+
+            <div class="select-row">
+              <span>DO 目标 profile</span>
+              <select id="profileSelect">
+                <option value="CLEAN_WATER_DEMO">CLEAN_WATER_DEMO</option>
+                <option value="PROCESS_DEFAULT">PROCESS_DEFAULT</option>
+                <option value="CUSTOM">CUSTOM</option>
+              </select>
+            </div>
+
+            <label>
+              <span>目标下限 do_target_low</span>
+              <strong><b id="targetLowValue">6.7</b> mg/L</strong>
+              <input id="targetLowInput" type="range" min="1.0" max="8.5" step="0.1" value="6.7" />
+            </label>
+
+            <label>
+              <span>目标上限 do_target_high</span>
+              <strong><b id="targetHighValue">7.5</b> mg/L</strong>
+              <input id="targetHighInput" type="range" min="1.2" max="9.0" step="0.1" value="7.5" />
+            </label>
+
+            <label>
+              <span>当前风机命令</span>
+              <strong><b id="blowerCurrentValue">42</b>%</strong>
+              <input id="blowerCurrentInput" type="range" min="0" max="100" step="1" value="42" />
+            </label>
+
+            <label>
+              <span>好氧池液位</span>
+              <strong><b id="levelValue">78</b>%</strong>
+              <input id="levelInput" type="range" min="0" max="100" step="1" value="78" />
+            </label>
+
+            <label>
+              <span>手动风机命令</span>
+              <strong><b id="manualBlowerValue">35</b>%</strong>
+              <input id="manualBlowerInput" type="range" min="0" max="100" step="1" value="35" />
+            </label>
+
+            <label>
+              <span>P0+ 模拟 Q</span>
+              <strong><b id="flowValue">60</b> m3/d</strong>
+              <input id="flowInput" type="range" min="10" max="220" step="5" value="60" />
+            </label>
+
+            <label>
+              <span>P0+ 模拟 NH4-N</span>
+              <strong><b id="nh4Value">15</b> mg/L</strong>
+              <input id="nh4Input" type="range" min="1" max="60" step="1" value="15" />
+            </label>
+          </div>
+
+          <div class="switch-grid" aria-label="安全联锁">
+            <label><input id="doSensorOk" type="checkbox" checked /> DO-01 有效</label>
+            <label><input id="airFlowOk" type="checkbox" checked /> AFM-01 有效</label>
+            <label><input id="blowerOk" type="checkbox" checked /> 风机反馈正常</label>
+            <label><input id="interlockOk" type="checkbox" checked /> PLC 联锁允许</label>
+          </div>
+        </section>
+
+        <section class="panel process-panel">
+          <div class="panel-head">
+            <div>
+              <p class="kicker">02 / 工艺演示</p>
+              <h2>好氧池清水 DO 闭环</h2>
+            </div>
+            <span id="processBadge" class="target-pill">清水高 DO 演示目标</span>
+          </div>
+          <div class="process-wrap">
+            <svg id="processSvg" class="process-svg" viewBox="0 0 1500 520" role="img" aria-label="智能曝气清水闭环工艺演示图"></svg>
+          </div>
+          <div class="metric-grid">
+            <article id="doMetric">
+              <span>好氧池 DO</span>
+              <strong><b id="doMetricValue">6.2</b> mg/L</strong>
+            </article>
+            <article id="targetMetric">
+              <span>生效目标区间</span>
+              <strong id="targetMetricValue">6.7-7.5</strong>
+            </article>
+            <article id="airMetric">
+              <span>气体流量 AFM-01</span>
+              <strong><b id="airMetricValue">13.8</b> Nm3/h</strong>
+            </article>
+            <article id="levelMetric">
+              <span>液位 LT-01</span>
+              <strong><b id="levelMetricValue">78</b>%</strong>
+            </article>
+            <article id="disturbanceMetric">
+              <span>主池扰动标记</span>
+              <strong id="disturbanceValue">NONE</strong>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel output-panel">
+          <div class="panel-head">
+            <div>
+              <p class="kicker">03 / 控制输出</p>
+              <h2>DO-PI/PID 单闭环结果</h2>
+            </div>
+            <span id="outputBadge" class="target-pill">PI + 死区 + 限幅 + SAFE</span>
+          </div>
+          <div class="gauge-wrap">
+            <svg id="blowerGauge" viewBox="0 0 210 140" aria-label="风机命令仪表"></svg>
+            <div>
+              <span>blower_cmd_target_percent</span>
+              <strong><b id="blowerGaugeValue">42</b>%</strong>
+              <small id="gaugeHint">低于目标区间，风机上调</small>
+            </div>
+          </div>
+          <div class="chain-grid">
+            <article>
+              <span>DO 偏差 e(k)</span>
+              <strong><b id="errorValue">0.90</b> mg/L</strong>
+            </article>
+            <article>
+              <span>DO_set 中心值</span>
+              <strong><b id="doSetValue">7.10</b> mg/L</strong>
+            </article>
+            <article>
+              <span>air_ff 预留</span>
+              <strong><b id="airFfValue">15.6</b> Nm3/h</strong>
+            </article>
+            <article>
+              <span>air_target 输出</span>
+              <strong><b id="airTargetValue">16.7</b> Nm3/h</strong>
+            </article>
+            <article>
+              <span>PLC AO</span>
+              <strong><b id="aoValue">10.7</b> mA</strong>
+            </article>
+            <article>
+              <span>PLC DO</span>
+              <strong id="plcDoValue">RUN</strong>
+            </article>
+            <article>
+              <span>动作锁定</span>
+              <strong id="lockValue">false</strong>
+            </article>
+            <article>
+              <span>置信度</span>
+              <strong><b id="confidenceValue">96</b>%</strong>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel trend-panel">
+          <div class="panel-head">
+            <div>
+              <p class="kicker">04 / 趋势</p>
+              <h2>运行趋势</h2>
+            </div>
+            <span id="trendCaption" class="target-pill">连续运行时间</span>
+          </div>
+          <svg id="trendSvg" class="trend-svg" viewBox="0 0 820 300" role="img" aria-label="DO、目标区间、风机命令和气体流量趋势"></svg>
+          <div class="legend-row">
+            <span class="legend do">DO 实测</span>
+            <span class="legend band">DO 目标区间</span>
+            <span class="legend blower">风机命令 /10</span>
+            <span class="legend air">气量 /5</span>
+          </div>
+        </section>
+
+        <section class="panel io-panel">
+          <div class="panel-head">
+            <div>
+              <p class="kicker">05 / I/O</p>
+              <h2>字段映射与阶段边界</h2>
+            </div>
+            <span class="target-pill">P0 主控 + P0+ 预留</span>
+          </div>
+          <div class="io-table-wrap">
+            <table class="io-table">
+              <thead>
+                <tr>
+                  <th>字段</th>
+                  <th>含义</th>
+                  <th>当前值</th>
+                  <th>阶段</th>
+                </tr>
+              </thead>
+              <tbody id="ioTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <aside class="panel narrative-panel">
+          <div class="panel-head">
+            <div>
+              <p class="kicker">06 / 解释</p>
+              <h2>为什么这样控制</h2>
+            </div>
+          </div>
+          <div class="decision-card" id="decisionCard"></div>
+          <div class="state-lane" id="stateLane"></div>
+          <div class="event-list" id="eventList"></div>
+        </aside>
+      </main>
+    </div>
+
+    <script>
+      const CYCLE_SECONDS = 5;
+      const MAX_AIR = 42;
+      const MIN_ACTION_INTERVAL = 5;
+      const refs = {};
+      [
+        "modeTile",
+        "clockTile",
+        "doTile",
+        "targetTile",
+        "blowerTile",
+        "airTile",
+        "actionTile",
+        "stateTile",
+        "modeBlock",
+        "stepBlock",
+        "doBlock",
+        "targetBlock",
+        "blowerBlock",
+        "airBlock",
+        "actionBlock",
+        "stateBlock",
+        "scenarioName",
+        "scenarioBrief",
+        "targetStatus",
+        "safetyStatus",
+        "profileStatus",
+        "modeBadge",
+        "runToggle",
+        "stepBtn",
+        "resetBtn",
+        "autoMode",
+        "manualMode",
+        "safeMode",
+        "doInput",
+        "profileSelect",
+        "targetLowInput",
+        "targetHighInput",
+        "blowerCurrentInput",
+        "levelInput",
+        "manualBlowerInput",
+        "flowInput",
+        "nh4Input",
+        "doInputValue",
+        "targetLowValue",
+        "targetHighValue",
+        "blowerCurrentValue",
+        "levelValue",
+        "manualBlowerValue",
+        "flowValue",
+        "nh4Value",
+        "doSensorOk",
+        "airFlowOk",
+        "blowerOk",
+        "interlockOk",
+        "processBadge",
+        "processSvg",
+        "doMetric",
+        "targetMetric",
+        "airMetric",
+        "levelMetric",
+        "disturbanceMetric",
+        "doMetricValue",
+        "targetMetricValue",
+        "airMetricValue",
+        "levelMetricValue",
+        "disturbanceValue",
+        "outputBadge",
+        "blowerGauge",
+        "blowerGaugeValue",
+        "gaugeHint",
+        "errorValue",
+        "doSetValue",
+        "airFfValue",
+        "airTargetValue",
+        "aoValue",
+        "plcDoValue",
+        "lockValue",
+        "confidenceValue",
+        "trendCaption",
+        "trendSvg",
+        "ioTableBody",
+        "decisionCard",
+        "stateLane",
+        "eventList"
+      ].forEach((id) => {
+        refs[id] = document.getElementById(id);
+      });
+
+      const scenarios = {
+        baseline: {
+          label: "清水基准",
+          brief: "好氧池无污泥清水，采用 CLEAN_WATER_DEMO 目标区间，验证 DO 偏差到风机响应的最小闭环。",
+          doValue: 6.2,
+          profile: "CLEAN_WATER_DEMO",
+          low: 6.7,
+          high: 7.5,
+          blower: 42,
+          level: 78,
+          manualBlower: 35,
+          flow: 60,
+          nh4: 15,
+          checks: [true, true, true, true],
+          disturbance: "NONE"
+        },
+        lowDo: {
+          label: "低 DO 增曝",
+          brief: "DO 低于目标下限，Agent 输出 INCREASE，风机命令和气体流量上升。",
+          doValue: 2.5,
+          profile: "CLEAN_WATER_DEMO",
+          low: 6.7,
+          high: 7.5,
+          blower: 34,
+          level: 80,
+          manualBlower: 35,
+          flow: 65,
+          nh4: 18,
+          checks: [true, true, true, true],
+          disturbance: "NONE"
+        },
+        disturbance: {
+          label: "主池 DO 扰动",
+          brief: "主池受控 DO 下降只作为事件标记，软件不控制耗氧剂投加，只验证 DO 探头变化和增曝响应。",
+          doValue: 4.9,
+          profile: "CLEAN_WATER_DEMO",
+          low: 6.7,
+          high: 7.5,
+          blower: 44,
+          level: 82,
+          manualBlower: 35,
+          flow: 70,
+          nh4: 20,
+          checks: [true, true, true, true],
+          disturbance: "DO_DROP"
+        },
+        overDo: {
+          label: "过曝回调",
+          brief: "DO 高于目标上限，Agent 输出 DECREASE，风机命令平滑下调，避免清水演示中过曝。",
+          doValue: 8.8,
+          profile: "CLEAN_WATER_DEMO",
+          low: 6.7,
+          high: 7.5,
+          blower: 62,
+          level: 76,
+          manualBlower: 35,
+          flow: 55,
+          nh4: 12,
+          checks: [true, true, true, true],
+          disturbance: "NONE"
+        },
+        inBand: {
+          label: "目标区间",
+          brief: "DO 已处于目标区间，Agent 输出 HOLD，优先冻结或缓释积分项，减少频繁调节。",
+          doValue: 7.1,
+          profile: "CLEAN_WATER_DEMO",
+          low: 6.7,
+          high: 7.5,
+          blower: 45,
+          level: 78,
+          manualBlower: 35,
+          flow: 60,
+          nh4: 14,
+          checks: [true, true, true, true],
+          disturbance: "NONE"
+        },
+        lowLevel: {
+          label: "低液位 SAFE",
+          brief: "液位低于保护阈值，Event Step 优先进入 SAFE，不继续自动提高曝气输出。",
+          doValue: 5.7,
+          profile: "CLEAN_WATER_DEMO",
+          low: 6.7,
+          high: 7.5,
+          blower: 48,
+          level: 12,
+          manualBlower: 35,
+          flow: 60,
+          nh4: 15,
+          checks: [true, true, true, true],
+          disturbance: "NONE"
+        },
+        sensorFault: {
+          label: "DO 异常",
+          brief: "DO 探头 INVALID/STALE/JUMP 时进入 SAFE，HMI 明确显示异常原因。",
+          doValue: 6.1,
+          profile: "CLEAN_WATER_DEMO",
+          low: 6.7,
+          high: 7.5,
+          blower: 42,
+          level: 78,
+          manualBlower: 35,
+          flow: 60,
+          nh4: 15,
+          checks: [false, true, true, true],
+          disturbance: "NONE"
+        },
+        p0plus: {
+          label: "P0+ 预留",
+          brief: "模拟 Q/NH4-N 仅作为展示和接口预留，首期不强制参与风机命令计算。",
+          doValue: 6.8,
+          profile: "CLEAN_WATER_DEMO",
+          low: 6.7,
+          high: 7.5,
+          blower: 45,
+          level: 80,
+          manualBlower: 35,
+          flow: 160,
+          nh4: 45,
+          checks: [true, true, true, true],
+          disturbance: "NONE"
+        }
+      };
+
+      const state = {
+        mode: "AUTO",
+        selectedScenario: "baseline",
+        running: true,
+        timeS: 0,
+        stepIndex: 0,
+        lastActionTimeS: -MIN_ACTION_INTERVAL,
+        history: [],
+        events: []
+      };
+
+      function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+      }
+
+      function round(value, digits = 1) {
+        const factor = 10 ** digits;
+        return Math.round(value * factor) / factor;
+      }
+
+      function fmtTime(seconds) {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m}:${String(s).padStart(2, "0")}`;
+      }
+
+      function setBlockState(el, level) {
+        el.classList.remove("is-normal", "is-warn", "is-danger", "is-blue");
+        el.classList.add(level === "danger" ? "is-danger" : level === "warn" ? "is-warn" : level === "blue" ? "is-blue" : "is-normal");
+      }
+
+      function setPill(el, text, level) {
+        el.textContent = text;
+        el.className = `health-pill ${level}`;
+      }
+
+      function syncRangeFill(el) {
+        const min = Number(el.min || 0);
+        const max = Number(el.max || 100);
+        const value = Number(el.value || 0);
+        const pct = ((value - min) / (max - min)) * 100;
+        el.style.setProperty("--range-progress", `${clamp(pct, 0, 100)}%`);
+      }
+
+      function readInputs() {
+        let low = Number(refs.targetLowInput.value);
+        let high = Number(refs.targetHighInput.value);
+        if (high <= low) {
+          high = low + 0.1;
+          refs.targetHighInput.value = high.toFixed(1);
+        }
+        const input = {
+          doValue: Number(refs.doInput.value),
+          profile: refs.profileSelect.value,
+          targetLow: low,
+          targetHigh: high,
+          doSet: (low + high) / 2,
+          blowerCurrent: Number(refs.blowerCurrentInput.value),
+          level: Number(refs.levelInput.value),
+          manualBlower: Number(refs.manualBlowerInput.value),
+          flow: Number(refs.flowInput.value),
+          nh4: Number(refs.nh4Input.value),
+          doSensorOk: refs.doSensorOk.checked,
+          airFlowOk: refs.airFlowOk.checked,
+          blowerOk: refs.blowerOk.checked,
+          interlockOk: refs.interlockOk.checked,
+          disturbance: scenarios[state.selectedScenario].disturbance
+        };
+        refs.doInputValue.textContent = round(input.doValue, 1);
+        refs.targetLowValue.textContent = round(input.targetLow, 1);
+        refs.targetHighValue.textContent = round(input.targetHigh, 1);
+        refs.blowerCurrentValue.textContent = round(input.blowerCurrent, 0);
+        refs.levelValue.textContent = round(input.level, 0);
+        refs.manualBlowerValue.textContent = round(input.manualBlower, 0);
+        refs.flowValue.textContent = round(input.flow, 0);
+        refs.nh4Value.textContent = round(input.nh4, 0);
+        [
+          refs.doInput,
+          refs.targetLowInput,
+          refs.targetHighInput,
+          refs.blowerCurrentInput,
+          refs.levelInput,
+          refs.manualBlowerInput,
+          refs.flowInput,
+          refs.nh4Input
+        ].forEach(syncRangeFill);
+        return input;
+      }
+
+      function compute(input) {
+        const safeReasons = [];
+        if (!input.doSensorOk) safeReasons.push("DO 信号异常");
+        if (!input.blowerOk) safeReasons.push("风机反馈异常");
+        if (!input.interlockOk) safeReasons.push("PLC 联锁禁止");
+        if (input.level < 18) safeReasons.push("低液位保护");
+        if (state.mode === "SAFE") safeReasons.push("人工切入 SAFE");
+
+        const doError = input.doSet - input.doValue;
+        let action = "HOLD";
+        if (input.doValue < input.targetLow) action = "INCREASE";
+        if (input.doValue > input.targetHigh) action = "DECREASE";
+
+        const insideBand = input.doValue >= input.targetLow && input.doValue <= input.targetHigh;
+        const stepLimit = 12;
+        let piDelta = clamp(doError * 7.5, -stepLimit, stepLimit);
+        if (insideBand) piDelta = 0;
+
+        const locked = state.timeS - state.lastActionTimeS < MIN_ACTION_INTERVAL && action !== "HOLD";
+        if (locked) {
+          piDelta = 0;
+          action = "LOCKED";
+        }
+
+        let blowerTarget = clamp(input.blowerCurrent + piDelta, 18, 82);
+        if (state.mode === "MANUAL" && safeReasons.length === 0) {
+          blowerTarget = input.manualBlower;
+          action = "HOLD";
+        }
+
+        let aerationState = "NORMAL";
+        let plcDo = blowerTarget > 0 ? "RUN" : "STOP";
+        if (safeReasons.length > 0) {
+          aerationState = "SAFE";
+          action = "SAFE";
+          blowerTarget = 0;
+          plcDo = "STOP";
+        }
+
+        const airTarget = (blowerTarget / 100) * MAX_AIR;
+        const airFlow = input.airFlowOk ? Math.max(0, airTarget * (0.92 + blowerTarget / 620)) : null;
+        const p0plusRisk = input.flow > 130 || input.nh4 > 35 ? "HIGH" : input.flow > 90 || input.nh4 > 24 ? "MID" : "LOW";
+        const airFfReserved = clamp(7 + input.flow * 0.055 + input.nh4 * 0.12, 8, 32);
+        let confidence = 96;
+        if (!input.airFlowOk) confidence -= 26;
+        if (locked) confidence -= 10;
+        if (aerationState === "SAFE") confidence = 42;
+
+        let reason = "";
+        if (aerationState === "SAFE") {
+          reason = `${safeReasons.join("、")}，Agent 进入 SAFE，停止正常自动调节并等待人工确认。`;
+        } else if (state.mode === "MANUAL") {
+          reason = `当前为 MANUAL 权限，Agent 只显示建议，风机命令采用人工设定 ${round(blowerTarget, 0)}%。`;
+        } else if (action === "INCREASE") {
+          reason = `DO 为 ${round(input.doValue, 1)} mg/L，低于目标下限 ${round(input.targetLow, 1)} mg/L，PI 控制输出增曝，风机命令上调。`;
+        } else if (action === "DECREASE") {
+          reason = `DO 为 ${round(input.doValue, 1)} mg/L，高于目标上限 ${round(input.targetHigh, 1)} mg/L，系统降低风机频率和气量，但保留低曝气输出，不等同于停曝。`;
+        } else if (action === "LOCKED") {
+          reason = `DO 已触发调节方向，但距离上次动作不足 ${MIN_ACTION_INTERVAL}s，暂不更新风机命令，避免频繁调节。`;
+        } else {
+          reason = `DO 位于 ${round(input.targetLow, 1)}-${round(input.targetHigh, 1)} mg/L 目标区间内，系统保持当前曝气。`;
+        }
+
+        if (state.selectedScenario === "p0plus") {
+          reason += " P0+ 模拟负荷只提升 load_risk 和 air_ff 展示值，首期不作为风机命令的必需计算项。";
+        }
+
+        return {
+          aerationState,
+          action,
+          doError,
+          blowerTarget,
+          airTarget,
+          airFlow,
+          airFfReserved,
+          ao: 4 + (blowerTarget / 100) * 16,
+          plcDo,
+          confidence: clamp(confidence, 0, 100),
+          safeReasons,
+          locked,
+          p0plusRisk,
+          reason
+        };
+      }
+
+      function drawProcess(input, output) {
+        const visualAirLevel =
+          output.aerationState === "SAFE"
+            ? 0
+            : output.action === "INCREASE"
+              ? clamp(output.blowerTarget + 22, 0, 100)
+              : output.action === "DECREASE"
+                ? clamp(output.blowerTarget, 0, 100)
+                : output.blowerTarget;
+        const airClass = visualAirLevel > 0 ? "air-line" : "air-line idle";
+        const airLineSpeed = Math.max(0.36, 1.35 - visualAirLevel / 100).toFixed(2);
+        const bubbleSpeed = Math.max(0.46, 1.85 - visualAirLevel / 75).toFixed(2);
+        const bubbleCount = output.aerationState === "SAFE" ? 0 : visualAirLevel > 70 ? 9 : visualAirLevel > 48 ? 6 : visualAirLevel > 24 ? 3 : visualAirLevel > 0 ? 2 : 0;
+        const waterColor = output.aerationState === "SAFE" ? "#f4b4a8" : input.doValue < input.targetLow ? "#9ec7e5" : input.doValue > input.targetHigh ? "#b8d9ef" : "#a8d1e8";
+        const targetText = `${round(input.targetLow, 1)}-${round(input.targetHigh, 1)} mg/L`;
+        const doColor = output.aerationState === "SAFE" ? "#b64a3e" : input.doValue < input.targetLow || input.doValue > input.targetHigh ? "#b06d16" : "#23745d";
+        const sceneVisuals = {
+          baseline: ["清水基准", "CLEAN_WATER_DEMO 目标区间，验证最小闭环骨架", "#eef7f3", "#23745d"],
+          lowDo: ["低 DO 增曝", "DO 明显低于目标下限，PI/PID 输出 INCREASE", "#fff6e7", "#b06d16"],
+          disturbance: ["主池 DO 扰动", "DO_DROP 只做事件标记，验证探头变化和增曝响应", "#fff6e7", "#b06d16"],
+          overDo: ["过曝回调", "DO 高于目标上限，风机命令平滑下降", "#eef5ff", "#3169a8"],
+          inBand: ["目标区间", "DO 位于目标带内，保持曝气并减少频繁动作", "#eef7f3", "#23745d"],
+          lowLevel: ["低液位 SAFE", "液位联锁触发，SAFE 覆盖普通控制 step", "#fff0ee", "#b64a3e"],
+          sensorFault: ["DO 异常 SAFE", "DO-01 无效，停止正常自动控制", "#fff0ee", "#b64a3e"],
+          p0plus: ["P0+ 预留", "模拟 Q / NH4-N 只做展示和接口预留", "#eef5ff", "#3169a8"]
+        };
+        const scene = sceneVisuals[state.selectedScenario] || sceneVisuals.baseline;
+        const fanSpin = visualAirLevel > 0
+          ? `<animateTransform attributeName="transform" attributeType="XML" type="rotate" from="0 1070 130" to="360 1070 130" dur="${Math.max(0.36, 1.45 - visualAirLevel / 100).toFixed(2)}s" repeatCount="indefinite"/>`
+          : "";
+        const bubbleSeeds = [
+          [710, 326, 5, 0],
+          [738, 318, 6, 0.18],
+          [764, 330, 4, 0.34],
+          [792, 306, 5, 0.52],
+          [820, 318, 7, 0.74],
+          [848, 328, 4, 0.92],
+          [874, 304, 5, 1.08],
+          [900, 320, 6, 1.26],
+          [926, 312, 4, 1.42]
+        ];
+        const bubbleGroup = bubbleSeeds
+          .slice(0, bubbleCount)
+          .map(([cx, cy, r, delay]) => `<circle class="bubble" style="animation-duration:${bubbleSpeed}s; animation-delay:${delay}s" cx="${cx}" cy="${cy}" r="${r}" fill="#ffffff" opacity="${visualAirLevel > 68 ? 0.78 : 0.58}"/>`)
+          .join("");
+        const actionHint =
+          output.aerationState === "SAFE"
+            ? "曝气停止"
+            : output.action === "INCREASE"
+              ? "曝气增强中"
+              : output.action === "DECREASE"
+                ? "低曝气回调中"
+                : "曝气保持";
+
+        refs.processSvg.innerHTML = `
+          <rect x="0" y="0" width="1500" height="520" fill="#f8faf9"/>
+          <g>
+            <rect x="34" y="28" width="440" height="72" rx="10" fill="${scene[2]}" stroke="${scene[3]}" stroke-width="2"/>
+            <text x="58" y="58" font-size="19" font-weight="900" fill="${scene[3]}">${scene[0]}</text>
+            <text x="58" y="83" font-size="13" font-weight="800" fill="#42514d">${scene[1]}</text>
+          </g>
+          <g>
+            <rect x="1276" y="30" width="194" height="106" rx="8" fill="#ffffff" stroke="#b8c2bf"/>
+            <line x1="1296" y1="58" x2="1352" y2="58" stroke="#3169a8" stroke-width="5"/>
+            <text x="1365" y="64" font-size="14" font-weight="800" fill="#172421">清水主流</text>
+            <line x1="1296" y1="86" x2="1352" y2="86" stroke="#b06d16" stroke-width="5" stroke-dasharray="10 7"/>
+            <text x="1365" y="92" font-size="14" font-weight="800" fill="#172421">曝气气路</text>
+            <line x1="1296" y1="113" x2="1352" y2="113" stroke="#2d7c3f" stroke-width="3" stroke-dasharray="8 6"/>
+            <text x="1365" y="119" font-size="14" font-weight="800" fill="#172421">信号/联锁</text>
+          </g>
+
+          <g>
+            <rect x="900" y="32" width="330" height="142" rx="10" fill="#ffffff" stroke="#1f2a28" stroke-width="2" stroke-dasharray="7 5"/>
+            <text x="1065" y="62" text-anchor="middle" font-size="18" font-weight="900" fill="#172421">曝气执行模块</text>
+            <rect x="960" y="86" width="220" height="70" rx="10" fill="#fff7e9" stroke="#d5a15c" stroke-width="2"/>
+            <circle cx="1070" cy="130" r="31" fill="#5aaed8" stroke="#135f9d" stroke-width="3"/>
+            <g>${fanSpin}
+              <path d="M1070 130 L1093 118" stroke="#0f4f83" stroke-width="7" stroke-linecap="round"/>
+              <path d="M1070 130 L1048 114" stroke="#0f4f83" stroke-width="7" stroke-linecap="round"/>
+              <path d="M1070 130 L1068 156" stroke="#0f4f83" stroke-width="7" stroke-linecap="round"/>
+            </g>
+            <text x="1070" y="184" text-anchor="middle" font-size="13" font-weight="900" fill="#8a560e">风机 ${round(output.blowerTarget, 0)}% / ${actionHint}</text>
+          </g>
+
+          <path d="M32 330 H148" stroke="#3169a8" stroke-width="7" stroke-linecap="round"/>
+          <polygon points="152,330 132,318 132,342" fill="#3169a8"/>
+          <text x="26" y="305" font-size="17" font-weight="900" fill="#172421">清水/模拟进水</text>
+
+          <g>
+            <rect x="168" y="270" width="220" height="122" rx="8" fill="#ffffff" stroke="#7b8b86" stroke-width="3"/>
+            <path d="M178 318 C235 306 315 326 378 314 V382 H178 Z" fill="#a8cbe3" opacity="0.92"/>
+            <text x="278" y="250" text-anchor="middle" font-size="18" font-weight="900" fill="#172421">调节水箱边界</text>
+            <text x="278" y="416" text-anchor="middle" font-size="14" font-weight="900" fill="#172421">P0+ 模拟 Q / NH4-N 入口</text>
+            ${state.selectedScenario === "p0plus" ? `<text x="278" y="438" text-anchor="middle" font-size="13" font-weight="900" fill="#3169a8">load_risk = ${output.p0plusRisk}，不直接改写 P0 风机命令</text>` : ""}
+          </g>
+
+          <path d="M398 330 H520" stroke="#3169a8" stroke-width="7" stroke-linecap="round"/>
+          <polygon points="524,330 504,318 504,342" fill="#3169a8"/>
+
+          <g>
+            <rect x="540" y="220" width="450" height="190" rx="8" fill="#ffffff" stroke="#7b8b86" stroke-width="3"/>
+            <path d="M552 277 C676 256 828 292 978 270 V398 H552 Z" fill="${waterColor}" opacity="0.95"/>
+            <text x="765" y="198" text-anchor="middle" font-size="20" font-weight="900" fill="#172421">好氧池（无污泥清水演示）</text>
+            <line x1="622" y1="228" x2="622" y2="380" stroke="#2e3b38" stroke-width="5"/>
+            <rect x="606" y="228" width="32" height="18" rx="4" fill="#425a56"/>
+            <circle cx="622" cy="386" r="7" fill="#2e3b38"/>
+            <text x="622" y="216" text-anchor="middle" font-size="14" font-weight="900" fill="#172421">LT-01</text>
+            <g>
+              <rect x="900" y="214" width="34" height="118" rx="9" fill="#f8faf9" stroke="#2e3b38" stroke-width="4"/>
+              <line x1="917" y1="332" x2="917" y2="382" stroke="#2e3b38" stroke-width="4"/>
+              <circle cx="917" cy="388" r="7" fill="#2e3b38"/>
+              <text x="918" y="204" text-anchor="middle" font-size="14" font-weight="900" fill="${doColor}">DO-01 ${round(input.doValue, 1)}</text>
+            </g>
+            <g>
+              <path d="M694 370 H916" stroke="#4a5960" stroke-width="8" stroke-linecap="round"/>
+              <circle cx="720" cy="370" r="6" fill="#4a5960"/>
+              <circle cx="760" cy="370" r="6" fill="#4a5960"/>
+              <circle cx="800" cy="370" r="6" fill="#4a5960"/>
+              <circle cx="840" cy="370" r="6" fill="#4a5960"/>
+              <circle cx="880" cy="370" r="6" fill="#4a5960"/>
+            </g>
+            ${bubbleGroup}
+            <text x="765" y="430" text-anchor="middle" font-size="15" font-weight="800" fill="${doColor}">目标 ${targetText}，当前 ${round(input.doValue, 1)} mg/L</text>
+            ${state.selectedScenario === "disturbance" ? `<text x="765" y="456" text-anchor="middle" font-size="14" font-weight="900" fill="#b06d16">主池 DO_DROP 扰动标记：软件不控制耗氧剂投加</text>` : ""}
+            ${output.aerationState === "SAFE" ? `<text x="765" y="456" text-anchor="middle" font-size="14" font-weight="900" fill="#b64a3e">SAFE：停止正常自动调节，等待人工确认</text>` : ""}
+          </g>
+
+          <path class="${airClass}" style="animation-duration:${airLineSpeed}s" d="M1068 166 C1038 224, 1015 300, 922 370" fill="none" stroke="#b06d16" stroke-width="${visualAirLevel > 70 ? 8 : visualAirLevel > 45 ? 6 : 4}" stroke-linecap="round" stroke-dasharray="12 8"/>
+          <polygon points="914,376 924,354 936,376" fill="#b06d16"/>
+          <rect x="978" y="238" width="88" height="30" rx="7" fill="#fff7e9" stroke="#efd6ad"/>
+          <text x="1022" y="258" text-anchor="middle" font-size="13" font-weight="900" fill="#8a560e">AFM-01</text>
+
+          <path d="M900 430 V470 H622 V412" fill="none" stroke="#2d7c3f" stroke-dasharray="8 6" stroke-width="3"/>
+          <path d="M1022 270 V470 H917 V412" fill="none" stroke="#2d7c3f" stroke-dasharray="8 6" stroke-width="3"/>
+          <text x="778" y="492" text-anchor="middle" font-size="15" font-weight="800" fill="#2d7c3f">DO / 气量 / 液位反馈闭环</text>
+
+          <g>
+            <rect x="1080" y="284" width="210" height="92" rx="10" fill="#eef5ff" stroke="#b8c9df" stroke-width="2"/>
+            <text x="1185" y="314" text-anchor="middle" font-size="17" font-weight="900" fill="#172421">AerationAgent</text>
+            <text x="1185" y="340" text-anchor="middle" font-size="13" font-weight="800" fill="#315f9c">DO-PI/PID + SAFE</text>
+            <text x="1185" y="362" text-anchor="middle" font-size="12" font-weight="800" fill="#64716d">${output.action} / ${output.aerationState}</text>
+          </g>
+          <path d="M1080 330 H950" fill="none" stroke="#2d7c3f" stroke-dasharray="8 6" stroke-width="3"/>
+          <path d="M1185 284 V174" fill="none" stroke="#2d7c3f" stroke-dasharray="8 6" stroke-width="3"/>
+        `;
+      }
+
+      function drawGauge(value) {
+        const pct = clamp(value, 0, 100);
+        const angle = -120 + pct * 2.4;
+        const rad = (angle * Math.PI) / 180;
+        const cx = 105;
+        const cy = 112;
+        const r = 76;
+        const x = cx + Math.cos(rad) * r;
+        const y = cy + Math.sin(rad) * r;
+        const color = pct > 70 ? "#b64a3e" : pct > 55 ? "#b06d16" : "#23745d";
+        refs.blowerGauge.innerHTML = `
+          <path d="M32 112 A73 73 0 0 1 178 112" fill="none" stroke="#d5dedb" stroke-width="16" stroke-linecap="round"/>
+          <path d="M32 112 A73 73 0 0 1 ${x.toFixed(1)} ${y.toFixed(1)}" fill="none" stroke="${color}" stroke-width="16" stroke-linecap="round"/>
+          <line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#182421" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="${cx}" cy="${cy}" r="7" fill="#182421"/>
+          <text x="${cx}" y="72" text-anchor="middle" font-size="17" font-weight="800" fill="#182421">${round(pct, 0)}%</text>
+        `;
+      }
+
+      function drawTrend() {
+        const data = state.history.length
+          ? state.history
+          : [{
+              t: state.timeS,
+              doValue: Number(refs.doInput.value),
+              low: Number(refs.targetLowInput.value),
+              high: Number(refs.targetHighInput.value),
+              blower: Number(refs.blowerCurrentInput.value),
+              air: Number(refs.airMetricValue.textContent) || 0
+            }];
+        const w = 820;
+        const h = 300;
+        const pad = { l: 48, r: 18, t: 24, b: 34 };
+        const innerW = w - pad.l - pad.r;
+        const innerH = h - pad.t - pad.b;
+        const maxY = 10;
+        const x = (i) => pad.l + (data.length === 1 ? 0 : (i / (data.length - 1)) * innerW);
+        const y = (v) => pad.t + innerH - (v / maxY) * innerH;
+        const lineBy = (getter) => data.map((d, i) => `${i === 0 ? "M" : "L"} ${x(i).toFixed(1)} ${y(getter(d)).toFixed(1)}`).join(" ");
+        const dotsBy = (getter, color, r = 4) =>
+          data
+            .map((d, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(getter(d)).toFixed(1)}" r="${r}" fill="${color}" stroke="#fff" stroke-width="1.5"/>`)
+            .join("");
+        const targetHighPath = data.map((d, i) => `${i === 0 ? "M" : "L"} ${x(i).toFixed(1)} ${y(d.high).toFixed(1)}`).join(" ");
+        const targetLowPath = data.map((d, i) => `${i === 0 ? "M" : "L"} ${x(i).toFixed(1)} ${y(d.low).toFixed(1)}`).join(" ");
+        const bandTop = Math.min(...data.map((d) => y(d.high)));
+        const bandBottom = Math.max(...data.map((d) => y(d.low)));
+        let grid = "";
+        for (let i = 0; i <= 5; i += 1) {
+          const v = i * 2;
+          const gy = y(v);
+          grid += `<line x1="${pad.l}" y1="${gy}" x2="${w - pad.r}" y2="${gy}" stroke="#e2e8e6"/><text x="10" y="${gy + 4}" font-size="11" fill="#64716d">${v}</text>`;
+        }
+        refs.trendSvg.innerHTML = `
+          <rect x="0" y="0" width="${w}" height="${h}" fill="#fbfcfc"/>
+          ${grid}
+          <rect x="${pad.l}" y="${bandTop}" width="${innerW}" height="${Math.max(2, bandBottom - bandTop)}" fill="#645ca3" opacity="0.08"/>
+          <path d="${targetHighPath}" fill="none" stroke="#645ca3" stroke-dasharray="6 5" stroke-width="2"/>
+          <path d="${targetLowPath}" fill="none" stroke="#645ca3" stroke-dasharray="6 5" stroke-width="2"/>
+          <path d="${lineBy((d) => d.doValue)}" fill="none" stroke="#227d87" stroke-width="3"/>
+          <path d="${lineBy((d) => d.blower / 10)}" fill="none" stroke="#b06d16" stroke-width="3"/>
+          <path d="${lineBy((d) => d.air / 5)}" fill="none" stroke="#3169a8" stroke-width="3"/>
+          ${dotsBy((d) => d.doValue, "#227d87", 4.8)}
+          ${dotsBy((d) => d.blower / 10, "#b06d16", 4)}
+          ${dotsBy((d) => d.air / 5, "#3169a8", 4)}
+          <text x="${pad.l}" y="${h - 10}" font-size="11" fill="#64716d">${fmtTime(data[0].t)}</text>
+          <text x="${w - pad.r - 46}" y="${h - 10}" font-size="11" fill="#64716d">${fmtTime(data[data.length - 1].t)}</text>
+        `;
+        refs.trendCaption.textContent = `连续运行 ${fmtTime(data[data.length - 1].t)}，${data.length} 个采样点`;
+      }
+
+      function updateTiles(input, output) {
+        document.body.dataset.state = output.aerationState.toLowerCase();
+        refs.modeTile.textContent = state.mode;
+        refs.clockTile.textContent = fmtTime(state.timeS);
+        refs.doTile.textContent = round(input.doValue, 1);
+        refs.targetTile.textContent = `${round(input.targetLow, 1)}-${round(input.targetHigh, 1)}`;
+        refs.blowerTile.textContent = round(output.blowerTarget, 0);
+        refs.airTile.textContent = output.airFlow === null ? "FAULT" : round(output.airFlow, 1);
+        refs.actionTile.textContent = output.action;
+        refs.stateTile.textContent = output.aerationState;
+
+        setBlockState(refs.modeBlock, state.mode === "SAFE" ? "danger" : state.mode === "MANUAL" ? "warn" : "normal");
+        setBlockState(refs.stepBlock, "blue");
+        setBlockState(refs.doBlock, output.aerationState === "SAFE" ? "danger" : input.doValue < input.targetLow || input.doValue > input.targetHigh ? "warn" : "normal");
+        setBlockState(refs.targetBlock, input.profile === "PROCESS_DEFAULT" ? "blue" : "normal");
+        setBlockState(refs.blowerBlock, output.blowerTarget > 70 ? "warn" : "normal");
+        setBlockState(refs.airBlock, output.airFlow === null ? "danger" : "normal");
+        setBlockState(refs.actionBlock, output.action === "SAFE" ? "danger" : output.action === "HOLD" ? "normal" : "warn");
+        setBlockState(refs.stateBlock, output.aerationState === "SAFE" ? "danger" : "normal");
+      }
+
+      function updateSummary(input, output) {
+        const sc = scenarios[state.selectedScenario];
+        refs.scenarioName.textContent = sc.label;
+        refs.scenarioBrief.textContent = sc.brief;
+        if (output.aerationState === "SAFE") {
+          setPill(refs.targetStatus, "SAFE 保护优先", "danger");
+          setPill(refs.safetyStatus, output.safeReasons.join(" / "), "danger");
+        } else if (input.doValue < input.targetLow) {
+          setPill(refs.targetStatus, "DO 低于目标，增曝", "warn");
+          setPill(refs.safetyStatus, "PLC 联锁允许", "normal");
+        } else if (input.doValue > input.targetHigh) {
+          setPill(refs.targetStatus, "DO 高于目标，降曝", "warn");
+          setPill(refs.safetyStatus, "PLC 联锁允许", "normal");
+        } else {
+          setPill(refs.targetStatus, "DO 处于目标区间", "normal");
+          setPill(refs.safetyStatus, "PLC 联锁允许", "normal");
+        }
+        const profileText = input.profile === "CLEAN_WATER_DEMO" ? "清水演示 profile" : input.profile === "PROCESS_DEFAULT" ? "工艺默认 profile" : "自定义目标 profile";
+        setPill(refs.profileStatus, profileText, input.profile === "PROCESS_DEFAULT" ? "warn" : "normal");
+        refs.modeBadge.textContent = state.mode === "AUTO" ? "自动运行" : state.mode === "MANUAL" ? "人工接管" : "SAFE";
+        refs.modeBadge.className = `mode-badge ${state.mode === "SAFE" ? "danger" : state.mode === "MANUAL" ? "warn" : ""}`;
+      }
+
+      function updateMetrics(input, output) {
+        refs.doMetricValue.textContent = round(input.doValue, 1);
+        refs.targetMetricValue.textContent = `${round(input.targetLow, 1)}-${round(input.targetHigh, 1)}`;
+        refs.airMetricValue.textContent = output.airFlow === null ? "FAULT" : round(output.airFlow, 1);
+        refs.levelMetricValue.textContent = round(input.level, 0);
+        refs.disturbanceValue.textContent = input.disturbance;
+        refs.processBadge.textContent = input.profile === "CLEAN_WATER_DEMO" ? "清水高 DO 演示目标" : input.profile === "PROCESS_DEFAULT" ? "后续真实工艺目标" : "自定义调试目标";
+        refs.doMetric.className = input.doValue < input.targetLow || input.doValue > input.targetHigh ? "warn" : "normal";
+        refs.targetMetric.className = input.profile === "PROCESS_DEFAULT" ? "warn" : "normal";
+        refs.airMetric.className = output.airFlow === null ? "danger" : "normal";
+        refs.levelMetric.className = input.level < 18 ? "danger" : "normal";
+        refs.disturbanceMetric.className = input.disturbance === "DO_DROP" ? "warn" : "normal";
+      }
+
+      function updateOutput(input, output) {
+        refs.blowerGaugeValue.textContent = round(output.blowerTarget, 0);
+        refs.gaugeHint.textContent = output.action === "INCREASE" ? "低于目标区间，风机上调" : output.action === "DECREASE" ? "高于目标区间，低曝气回调" : output.action === "SAFE" ? "SAFE 状态，停止自动输出" : "目标区间内，保持当前曝气";
+        refs.errorValue.textContent = round(output.doError, 2);
+        refs.doSetValue.textContent = round(input.doSet, 2);
+        refs.airFfValue.textContent = round(output.airFfReserved, 1);
+        refs.airTargetValue.textContent = round(output.airTarget, 1);
+        refs.aoValue.textContent = round(output.ao, 1);
+        refs.plcDoValue.textContent = output.plcDo;
+        refs.lockValue.textContent = String(output.locked);
+        refs.confidenceValue.textContent = round(output.confidence, 0);
+        refs.outputBadge.textContent = output.aerationState === "SAFE" ? "SAFE 覆盖 PI/PID" : output.locked ? "最小动作间隔锁定" : "PI + 死区 + 限幅 + SAFE";
+        drawGauge(output.blowerTarget);
+      }
+
+      function updateIo(input, output) {
+        const rows = [
+          ["scenario_code", "当前场景编码", state.selectedScenario, "输入"],
+          ["step_index", "底层 step 编号", String(state.stepIndex), "Hydros 留证"],
+          ["step_mode", "底层 step 运行方式", state.running ? "AUTO_SIM" : "MANUAL_STEP", "Hydros 留证"],
+          ["do_target_profile", "DO 目标配置", input.profile, "输入"],
+          ["do_target_low_mg_l", "DO 目标下限", `${round(input.targetLow, 1)} mg/L`, "输入"],
+          ["do_target_high_mg_l", "DO 目标上限", `${round(input.targetHigh, 1)} mg/L`, "输入"],
+          ["do_set_mg_l", "DO 目标中心值", `${round(input.doSet, 2)} mg/L`, "输入/输出"],
+          ["do_mg_l", "好氧池 DO 实测", input.doSensorOk ? `${round(input.doValue, 1)} mg/L` : "INVALID", "P0 主控"],
+          ["blower_cmd_current_percent", "当前风机命令", `${round(input.blowerCurrent, 0)}%`, "输入"],
+          ["blower_cmd_target_percent", "目标风机命令", `${round(output.blowerTarget, 0)}%`, "P0 输出"],
+          ["air_flow_nm3_h", "气体流量反馈", output.airFlow === null ? "INVALID" : `${round(output.airFlow, 1)} Nm3/h`, "P0 反馈"],
+          ["water_level_percent", "液位安全反馈", `${round(input.level, 0)}%`, "P0 安全"],
+          ["aeration_state", "Agent 正式状态", output.aerationState, "输出"],
+          ["control_action", "控制动作", output.action, "输出"],
+          ["control_reason", "控制原因", output.reason, "输出"],
+          ["sim_flow_m3_d", "HMI 模拟 Q", `${round(input.flow, 0)} m3/d`, "P0+ 预留"],
+          ["sim_nh4_mg_l", "HMI 模拟 NH4-N", `${round(input.nh4, 0)} mg/L`, "P0+ 预留"],
+          ["load_risk_level", "负荷风险展示", output.p0plusRisk, "P0+ 预留"],
+          ["air_ff_nm3_h", "前馈气量展示值", `${round(output.airFfReserved, 1)} Nm3/h`, "P0+ 预留"],
+          ["safe_reason", "SAFE 原因", output.safeReasons.length ? output.safeReasons.join("、") : "NONE", "输出"]
+        ];
+        refs.ioTableBody.innerHTML = rows.map((r) => `<tr><td><code>${r[0]}</code></td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join("");
+      }
+
+      function updateNarrative(input, output) {
+        const title = output.aerationState === "SAFE" ? "SAFE 保护" : output.action === "INCREASE" ? "低 DO 增曝" : output.action === "DECREASE" ? "过曝回调" : output.action === "LOCKED" ? "动作间隔锁定" : "闭环保持";
+        refs.decisionCard.innerHTML = `<h3>${title}</h3><p>${output.reason}</p>`;
+        const steps = [
+          ["采集", true],
+          ["联锁", output.aerationState !== "SAFE"],
+          ["PI/PID", output.aerationState !== "SAFE"],
+          ["限幅", true],
+          ["执行", output.aerationState !== "SAFE"],
+          ["记录", true]
+        ];
+        refs.stateLane.innerHTML = steps
+          .map(([label, active]) => `<div class="state-step ${active ? "active" : output.aerationState === "SAFE" ? "danger" : "warn"}"><b>${label}</b><span></span></div>`)
+          .join("");
+        refs.eventList.innerHTML = state.events.length
+          ? state.events.slice(0, 12).map((event) => `<div class="event-item ${event.level}"><span class="event-time">${event.time}</span><span>${event.text}</span></div>`).join("")
+          : `<div class="event-item info"><span class="event-time">--</span><span>暂无事件</span></div>`;
+      }
+
+      function render() {
+        const input = readInputs();
+        const output = compute(input);
+        updateTiles(input, output);
+        updateSummary(input, output);
+        drawProcess(input, output);
+        updateMetrics(input, output);
+        updateOutput(input, output);
+        drawTrend();
+        updateIo(input, output);
+        updateNarrative(input, output);
+        updateModeButtons();
+        return { input, output };
+      }
+
+      function addEvent(text, level = "info") {
+        state.events.unshift({ time: fmtTime(state.timeS), text, level });
+        state.events = state.events.slice(0, 30);
+      }
+
+      function buildScenarioHistory(key, sc) {
+        const profiles = {
+          baseline: {
+            doValues: [6.0],
+            blowerValues: [34],
+            airValues: [10.8]
+          },
+          lowDo: {
+            doValues: [2.5],
+            blowerValues: [34],
+            airValues: [10.6]
+          },
+          disturbance: {
+            doValues: [7.05, 5.95, 4.9],
+            blowerValues: [40, 56, 74],
+            airValues: [13.2, 18.8, 27.2]
+          },
+          overDo: {
+            doValues: [8.8],
+            blowerValues: [62],
+            airValues: [22.2]
+          },
+          inBand: {
+            doValues: [7.1],
+            blowerValues: [45],
+            airValues: [15.5]
+          },
+          lowLevel: {
+            doValues: [5.9, 5.8],
+            blowerValues: [46, 0],
+            airValues: [15.8, 0]
+          },
+          sensorFault: {
+            doValues: [6.2, 6.1],
+            blowerValues: [42, 0],
+            airValues: [13.8, 0]
+          },
+          p0plus: {
+            doValues: [6.55],
+            blowerValues: [42],
+            airValues: [13.8]
+          }
+        };
+        const p = profiles[key] || profiles.baseline;
+        return p.doValues.map((doValue, idx) => ({
+          t: idx * CYCLE_SECONDS,
+          doValue,
+          low: sc.low,
+          high: sc.high,
+          blower: p.blowerValues[idx],
+          air: p.airValues[idx]
+        }));
+      }
+
+      function stepCycle(logEvent = true) {
+        const { input, output } = render();
+        if (output.action !== "HOLD" && output.action !== "LOCKED") {
+          state.lastActionTimeS = state.timeS;
+        }
+        if (logEvent) {
+          const level = output.aerationState === "SAFE" ? "danger" : output.action === "HOLD" ? "info" : "warn";
+          addEvent(`t=${fmtTime(state.timeS)} / Step ${state.stepIndex}: ${output.action}，DO ${round(input.doValue, 1)} mg/L，风机 ${round(output.blowerTarget, 0)}%`, level);
+        }
+        state.history.push({
+          t: state.timeS,
+          doValue: input.doValue,
+          low: input.targetLow,
+          high: input.targetHigh,
+          blower: output.blowerTarget,
+          air: output.airFlow === null ? 0 : output.airFlow
+        });
+        state.history = state.history.slice(-44);
+
+        state.timeS += CYCLE_SECONDS;
+        state.stepIndex += 1;
+
+        if (output.aerationState !== "SAFE" && state.mode === "AUTO") {
+          let nextDo = input.doValue;
+          if (input.doValue < input.targetLow) {
+            const recovery = clamp((input.targetLow - input.doValue) * 0.28 + (output.blowerTarget / 100) * 0.18, 0.18, 0.95);
+            nextDo = input.doValue + recovery;
+          } else if (input.doValue > input.targetHigh) {
+            const backoff = clamp((input.doValue - input.targetHigh) * 0.3 + (1 - output.blowerTarget / 100) * 0.12, 0.12, 0.8);
+            nextDo = input.doValue - backoff;
+          } else {
+            nextDo = input.doValue + (input.doSet - input.doValue) * 0.08;
+          }
+          nextDo = clamp(nextDo, 0.2, 9);
+          refs.doInput.value = round(nextDo, 1);
+          refs.blowerCurrentInput.value = round(output.blowerTarget, 0);
+        }
+        render();
+      }
+
+      function applyScenario(key) {
+        const sc = scenarios[key];
+        state.selectedScenario = key;
+        refs.doInput.value = sc.doValue;
+        refs.profileSelect.value = sc.profile;
+        refs.targetLowInput.value = sc.low;
+        refs.targetHighInput.value = sc.high;
+        refs.blowerCurrentInput.value = sc.blower;
+        refs.levelInput.value = sc.level;
+        refs.manualBlowerInput.value = sc.manualBlower;
+        refs.flowInput.value = sc.flow;
+        refs.nh4Input.value = sc.nh4;
+        [refs.doSensorOk, refs.airFlowOk, refs.blowerOk, refs.interlockOk].forEach((el, idx) => {
+          el.checked = sc.checks[idx];
+        });
+        state.lastActionTimeS = -MIN_ACTION_INTERVAL;
+        state.history = buildScenarioHistory(key, sc);
+        state.timeS = state.history.length ? state.history[state.history.length - 1].t + CYCLE_SECONDS : 0;
+        state.stepIndex = state.history.length;
+        state.running = true;
+        refs.runToggle.textContent = "暂停";
+        refs.runToggle.classList.add("is-paused");
+        state.events = [];
+        document.querySelectorAll(".scenario-btn").forEach((btn) => btn.classList.toggle("active", btn.dataset.scenario === key));
+        addEvent(`载入场景：${sc.label}`, "info");
+        render();
+      }
+
+      function setMode(mode) {
+        state.mode = mode;
+        addEvent(`切换到 ${mode}`, mode === "SAFE" ? "danger" : mode === "MANUAL" ? "warn" : "info");
+        render();
+      }
+
+      function updateModeButtons() {
+        refs.autoMode.classList.toggle("active", state.mode === "AUTO");
+        refs.manualMode.classList.toggle("active", state.mode === "MANUAL");
+        refs.safeMode.classList.toggle("active", state.mode === "SAFE");
+      }
+
+      function bindEvents() {
+        document.querySelectorAll(".scenario-btn").forEach((btn) => btn.addEventListener("click", () => applyScenario(btn.dataset.scenario)));
+        refs.runToggle.addEventListener("click", () => {
+          state.running = !state.running;
+          refs.runToggle.textContent = state.running ? "暂停" : "运行";
+          refs.runToggle.classList.toggle("is-paused", state.running);
+          addEvent(state.running ? "连续运行启动" : "连续运行暂停", "info");
+          render();
+        });
+        refs.stepBtn.addEventListener("click", () => stepCycle(true));
+        refs.resetBtn.addEventListener("click", () => applyScenario(state.selectedScenario));
+        refs.autoMode.addEventListener("click", () => setMode("AUTO"));
+        refs.manualMode.addEventListener("click", () => setMode("MANUAL"));
+        refs.safeMode.addEventListener("click", () => setMode("SAFE"));
+        [
+          refs.doInput,
+          refs.profileSelect,
+          refs.targetLowInput,
+          refs.targetHighInput,
+          refs.blowerCurrentInput,
+          refs.levelInput,
+          refs.manualBlowerInput,
+          refs.flowInput,
+          refs.nh4Input,
+          refs.doSensorOk,
+          refs.airFlowOk,
+          refs.blowerOk,
+          refs.interlockOk
+        ].forEach((el) => {
+          el.addEventListener("input", render);
+          el.addEventListener("change", render);
+        });
+      }
+
+      bindEvents();
+      applyScenario("baseline");
+      window.setInterval(() => {
+        if (state.running) stepCycle(true);
+      }, 1000);
+    </script>
+  </body>
+</html>

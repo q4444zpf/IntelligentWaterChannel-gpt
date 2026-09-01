@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ACCESS_TOKEN_KEY } from '../constants/auth.js';
+import { ACCESS_TOKEN_KEY, PROTOTYPE_ACCESS_TOKEN } from '../constants/auth.js';
 import { getToken } from './auth.js';
 
 export const baseURL = import.meta.env.VITE_APP_BASE_API || '/api';
@@ -20,7 +20,7 @@ export function setUnauthorizedHandler(handler) {
 }
 
 function handleUnauthorized() {
-  unauthorizedHandler();
+  if (getToken() !== PROTOTYPE_ACCESS_TOKEN) unauthorizedHandler();
   return Promise.reject(new ApiError('登录状态已失效，请重新登录', 401));
 }
 
