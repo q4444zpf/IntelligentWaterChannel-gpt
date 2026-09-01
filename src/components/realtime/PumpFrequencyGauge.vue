@@ -24,6 +24,8 @@ const props = defineProps({
   max: { type: Number, default: 50 },
   label: { type: String, default: '当前频率' },
   unit: { type: String, default: '' },
+  gaugeCenterY: { type: String, default: '78%' },
+  gaugeRadius: { type: String, default: '126%' },
 });
 
 const chartElement = ref(null);
@@ -51,8 +53,8 @@ function buildGaugeOption() {
       splitNumber: 5,
       startAngle: 180,
       endAngle: 0,
-      center: ['50%', '78%'],
-      radius: '126%',
+      center: ['50%', props.gaugeCenterY],
+      radius: props.gaugeRadius,
       progress: {
         show: true,
         roundCap: true,
@@ -150,7 +152,7 @@ async function renderChart() {
 }
 
 onMounted(renderChart);
-watch(() => [props.value, props.max, props.label], renderChart);
+watch(() => [props.value, props.max, props.label, props.gaugeCenterY, props.gaugeRadius], renderChart);
 onBeforeUnmount(() => {
   resizeObserver?.disconnect();
   chart?.dispose();

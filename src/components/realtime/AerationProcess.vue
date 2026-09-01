@@ -87,11 +87,11 @@
       <text x="1010" y="420" class="process-label">达标出水</text>
 
       <path
-        d="M835 137 C824 195 806 265 758 366"
+        d="M835 137 C824 195 806 265 765 352"
         class="air-line"
         :class="{ stopped: !blowerRunning }"
       />
-      <path d="M-13 -7 L0 0 L-13 7 Z" class="air-flow-arrow" transform="translate(758 366) rotate(115)" />
+      <path d="M0 -8 L16 0 L0 8 Z" class="air-flow-arrow" transform="translate(765 352) rotate(115)" />
       <g class="air-meter">
         <rect x="802" y="218" width="78" height="29" rx="5" />
         <text x="841" y="237">AFM-01</text>

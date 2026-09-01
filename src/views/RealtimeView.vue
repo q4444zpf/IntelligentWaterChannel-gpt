@@ -97,27 +97,10 @@
       </template>
 
       <template v-else>
-        <DecorativePanel class="panel turbidity-panel" title="DO溶解氧传感器实时数据">
-          <RealtimeMetricBarChart
-            :items="dissolvedOxygenItems"
-            :max="10"
-            unit=""
-            aria-label="DO溶解氧传感器实时数据柱状图"
-          />
-        </DecorativePanel>
-
-        <DecorativePanel class="panel pump-state-panel" title="气量实时数据">
-          <div class="pump-state-head">
-            <span class="running-state" :class="{ stopped: !aerationDisplay.blowerRunning }">
-              <i></i>{{ aerationDisplay.blowerRunning ? '供气正常' : '供气停止' }}
-            </span>
-            <strong>{{ aerationDisplay.airFlow }}<small>Nm³/h</small></strong>
-          </div>
-          <RealtimeMetricBarChart
-            :items="airFlowItems"
-            :max="40"
-            unit="Nm³/h"
-            aria-label="曝气气量实时数据柱状图"
+        <DecorativePanel class="panel sensor-data-panel" title="传感器实时数据">
+          <SensorRealtimeBars
+            :items="aerationSensorItems"
+            aria-label="进水泵频率、DO溶解氧、进气量和风机设定值"
           />
         </DecorativePanel>
 
@@ -219,7 +202,7 @@
       </template>
 
       <template v-else>
-        <DecorativePanel class="panel pac-control-panel" direction="left" title="曝气风机控制">
+        <DecorativePanel class="panel pac-control-panel aeration-control-panel" direction="left" title="设备控制">
           <section class="pac-control-card">
             <header class="pac-control-card__head">
               <div>
@@ -245,6 +228,8 @@
               :max="100"
               label="当前输出"
               unit="%"
+              gauge-center-y="88%"
+              gauge-radius="151%"
             />
 
             <div class="control-value-row">
@@ -264,15 +249,54 @@
             />
             <div class="range-scale" aria-hidden="true"><span>0%</span><span>50%</span><span>100%</span></div>
 
-            <div class="control-summary">
-              <div><span>控制模式</span><strong>AUTO</strong></div>
-              <div><span>运行状态</span><strong :class="{ stopped: !aerationDisplay.blowerRunning }">{{ aerationDisplay.blowerRunning ? '正常' : '停止' }}</strong></div>
-              <div><span>气量反馈</span><strong>{{ aerationDisplay.airFlow }} Nm³/h</strong></div>
-            </div>
+            <section class="inlet-pump-control" aria-label="进水泵控制">
+              <header class="inlet-pump-control__head">
+                <div>
+                  <span class="device-code">PMP-IN-01</span>
+                  <h3>进水泵</h3>
+                </div>
+                <div class="pump-switch-control">
+                  <span>{{ aerationDisplay.inletPumpRunning ? '开' : '关' }}</span>
+                  <button
+                    type="button"
+                    class="pump-switch"
+                    role="switch"
+                    :aria-checked="aerationDisplay.inletPumpRunning"
+                    :aria-label="aerationDisplay.inletPumpRunning ? '关闭进水泵' : '开启进水泵'"
+                    :class="{ 'is-checked': aerationDisplay.inletPumpRunning }"
+                    @click="toggleAerationInletPump"
+                  ><span aria-hidden="true"></span></button>
+                </div>
+              </header>
+              <PumpFrequencyGauge
+                :value="activeInletPumpFrequency"
+                :max="50"
+                label="当前频率"
+                unit="Hz"
+                gauge-center-y="88%"
+                gauge-radius="151%"
+              />
+              <div class="control-value-row control-value-row--inlet-pump">
+                <span>频率设定</span>
+                <strong>{{ aerationDisplay.inletPumpFrequency }}<small>Hz</small></strong>
+              </div>
+              <input
+                class="pump-range inlet-pump-range"
+                type="range"
+                min="0"
+                max="50"
+                step="1"
+                :value="aerationDisplay.inletPumpFrequency"
+                :style="{ '--range-progress': `${aerationDisplay.inletPumpFrequency * 2}%` }"
+                aria-label="进水泵频率"
+                @input="handleInletPumpFrequencyInput"
+              />
+              <div class="range-scale inlet-pump-scale" aria-hidden="true"><span>0 Hz</span><span>25 Hz</span><span>50 Hz</span></div>
+            </section>
           </section>
         </DecorativePanel>
 
-        <DecorativePanel class="panel target-control-panel" direction="left" title="目标区间设置">
+        <DecorativePanel class="panel target-control-panel aeration-target-control-panel" direction="left" title="目标区间设置">
           <section class="target-control">
             <div class="target-control__value">
               <span>DO目标范围</span>
@@ -299,7 +323,6 @@
               @change="handleAerationTargetRangeChange"
             />
             <div class="target-scale__labels" aria-hidden="true"><span>0</span><span>5</span><span>10</span></div>
-            <p class="prototype-note">当前为原型数据，设置操作仅更新页面状态。</p>
           </section>
         </DecorativePanel>
       </template>
@@ -318,6 +341,7 @@ import FiveStageDosingProcess from '../components/realtime/FiveStageDosingProces
 import PacRealtimeTrendChart from '../components/realtime/PacRealtimeTrendChart.vue';
 import PumpFrequencyGauge from '../components/realtime/PumpFrequencyGauge.vue';
 import RealtimeMetricBarChart from '../components/realtime/RealtimeMetricBarChart.vue';
+import SensorRealtimeBars from '../components/realtime/SensorRealtimeBars.vue';
 import SmartWaterFlumePreview from '../components/realtime/smart-water-flume-preview/SmartWaterFlumePreview.vue';
 import { PROTOTYPE_ACCESS_TOKEN } from '../constants/auth.js';
 import { getToken } from '../utils/auth.js';
@@ -331,6 +355,7 @@ const emit = defineEmits([
   'pump-control-change',
   'target-range-change',
   'blower-control-change',
+  'inlet-pump-control-change',
   'aeration-target-range-change',
   'scene-change',
   'realtime-data',
@@ -340,8 +365,8 @@ const showProcessPrototype = ref(true);
 const alarmNotificationTopic = ref('');
 const activeScene = ref('dosing');
 const scenes = Object.freeze([
-  { key: 'dosing', title: '智能加药五段闭环工艺监控' },
-  { key: 'aeration', title: '智能曝气清水闭环工艺监控' },
+  { key: 'dosing', title: '智能加药工艺监控' },
+  { key: 'aeration', title: '智能曝气工艺监控' },
 ]);
 
 const prototypeState = reactive({
@@ -361,12 +386,14 @@ const prototypeState = reactive({
 });
 
 const aerationPrototypeState = reactive({
+  inletPumpFrequency: 42,
+  inletPumpRunning: true,
   doValue: 6.4,
   airFlow: 23,
   blowerPercent: 54,
   blowerRunning: true,
-  targetMin: 6.7,
-  targetMax: 7.5,
+  targetMin: 0,
+  targetMax: 2,
   trend: {
     times: ['10:00', '10:05', '10:10', '10:15', '10:20', '10:25', '10:30', '10:35', '10:40', '10:45', '10:50', '10:55'],
     dissolvedOxygen: [5.8, 5.9, 6, 6.1, 6.25, 6.35, 6.5, 6.62, 6.55, 6.48, 6.43, 6.4],
@@ -398,6 +425,8 @@ const realtimeDisplay = computed(() => {
 const aerationDisplay = computed(() => {
   const source = props.prototypeData?.aeration || aerationPrototypeState;
   return {
+    inletPumpFrequency: Math.min(50, Math.max(0, finiteNumber(source.inletPumpFrequency, aerationPrototypeState.inletPumpFrequency))),
+    inletPumpRunning: typeof source.inletPumpRunning === 'boolean' ? source.inletPumpRunning : aerationPrototypeState.inletPumpRunning,
     doValue: Math.min(10, Math.max(0, finiteNumber(source.doValue, aerationPrototypeState.doValue))),
     airFlow: Math.min(40, Math.max(0, finiteNumber(source.airFlow, aerationPrototypeState.airFlow))),
     blowerPercent: Math.min(100, Math.max(0, finiteNumber(source.blowerPercent, aerationPrototypeState.blowerPercent))),
@@ -414,6 +443,9 @@ const activePumpPercent = computed(() => (
 const activeBlowerPercent = computed(() => (
   aerationDisplay.value.blowerRunning ? aerationDisplay.value.blowerPercent : 0
 ));
+const activeInletPumpFrequency = computed(() => (
+  aerationDisplay.value.inletPumpRunning ? aerationDisplay.value.inletPumpFrequency : 0
+));
 
 const turbidityItems = computed(() => [
   { label: '前馈浊度仪', value: realtimeDisplay.value.preTurbidity, color: '#39d8ff' },
@@ -424,12 +456,11 @@ const pumpItems = computed(() => [
   { label: 'PAC配药箱', value: realtimeDisplay.value.tankLevel, color: '#ffc65c' },
 ]);
 
-const dissolvedOxygenItems = computed(() => [
-  { label: 'DO-01', value: aerationDisplay.value.doValue, color: '#39d8ff' },
-]);
-
-const airFlowItems = computed(() => [
-  { label: 'AFM-01', value: aerationDisplay.value.airFlow, color: '#ffc65c' },
+const aerationSensorItems = computed(() => [
+  { key: 'inlet-pump-frequency', label: '进水泵频率', value: activeInletPumpFrequency.value, max: 50, unit: 'Hz', precision: 0, color: '#39d8ff' },
+  { key: 'dissolved-oxygen', label: 'DO溶解氧', value: aerationDisplay.value.doValue, max: 10, unit: '', precision: 1, color: '#64e59b' },
+  { key: 'air-flow', label: '进气量', value: aerationDisplay.value.airFlow, max: 40, unit: 'Nm³/h', precision: 1, color: '#ffc65c' },
+  { key: 'blower-setpoint', label: '风机设定值', value: aerationDisplay.value.blowerPercent, max: 100, unit: '%', precision: 0, color: '#4f93ff' },
 ]);
 
 const trendDisplay = computed(() => {
@@ -517,6 +548,24 @@ function toggleAerationBlower() {
 
 function handleBlowerPercentInput(event) {
   updateAerationBlower({ blowerPercent: finiteNumber(event.target?.value, aerationDisplay.value.blowerPercent) });
+}
+
+function updateAerationInletPump(patch) {
+  if (props.prototypeData?.aeration) {
+    emit('inlet-pump-control-change', patch);
+    return;
+  }
+  Object.assign(aerationPrototypeState, patch);
+  emit('inlet-pump-control-change', { ...patch, prototype: true });
+}
+
+function toggleAerationInletPump() {
+  updateAerationInletPump({ inletPumpRunning: !aerationDisplay.value.inletPumpRunning });
+}
+
+function handleInletPumpFrequencyInput(event) {
+  const inletPumpFrequency = Math.min(50, Math.max(0, finiteNumber(event.target?.value, aerationDisplay.value.inletPumpFrequency)));
+  updateAerationInletPump({ inletPumpFrequency });
 }
 
 function updateAerationTargetRange(patch) {
@@ -673,8 +722,10 @@ onMounted(() => {
 .panel { min-height: 0; background: rgba(1, 28, 55, 0.64); backdrop-filter: blur(3px); }
 .turbidity-panel { flex: 0 0 28%; }
 .pump-state-panel { flex: 0 0 25%; }
+.sensor-data-panel { flex: 0 0 48%; }
 .trend-panel { flex: 1 1 0; }
 .turbidity-panel :deep(.decorative-panel__content),
+.sensor-data-panel :deep(.decorative-panel__content),
 .trend-panel :deep(.decorative-panel__content) { display: flex; min-height: 0; padding: 0 8px 7px; overflow: hidden; }
 .pump-state-panel :deep(.decorative-panel__content) { display: flex; min-height: 0; flex-direction: column; padding: 0 8px 6px; overflow: hidden; }
 
@@ -711,6 +762,30 @@ onMounted(() => {
 .pump-range::-moz-range-thumb { width: 15px; height: 15px; border: 2px solid #c5f4ff; border-radius: 50%; background: #57c9ef; box-shadow: 0 0 7px rgba(75, 201, 255, 0.8); }
 .range-scale { display: flex; justify-content: space-between; margin: 0 8px 18px; color: #62849d; font-size: 9px; }
 
+.inlet-pump-control { margin-top: 8px; border-top: 1px solid rgba(70, 171, 228, 0.3); padding: 12px 4px 0; }
+.inlet-pump-control__head { display: flex; align-items: center; justify-content: space-between; }
+.inlet-pump-control__head h3 { margin: 3px 0 0; color: #f2fbff; font-size: 15px; font-weight: 600; }
+.control-value-row--inlet-pump { margin-top: 8px; }
+.control-value-row--inlet-pump strong { font-size: 22px; }
+.inlet-pump-range { margin-top: 5px; }
+.inlet-pump-scale { margin-bottom: 0; }
+
+.aeration-control-panel :deep(.decorative-panel__content) { padding: 5px 14px 6px; }
+.aeration-control-panel .pac-control-card__head { padding: 2px 4px 4px; }
+.aeration-control-panel .pac-control-card__head h2 { margin-top: 0; font-size: 16px; }
+.aeration-control-panel :deep(.pump-frequency-gauge) {
+  height: clamp(112px, calc(100vh - 772px), 150px);
+  margin-top: 0;
+  flex: 0 0 clamp(112px, calc(100vh - 772px), 150px);
+}
+.aeration-control-panel .control-value-row { margin-top: 0; line-height: 1; }
+.aeration-control-panel .pump-range { margin-top: 1px; margin-bottom: 1px; }
+.aeration-control-panel .range-scale { margin-bottom: 6px; }
+.aeration-control-panel .inlet-pump-control { margin-top: 0; padding-top: 4px; }
+.aeration-control-panel .inlet-pump-control__head h3 { margin-top: 0; font-size: 14px; }
+.aeration-control-panel .control-value-row--inlet-pump { margin-top: 0; }
+.aeration-control-panel .inlet-pump-scale { margin-bottom: 0; }
+
 .control-summary { display: grid; gap: 1px; margin-top: 4px; border: 1px solid rgba(71, 151, 200, 0.25); background: rgba(2, 31, 55, 0.58); }
 .control-summary div { display: flex; height: 40px; align-items: center; justify-content: space-between; padding: 0 12px; }
 .control-summary div + div { border-top: 1px solid rgba(71, 151, 200, 0.18); }
@@ -719,6 +794,7 @@ onMounted(() => {
 .control-summary strong.stopped { color: #ff8a81; }
 
 .target-control-panel { flex: 0 0 230px; }
+.aeration-target-control-panel { flex-basis: max(190px, calc(100vh - 732px)); margin-bottom: 0; }
 .target-control-panel :deep(.decorative-panel__content) { padding: 5px 14px 10px; overflow: hidden; }
 .target-control { display: flex; height: 100%; min-height: 0; flex-direction: column; }
 .target-control__value { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
@@ -742,6 +818,14 @@ onMounted(() => {
 .target-scale__labels { display: flex; justify-content: space-between; margin-top: 4px; color: #62849d; font-size: 9px; }
 .prototype-note { margin: auto 2px 0; padding-top: 6px; color: #65859e; font-size: 9px; text-align: center; }
 
+.aeration-target-control-panel :deep(.decorative-panel__content) { padding: 8px 14px 12px; }
+.aeration-target-control-panel .target-control__value { margin-bottom: 10px; }
+.aeration-target-control-panel .target-inputs label { gap: 5px; }
+.aeration-target-control-panel .target-inputs label > div { height: 34px; }
+.aeration-target-control-panel .target-range-slider { margin: 12px 8px 0; }
+.aeration-target-control-panel .target-scale__labels { margin-top: 5px; }
+.aeration-target-control-panel .target-control { justify-content: center; }
+
 @media (max-width: 1500px) {
   .left-stack { --stack-width: 300px; }
   .right-stack { --stack-width: 290px; }
@@ -755,13 +839,30 @@ onMounted(() => {
   .scene-stage { top: 110px; bottom: 10px; }
   .turbidity-panel { flex-basis: 27%; }
   .pump-state-panel { flex-basis: 24%; }
+  .sensor-data-panel { flex-basis: 46%; }
   .pac-control-card__head { padding-top: 4px; padding-bottom: 8px; }
   .pac-control-card :deep(.pump-frequency-gauge) { height: 115px; margin-top: 2px; flex-basis: 115px; }
   .control-value-row { margin-top: 2px; }
   .pump-range { margin-top: 4px; }
   .range-scale { margin-bottom: 8px; }
   .control-summary div { height: 28px; }
+  .inlet-pump-control { margin-top: 3px; padding-top: 7px; }
+  .control-value-row--inlet-pump { margin-top: 3px; }
+  .inlet-pump-range { margin-top: 2px; margin-bottom: 1px; }
   .target-control-panel { flex-basis: 196px; }
+  .aeration-control-panel :deep(.decorative-panel__content) { padding: 1px 14px 2px; }
+  .aeration-control-panel :deep(.pump-frequency-gauge) { height: 112px; margin-top: -4px; flex-basis: 112px; }
+  .aeration-control-panel .pac-control-card__head { padding: 0 4px 2px; }
+  .aeration-control-panel .range-scale { margin-bottom: 0; }
+  .aeration-control-panel .inlet-pump-control { padding-top: 2px; }
+  .aeration-target-control-panel { flex-basis: 136px; margin-bottom: 0; }
+  .aeration-target-control-panel :deep(.decorative-panel__content) { padding: 2px 14px 0; }
+  .aeration-target-control-panel .target-control__value { margin-bottom: 2px; }
+  .aeration-target-control-panel .target-inputs label { gap: 2px; }
+  .aeration-target-control-panel .target-inputs label > div { height: 28px; }
+  .aeration-target-control-panel .target-range-slider { margin-top: 2px; }
+  .aeration-target-control-panel .target-scale__labels { margin-top: 2px; }
+  .aeration-target-control-panel .target-control { justify-content: flex-start; }
   .target-control__value { margin-bottom: 7px; }
   .target-range-slider { margin-top: 6px; }
   .prototype-note { padding-top: 3px; }

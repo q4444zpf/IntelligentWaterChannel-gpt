@@ -19,14 +19,11 @@
           <feGaussianBlur stdDeviation="4" result="blur" />
           <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
         </filter>
-        <marker id="process-arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="12" refX="12" refY="6" orient="auto" viewBox="0 0 14 12">
-          <path d="M0,1 L0,11 L13,6 z" fill="#36c9ff" />
+        <marker id="process-arrow" markerUnits="userSpaceOnUse" markerWidth="20" markerHeight="16" refX="0" refY="8" orient="auto" viewBox="0 0 20 16">
+          <path d="M0,1 L0,15 L19,8 z" fill="#36c9ff" />
         </marker>
-        <marker id="pac-arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="12" refX="12" refY="6" orient="auto" viewBox="0 0 14 12">
-          <path d="M0,1 L0,11 L13,6 z" fill="#ff5e57" />
-        </marker>
-        <marker id="feedback-arrow" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" viewBox="0 0 12 10">
-          <path d="M0,1 L0,9 L11,5 z" fill="#47dfa0" />
+        <marker id="pac-arrow" markerUnits="userSpaceOnUse" markerWidth="20" markerHeight="16" refX="0" refY="8" orient="auto" viewBox="0 0 20 16">
+          <path d="M0,1 L0,15 L19,8 z" fill="#ff5e57" />
         </marker>
       </defs>
 
@@ -71,7 +68,7 @@
           <text x="66" y="88" class="pump-reading">{{ pumpRunning ? pumpPercent : 0 }}% / PAC</text>
         </g>
         <path
-          d="M837 115 C770 190, 615 190, 462 248"
+          d="M715 112 C680 150, 600 208, 480 241"
           class="pac-dose-line"
           :class="{ idle: !pumpRunning }"
           marker-end="url(#pac-arrow)"
@@ -80,14 +77,14 @@
       </g>
 
       <text x="20" y="303" class="endpoint-label">来水 / 进水</text>
-      <line x1="22" y1="324" x2="91" y2="324" class="main-flow animated-flow" marker-end="url(#process-arrow)" />
+      <line x1="22" y1="324" x2="72" y2="324" class="main-flow animated-flow" marker-end="url(#process-arrow)" />
 
       <g v-for="(stage, index) in stages" :key="stage.name">
         <line
           v-if="index > 0"
-          :x1="stage.x - 47"
+          :x1="stages[index - 1].x + stages[index - 1].width + 13"
           y1="324"
-          :x2="stage.x - 12"
+          :x2="stage.x - 31"
           y2="324"
           class="main-flow animated-flow"
           marker-end="url(#process-arrow)"
@@ -152,27 +149,27 @@
         <text :x="stage.x + stage.width / 2" y="421" class="stage-reading">{{ stage.reading }}</text>
       </g>
 
-      <g transform="translate(218 257)">
-        <rect x="-102" y="12" width="94" height="47" rx="5" class="meter-label" />
-        <text x="-55" y="32" class="meter-name">前馈浊度仪</text>
-        <text x="-55" y="51" class="meter-code">TUB-01</text>
+      <g transform="translate(240 267)">
+        <rect x="-47" y="-109" width="94" height="47" rx="5" class="meter-label" />
+        <text y="-89" class="meter-name">前馈浊度仪</text>
+        <text y="-70" class="meter-code">TUB-01</text>
         <rect x="-7" width="14" height="91" rx="4" class="meter-probe" />
         <rect x="-9" y="-15" width="18" height="20" rx="3" fill="#b7d9e7" />
       </g>
-      <g transform="translate(1365 246)">
-        <rect x="-52" y="-62" width="104" height="46" rx="5" class="meter-label" />
-        <text y="-43" class="meter-name">后馈浊度仪</text>
-        <text y="-24" class="meter-code">TUB-02</text>
+      <g transform="translate(1355 258)">
+        <rect x="-10" y="-62" width="104" height="46" rx="5" class="meter-label" />
+        <text x="42" y="-43" class="meter-name">后馈浊度仪</text>
+        <text x="42" y="-24" class="meter-code">TUB-02</text>
         <rect x="-7" width="14" height="91" rx="4" class="meter-probe" />
         <rect x="-9" y="-15" width="18" height="20" rx="3" fill="#b7d9e7" />
       </g>
 
-      <line x1="1398" y1="324" x2="1462" y2="324" class="main-flow animated-flow" marker-end="url(#process-arrow)" />
+      <line x1="1398" y1="324" x2="1443" y2="324" class="main-flow animated-flow" marker-end="url(#process-arrow)" />
       <text x="1453" y="365" class="endpoint-label" text-anchor="middle">达标排放</text>
       <text x="1453" y="388" class="endpoint-label" text-anchor="middle">或回用</text>
 
-      <path d="M218 384 V462 H1365 V397" class="feedback-flow" marker-end="url(#feedback-arrow)" />
-      <path d="M562 462 V392" class="feedback-flow" marker-end="url(#feedback-arrow)" />
+      <path d="M218 384 V462 H1365 V397" class="feedback-flow" />
+      <path d="M562 462 V392" class="feedback-flow" />
       <text x="815" y="489" class="feedback-label">信号 / 控制 / 反馈闭环</text>
       <text x="815" y="511" class="running-label">{{ pumpRunning ? '自动投加执行正常' : 'PAC 泵已停止' }}</text>
     </svg>
