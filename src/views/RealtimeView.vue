@@ -59,12 +59,15 @@
       </DecorativePanel>
 
       <DecorativePanel class="panel trend-panel" title="实时趋势分析">
-        <PacRealtimeTrendChart :data="trendDisplay" />
+        <PacRealtimeTrendChart
+          :data="trendDisplay"
+          :target-range="[realtimeDisplay.targetMin, realtimeDisplay.targetMax]"
+        />
       </DecorativePanel>
     </aside>
 
     <aside class="right-stack">
-      <DecorativePanel class="panel control-panel" direction="left" title="PAC泵控制">
+      <DecorativePanel class="panel pac-control-panel" direction="left" title="PAC泵控制">
         <section class="pac-control-card">
           <header class="pac-control-card__head">
             <div>
@@ -115,7 +118,30 @@
             <div><span>配药箱液位</span><strong>正常</strong></div>
           </div>
 
-          <p class="prototype-note">当前为原型数据，控制操作仅更新页面状态。</p>
+        </section>
+      </DecorativePanel>
+
+      <DecorativePanel class="panel target-control-panel" direction="left" title="目标区间设置">
+        <section class="target-control">
+          <div class="target-control__value">
+            <span>目标浊度范围</span>
+            <strong>{{ realtimeDisplay.targetMin }} - {{ realtimeDisplay.targetMax }}<small>NTU</small></strong>
+          </div>
+          <div class="target-inputs">
+            <label>
+              <span>下限</span>
+              <div><input type="number" min="0" max="80" step="1" :value="realtimeDisplay.targetMin" @change="handleTargetInput('targetMin', $event)" /><b>NTU</b></div>
+            </label>
+            <label>
+              <span>上限</span>
+              <div><input type="number" min="0" max="80" step="1" :value="realtimeDisplay.targetMax" @change="handleTargetInput('targetMax', $event)" /><b>NTU</b></div>
+            </label>
+          </div>
+          <div class="target-scale" aria-hidden="true">
+            <span class="target-scale__range" :style="targetRangeStyle"></span>
+          </div>
+          <div class="target-scale__labels" aria-hidden="true"><span>0</span><span>40</span><span>80 NTU</span></div>
+          <p class="prototype-note">当前为原型数据，设置操作仅更新页面状态。</p>
         </section>
       </DecorativePanel>
     </aside>
@@ -137,7 +163,7 @@ const props = defineProps({
   prototypeData: { type: Object, default: null },
 });
 
-const emit = defineEmits(['pump-control-change', 'realtime-data']);
+const emit = defineEmits(['pump-control-change', 'target-range-change', 'realtime-data']);
 const previewRef = ref(null);
 const showProcessPrototype = ref(true);
 const alarmNotificationTopic = ref('');
@@ -147,6 +173,8 @@ const prototypeState = reactive({
   postTurbidity: 16,
   pumpPercent: 48,
   pumpRunning: true,
+  targetMin: 10,
+  targetMax: 20,
   trend: {
     times: ['10:00', '10:05', '10:10', '10:15', '10:20', '10:25', '10:30', '10:35', '10:40', '10:45', '10:50', '10:55'],
     preTurbidity: [36, 38, 41, 45, 48, 46, 44, 43, 45, 44, 43, 42],
@@ -167,6 +195,8 @@ const realtimeDisplay = computed(() => {
     postTurbidity: finiteNumber(source.postTurbidity, prototypeState.postTurbidity),
     pumpPercent: Math.min(100, Math.max(0, finiteNumber(source.pumpPercent, prototypeState.pumpPercent))),
     pumpRunning: typeof source.pumpRunning === 'boolean' ? source.pumpRunning : prototypeState.pumpRunning,
+    targetMin: Math.min(80, Math.max(0, finiteNumber(source.targetMin, prototypeState.targetMin))),
+    targetMax: Math.min(80, Math.max(0, finiteNumber(source.targetMax, prototypeState.targetMax))),
     trend: source.trend || prototypeState.trend,
   };
 });
@@ -196,6 +226,11 @@ const trendDisplay = computed(() => {
   };
 });
 
+const targetRangeStyle = computed(() => ({
+  left: `${(realtimeDisplay.value.targetMin / 80) * 100}%`,
+  width: `${((realtimeDisplay.value.targetMax - realtimeDisplay.value.targetMin) / 80) * 100}%`,
+}));
+
 function updatePacPump(patch) {
   if (props.prototypeData) {
     emit('pump-control-change', patch);
@@ -211,6 +246,19 @@ function togglePacPump() {
 
 function handlePumpPercentInput(event) {
   updatePacPump({ pumpPercent: finiteNumber(event.target?.value, realtimeDisplay.value.pumpPercent) });
+}
+
+function handleTargetInput(field, event) {
+  const value = Math.min(80, Math.max(0, finiteNumber(event.target?.value, realtimeDisplay.value[field])));
+  const patch = field === 'targetMin'
+    ? { targetMin: Math.min(value, realtimeDisplay.value.targetMax) }
+    : { targetMax: Math.max(value, realtimeDisplay.value.targetMin) };
+  if (props.prototypeData) {
+    emit('target-range-change', patch);
+    return;
+  }
+  Object.assign(prototypeState, patch);
+  emit('target-range-change', { ...patch, prototype: true });
 }
 
 function handleMqttData(payload) {
@@ -336,8 +384,8 @@ onMounted(() => {
 .pump-state-head > strong { color: #ffd268; font-size: 21px; font-weight: 700; }
 .pump-state-head small { margin-left: 2px; color: #a9c9de; font-size: 11px; }
 
-.control-panel { height: 100%; }
-.control-panel :deep(.decorative-panel__content) { padding: 8px 14px 12px; overflow: hidden; }
+.pac-control-panel { flex: 1 1 0; }
+.pac-control-panel :deep(.decorative-panel__content) { padding: 8px 14px 12px; overflow: hidden; }
 .pac-control-card { display: flex; height: 100%; min-height: 0; flex-direction: column; }
 .pac-control-card__head { display: flex; align-items: center; justify-content: space-between; padding: 8px 4px 14px; border-bottom: 1px solid rgba(70, 171, 228, 0.3); }
 .device-code { color: #63dfff; font-size: 11px; }
@@ -367,7 +415,24 @@ onMounted(() => {
 .control-summary span { color: #8fb4cd; font-size: 11px; }
 .control-summary strong { color: #5fe4a2; font-size: 12px; }
 .control-summary strong.stopped { color: #ff8a81; }
-.prototype-note { margin: auto 4px 0; padding-top: 14px; color: #65859e; font-size: 10px; text-align: center; }
+
+.target-control-panel { flex: 0 0 230px; }
+.target-control-panel :deep(.decorative-panel__content) { padding: 5px 14px 10px; overflow: hidden; }
+.target-control { display: flex; height: 100%; min-height: 0; flex-direction: column; }
+.target-control__value { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+.target-control__value > span { color: #8fb4cd; font-size: 11px; }
+.target-control__value strong { color: #64e5a8; font-size: 21px; }
+.target-control__value small { margin-left: 4px; color: #a9c9de; font-size: 10px; }
+.target-inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.target-inputs label { display: grid; gap: 5px; min-width: 0; }
+.target-inputs label > span { color: #789bb5; font-size: 10px; }
+.target-inputs label > div { display: flex; min-width: 0; height: 34px; align-items: center; border: 1px solid rgba(73, 175, 232, 0.55); background: rgba(3, 43, 76, 0.88); }
+.target-inputs input { width: 100%; min-width: 0; height: 100%; padding: 0 5px 0 9px; border: 0; outline: 0; background: transparent; color: #effaff; font-size: 14px; }
+.target-inputs b { padding-right: 7px; color: #789bb5; font-size: 9px; font-weight: 500; }
+.target-scale { position: relative; height: 7px; margin-top: 16px; overflow: hidden; border-radius: 4px; background: rgba(32, 75, 105, 0.82); }
+.target-scale__range { position: absolute; top: 0; bottom: 0; min-width: 2px; border-radius: 4px; background: #52dfa2; box-shadow: 0 0 8px rgba(82, 223, 162, 0.7); }
+.target-scale__labels { display: flex; justify-content: space-between; margin-top: 4px; color: #62849d; font-size: 9px; }
+.prototype-note { margin: auto 2px 0; padding-top: 6px; color: #65859e; font-size: 9px; text-align: center; }
 
 @media (max-width: 1500px) {
   .left-stack { --stack-width: 300px; }
@@ -382,9 +447,15 @@ onMounted(() => {
   .scene-stage { top: 110px; bottom: 10px; }
   .turbidity-panel { flex-basis: 27%; }
   .pump-state-panel { flex-basis: 24%; }
-  .pac-control-card :deep(.pump-frequency-gauge) { height: 140px; margin-top: 5px; flex-basis: 140px; }
+  .pac-control-card__head { padding-top: 4px; padding-bottom: 8px; }
+  .pac-control-card :deep(.pump-frequency-gauge) { height: 115px; margin-top: 2px; flex-basis: 115px; }
+  .control-value-row { margin-top: 2px; }
+  .pump-range { margin-top: 4px; }
   .range-scale { margin-bottom: 8px; }
-  .control-summary div { height: 33px; }
-  .prototype-note { padding-top: 6px; }
+  .control-summary div { height: 28px; }
+  .target-control-panel { flex-basis: 196px; }
+  .target-control__value { margin-bottom: 7px; }
+  .target-scale { margin-top: 10px; }
+  .prototype-note { padding-top: 3px; }
 }
 </style>

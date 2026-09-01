@@ -19,11 +19,14 @@
           <feGaussianBlur stdDeviation="4" result="blur" />
           <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
         </filter>
-        <marker id="process-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
-          <path d="M0,0 L0,6 L9,3 z" fill="#36c9ff" />
+        <marker id="process-arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="12" refX="12" refY="6" orient="auto" viewBox="0 0 14 12">
+          <path d="M0,1 L0,11 L13,6 z" fill="#36c9ff" />
         </marker>
-        <marker id="feedback-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
-          <path d="M0,0 L0,6 L9,3 z" fill="#47dfa0" />
+        <marker id="pac-arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="12" refX="12" refY="6" orient="auto" viewBox="0 0 14 12">
+          <path d="M0,1 L0,11 L13,6 z" fill="#ff5e57" />
+        </marker>
+        <marker id="feedback-arrow" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" viewBox="0 0 12 10">
+          <path d="M0,1 L0,9 L11,5 z" fill="#47dfa0" />
         </marker>
       </defs>
 
@@ -71,7 +74,7 @@
           d="M837 115 C770 190, 615 190, 462 248"
           class="pac-dose-line"
           :class="{ idle: !pumpRunning }"
-          marker-end="url(#process-arrow)"
+          marker-end="url(#pac-arrow)"
         />
         <text x="665" y="199" class="pac-label">PAC 投加</text>
       </g>

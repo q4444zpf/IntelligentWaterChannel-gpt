@@ -10,17 +10,18 @@
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { LineChart } from 'echarts/charts';
-import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components';
+import { GridComponent, LegendComponent, MarkLineComponent, TooltipComponent } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 
-echarts.use([LineChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer]);
+echarts.use([LineChart, GridComponent, LegendComponent, MarkLineComponent, TooltipComponent, CanvasRenderer]);
 
 const props = defineProps({
   data: {
     type: Object,
     default: () => ({ times: [], preTurbidity: [], postTurbidity: [], pumpPercent: [] }),
   },
+  targetRange: { type: Array, default: () => [10, 20] },
 });
 
 const chartElement = ref(null);
@@ -82,7 +83,27 @@ function buildChartOption() {
       },
     ],
     series: [
-      { ...commonSeries, name: '前馈浊度', data: props.data.preTurbidity },
+      {
+        ...commonSeries,
+        name: '前馈浊度',
+        data: props.data.preTurbidity,
+        markLine: {
+          silent: true,
+          symbol: 'none',
+          lineStyle: { color: '#a7e8d1', width: 1, type: 'dashed', opacity: 0.78 },
+          label: {
+            show: true,
+            position: 'insideEndTop',
+            color: '#a7e8d1',
+            fontSize: 9,
+            formatter: ({ name }) => name,
+          },
+          data: [
+            { name: `目标下限 ${props.targetRange[0]} NTU`, yAxis: props.targetRange[0] },
+            { name: `目标上限 ${props.targetRange[1]} NTU`, yAxis: props.targetRange[1] },
+          ],
+        },
+      },
       { ...commonSeries, name: '后馈浊度', data: props.data.postTurbidity },
       { ...commonSeries, name: 'PAC泵', yAxisIndex: 1, data: props.data.pumpPercent },
     ],
@@ -101,7 +122,7 @@ async function renderChart() {
 }
 
 onMounted(renderChart);
-watch(() => props.data, renderChart, { deep: true });
+watch(() => [props.data, props.targetRange], renderChart, { deep: true });
 onBeforeUnmount(() => {
   resizeObserver?.disconnect();
   chart?.dispose();
