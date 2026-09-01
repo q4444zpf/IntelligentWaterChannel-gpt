@@ -2,11 +2,21 @@
   <section class="page page-realtime active">
     <div class="scene-stage">
       <FiveStageDosingProcess
-        v-if="showProcessPrototype"
+        v-if="showProcessPrototype && activeScene === 'dosing'"
         :pre-turbidity="realtimeDisplay.preTurbidity"
         :post-turbidity="realtimeDisplay.postTurbidity"
         :pump-percent="realtimeDisplay.pumpPercent"
         :pump-running="realtimeDisplay.pumpRunning"
+      />
+
+      <AerationProcess
+        v-else-if="showProcessPrototype"
+        :do-value="aerationDisplay.doValue"
+        :air-flow="aerationDisplay.airFlow"
+        :blower-percent="aerationDisplay.blowerPercent"
+        :blower-running="aerationDisplay.blowerRunning"
+        :target-min="aerationDisplay.targetMin"
+        :target-max="aerationDisplay.targetMax"
       />
 
       <!-- 原三维组件继续保留，后续接入真实模型时切换展示状态即可。 -->
@@ -22,52 +32,107 @@
 
     <header class="preview-console">
       <div class="preview-title">
-        <span class="preview-title__arrow preview-title__arrow--left" aria-hidden="true"></span>
-        <h1>智能加药五段闭环工艺监控</h1>
-        <span class="preview-title__arrow preview-title__arrow--right" aria-hidden="true"></span>
+        <button
+          type="button"
+          class="preview-title__arrow preview-title__arrow--left"
+          aria-label="切换到上一个监控场景"
+          title="上一个场景"
+          @click="switchScene(-1)"
+        ></button>
+        <h1>{{ sceneTitle }}</h1>
+        <button
+          type="button"
+          class="preview-title__arrow preview-title__arrow--right"
+          aria-label="切换到下一个监控场景"
+          title="下一个场景"
+          @click="switchScene(1)"
+        ></button>
       </div>
       <div class="process-status" aria-label="工艺运行状态">
-        <span><i class="status-dot"></i>自动闭环</span>
-        <span>TUB-02 目标 10-20 NTU</span>
-        <span>PAC 配药箱液位正常</span>
+        <template v-if="activeScene === 'dosing'">
+          <span><i class="status-dot"></i>自动闭环</span>
+          <span>TUB-02 目标 {{ realtimeDisplay.targetMin }}-{{ realtimeDisplay.targetMax }} NTU</span>
+          <span>PAC 配药箱液位正常</span>
+        </template>
+        <template v-else>
+          <span><i class="status-dot"></i>DO-PI / PID 自动闭环</span>
+          <span>DO-01 目标 {{ aerationDisplay.targetMin }}-{{ aerationDisplay.targetMax }}</span>
+          <span>AFM-01 {{ aerationDisplay.airFlow }} Nm³/h</span>
+        </template>
       </div>
     </header>
 
     <aside class="left-stack">
-      <DecorativePanel class="panel turbidity-panel" title="浊度仪实时数据">
-        <RealtimeMetricBarChart
-          :items="turbidityItems"
-          :max="80"
-          unit="NTU"
-          aria-label="前馈浊度仪和后馈浊度仪实时数据柱状图"
-        />
-      </DecorativePanel>
+      <template v-if="activeScene === 'dosing'">
+        <DecorativePanel class="panel turbidity-panel" title="浊度仪实时数据">
+          <RealtimeMetricBarChart
+            :items="turbidityItems"
+            :max="80"
+            unit="NTU"
+            aria-label="前馈浊度仪和后馈浊度仪实时数据柱状图"
+          />
+        </DecorativePanel>
 
-      <DecorativePanel class="panel pump-state-panel" title="PAC配药箱水位">
-        <div class="pump-state-head">
-          <span class="running-state" :class="{ stopped: realtimeDisplay.tankLevel < 150 }">
-            <i></i>{{ realtimeDisplay.tankLevel < 150 ? '水位过低' : '水位正常' }}
-          </span>
-          <strong>{{ realtimeDisplay.tankLevel }}<small>mm</small></strong>
-        </div>
-        <RealtimeMetricBarChart
-          :items="pumpItems"
-          :max="1000"
-          unit="mm"
-          aria-label="PAC配药箱水位柱状图"
-        />
-      </DecorativePanel>
+        <DecorativePanel class="panel pump-state-panel" title="PAC配药箱水位">
+          <div class="pump-state-head">
+            <span class="running-state" :class="{ stopped: realtimeDisplay.tankLevel < 150 }">
+              <i></i>{{ realtimeDisplay.tankLevel < 150 ? '水位过低' : '水位正常' }}
+            </span>
+            <strong>{{ realtimeDisplay.tankLevel }}<small>mm</small></strong>
+          </div>
+          <RealtimeMetricBarChart
+            :items="pumpItems"
+            :max="1000"
+            unit="mm"
+            aria-label="PAC配药箱水位柱状图"
+          />
+        </DecorativePanel>
 
-      <DecorativePanel class="panel trend-panel" title="实时趋势分析">
-        <PacRealtimeTrendChart
-          :data="trendDisplay"
-          :target-range="[realtimeDisplay.targetMin, realtimeDisplay.targetMax]"
-        />
-      </DecorativePanel>
+        <DecorativePanel class="panel trend-panel" title="实时趋势分析">
+          <PacRealtimeTrendChart
+            :data="trendDisplay"
+            :target-range="[realtimeDisplay.targetMin, realtimeDisplay.targetMax]"
+          />
+        </DecorativePanel>
+      </template>
+
+      <template v-else>
+        <DecorativePanel class="panel turbidity-panel" title="DO溶解氧传感器实时数据">
+          <RealtimeMetricBarChart
+            :items="dissolvedOxygenItems"
+            :max="10"
+            unit=""
+            aria-label="DO溶解氧传感器实时数据柱状图"
+          />
+        </DecorativePanel>
+
+        <DecorativePanel class="panel pump-state-panel" title="气量实时数据">
+          <div class="pump-state-head">
+            <span class="running-state" :class="{ stopped: !aerationDisplay.blowerRunning }">
+              <i></i>{{ aerationDisplay.blowerRunning ? '供气正常' : '供气停止' }}
+            </span>
+            <strong>{{ aerationDisplay.airFlow }}<small>Nm³/h</small></strong>
+          </div>
+          <RealtimeMetricBarChart
+            :items="airFlowItems"
+            :max="40"
+            unit="Nm³/h"
+            aria-label="曝气气量实时数据柱状图"
+          />
+        </DecorativePanel>
+
+        <DecorativePanel class="panel trend-panel" title="实时趋势分析">
+          <AerationRealtimeTrendChart
+            :data="aerationTrendDisplay"
+            :target-range="[aerationDisplay.targetMin, aerationDisplay.targetMax]"
+          />
+        </DecorativePanel>
+      </template>
     </aside>
 
     <aside class="right-stack">
-      <DecorativePanel class="panel pac-control-panel" direction="left" title="PAC泵控制">
+      <template v-if="activeScene === 'dosing'">
+        <DecorativePanel class="panel pac-control-panel" direction="left" title="PAC泵控制">
         <section class="pac-control-card">
           <header class="pac-control-card__head">
             <div>
@@ -119,9 +184,9 @@
           </div>
 
         </section>
-      </DecorativePanel>
+        </DecorativePanel>
 
-      <DecorativePanel class="panel target-control-panel" direction="left" title="目标区间设置">
+        <DecorativePanel class="panel target-control-panel" direction="left" title="目标区间设置">
         <section class="target-control">
           <div class="target-control__value">
             <span>目标浊度范围</span>
@@ -143,7 +208,87 @@
           <div class="target-scale__labels" aria-hidden="true"><span>0</span><span>40</span><span>80 NTU</span></div>
           <p class="prototype-note">当前为原型数据，设置操作仅更新页面状态。</p>
         </section>
-      </DecorativePanel>
+        </DecorativePanel>
+      </template>
+
+      <template v-else>
+        <DecorativePanel class="panel pac-control-panel" direction="left" title="曝气风机控制">
+          <section class="pac-control-card">
+            <header class="pac-control-card__head">
+              <div>
+                <span class="device-code">BLW-01</span>
+                <h2>曝气风机</h2>
+              </div>
+              <div class="pump-switch-control">
+                <span>{{ aerationDisplay.blowerRunning ? '开' : '关' }}</span>
+                <button
+                  type="button"
+                  class="pump-switch"
+                  role="switch"
+                  :aria-checked="aerationDisplay.blowerRunning"
+                  :aria-label="aerationDisplay.blowerRunning ? '关闭曝气风机' : '开启曝气风机'"
+                  :class="{ 'is-checked': aerationDisplay.blowerRunning }"
+                  @click="toggleAerationBlower"
+                ><span aria-hidden="true"></span></button>
+              </div>
+            </header>
+
+            <PumpFrequencyGauge
+              :value="activeBlowerPercent"
+              :max="100"
+              label="当前输出"
+              unit="%"
+            />
+
+            <div class="control-value-row">
+              <span>输出设定</span>
+              <strong>{{ aerationDisplay.blowerPercent }}<small>%</small></strong>
+            </div>
+            <input
+              class="pump-range"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              :value="aerationDisplay.blowerPercent"
+              :style="{ '--range-progress': `${aerationDisplay.blowerPercent}%` }"
+              aria-label="曝气风机输出百分比"
+              @input="handleBlowerPercentInput"
+            />
+            <div class="range-scale" aria-hidden="true"><span>0%</span><span>50%</span><span>100%</span></div>
+
+            <div class="control-summary">
+              <div><span>控制模式</span><strong>AUTO</strong></div>
+              <div><span>运行状态</span><strong :class="{ stopped: !aerationDisplay.blowerRunning }">{{ aerationDisplay.blowerRunning ? '正常' : '停止' }}</strong></div>
+              <div><span>气量反馈</span><strong>{{ aerationDisplay.airFlow }} Nm³/h</strong></div>
+            </div>
+          </section>
+        </DecorativePanel>
+
+        <DecorativePanel class="panel target-control-panel" direction="left" title="目标区间设置">
+          <section class="target-control">
+            <div class="target-control__value">
+              <span>DO目标范围</span>
+              <strong>{{ aerationDisplay.targetMin }} - {{ aerationDisplay.targetMax }}</strong>
+            </div>
+            <div class="target-inputs target-inputs--unitless">
+              <label>
+                <span>下限</span>
+                <div><input type="number" min="0" max="10" step="0.1" :value="aerationDisplay.targetMin" @change="handleAerationTargetInput('targetMin', $event)" /></div>
+              </label>
+              <label>
+                <span>上限</span>
+                <div><input type="number" min="0" max="10" step="0.1" :value="aerationDisplay.targetMax" @change="handleAerationTargetInput('targetMax', $event)" /></div>
+              </label>
+            </div>
+            <div class="target-scale" aria-hidden="true">
+              <span class="target-scale__range" :style="aerationTargetRangeStyle"></span>
+            </div>
+            <div class="target-scale__labels" aria-hidden="true"><span>0</span><span>5</span><span>10</span></div>
+            <p class="prototype-note">当前为原型数据，设置操作仅更新页面状态。</p>
+          </section>
+        </DecorativePanel>
+      </template>
     </aside>
   </section>
 </template>
@@ -152,6 +297,8 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { getBigWaterChannelAlarmNotificationTopic } from '../api/alarm.js';
 import DecorativePanel from '../components/common/DecorativePanel.vue';
+import AerationProcess from '../components/realtime/AerationProcess.vue';
+import AerationRealtimeTrendChart from '../components/realtime/AerationRealtimeTrendChart.vue';
 import FiveStageDosingProcess from '../components/realtime/FiveStageDosingProcess.vue';
 import PacRealtimeTrendChart from '../components/realtime/PacRealtimeTrendChart.vue';
 import PumpFrequencyGauge from '../components/realtime/PumpFrequencyGauge.vue';
@@ -165,10 +312,22 @@ const props = defineProps({
   prototypeData: { type: Object, default: null },
 });
 
-const emit = defineEmits(['pump-control-change', 'target-range-change', 'realtime-data']);
+const emit = defineEmits([
+  'pump-control-change',
+  'target-range-change',
+  'blower-control-change',
+  'aeration-target-range-change',
+  'scene-change',
+  'realtime-data',
+]);
 const previewRef = ref(null);
 const showProcessPrototype = ref(true);
 const alarmNotificationTopic = ref('');
+const activeScene = ref('dosing');
+const scenes = Object.freeze([
+  { key: 'dosing', title: '智能加药五段闭环工艺监控' },
+  { key: 'aeration', title: '智能曝气清水闭环工艺监控' },
+]);
 
 const prototypeState = reactive({
   preTurbidity: 42,
@@ -186,10 +345,26 @@ const prototypeState = reactive({
   },
 });
 
+const aerationPrototypeState = reactive({
+  doValue: 6.4,
+  airFlow: 23,
+  blowerPercent: 54,
+  blowerRunning: true,
+  targetMin: 6.7,
+  targetMax: 7.5,
+  trend: {
+    times: ['10:00', '10:05', '10:10', '10:15', '10:20', '10:25', '10:30', '10:35', '10:40', '10:45', '10:50', '10:55'],
+    dissolvedOxygen: [5.8, 5.9, 6, 6.1, 6.25, 6.35, 6.5, 6.62, 6.55, 6.48, 6.43, 6.4],
+    airFlow: [16, 17, 18.2, 19.5, 21, 22.4, 23.8, 24.6, 24.2, 23.8, 23.4, 23],
+  },
+});
+
 function finiteNumber(value, fallback) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
 }
+
+const sceneTitle = computed(() => scenes.find((scene) => scene.key === activeScene.value)?.title || scenes[0].title);
 
 const realtimeDisplay = computed(() => {
   const source = props.prototypeData || prototypeState;
@@ -205,8 +380,24 @@ const realtimeDisplay = computed(() => {
   };
 });
 
+const aerationDisplay = computed(() => {
+  const source = props.prototypeData?.aeration || aerationPrototypeState;
+  return {
+    doValue: Math.min(10, Math.max(0, finiteNumber(source.doValue, aerationPrototypeState.doValue))),
+    airFlow: Math.min(40, Math.max(0, finiteNumber(source.airFlow, aerationPrototypeState.airFlow))),
+    blowerPercent: Math.min(100, Math.max(0, finiteNumber(source.blowerPercent, aerationPrototypeState.blowerPercent))),
+    blowerRunning: typeof source.blowerRunning === 'boolean' ? source.blowerRunning : aerationPrototypeState.blowerRunning,
+    targetMin: Math.min(10, Math.max(0, finiteNumber(source.targetMin, aerationPrototypeState.targetMin))),
+    targetMax: Math.min(10, Math.max(0, finiteNumber(source.targetMax, aerationPrototypeState.targetMax))),
+    trend: source.trend || aerationPrototypeState.trend,
+  };
+});
+
 const activePumpPercent = computed(() => (
   realtimeDisplay.value.pumpRunning ? realtimeDisplay.value.pumpPercent : 0
+));
+const activeBlowerPercent = computed(() => (
+  aerationDisplay.value.blowerRunning ? aerationDisplay.value.blowerPercent : 0
 ));
 
 const turbidityItems = computed(() => [
@@ -216,6 +407,14 @@ const turbidityItems = computed(() => [
 
 const pumpItems = computed(() => [
   { label: 'PAC配药箱', value: realtimeDisplay.value.tankLevel, color: '#ffc65c' },
+]);
+
+const dissolvedOxygenItems = computed(() => [
+  { label: 'DO-01', value: aerationDisplay.value.doValue, color: '#39d8ff' },
+]);
+
+const airFlowItems = computed(() => [
+  { label: 'AFM-01', value: aerationDisplay.value.airFlow, color: '#ffc65c' },
 ]);
 
 const trendDisplay = computed(() => {
@@ -230,10 +429,35 @@ const trendDisplay = computed(() => {
   };
 });
 
+const aerationTrendDisplay = computed(() => {
+  const trend = aerationDisplay.value.trend;
+  const doValues = [...(trend.dissolvedOxygen || [])];
+  const airValues = [...(trend.airFlow || [])];
+  if (doValues.length) doValues[doValues.length - 1] = aerationDisplay.value.doValue;
+  if (airValues.length) airValues[airValues.length - 1] = aerationDisplay.value.airFlow;
+  return {
+    times: trend.times || [],
+    dissolvedOxygen: doValues,
+    airFlow: airValues,
+  };
+});
+
 const targetRangeStyle = computed(() => ({
   left: `${(realtimeDisplay.value.targetMin / 80) * 100}%`,
   width: `${((realtimeDisplay.value.targetMax - realtimeDisplay.value.targetMin) / 80) * 100}%`,
 }));
+
+const aerationTargetRangeStyle = computed(() => ({
+  left: `${(aerationDisplay.value.targetMin / 10) * 100}%`,
+  width: `${((aerationDisplay.value.targetMax - aerationDisplay.value.targetMin) / 10) * 100}%`,
+}));
+
+function switchScene(direction) {
+  const currentIndex = scenes.findIndex((scene) => scene.key === activeScene.value);
+  const nextIndex = (currentIndex + direction + scenes.length) % scenes.length;
+  activeScene.value = scenes[nextIndex].key;
+  emit('scene-change', activeScene.value);
+}
 
 function updatePacPump(patch) {
   if (props.prototypeData) {
@@ -263,6 +487,37 @@ function handleTargetInput(field, event) {
   }
   Object.assign(prototypeState, patch);
   emit('target-range-change', { ...patch, prototype: true });
+}
+
+function updateAerationBlower(patch) {
+  if (props.prototypeData?.aeration) {
+    emit('blower-control-change', patch);
+    return;
+  }
+  Object.assign(aerationPrototypeState, patch);
+  emit('blower-control-change', { ...patch, prototype: true });
+}
+
+function toggleAerationBlower() {
+  updateAerationBlower({ blowerRunning: !aerationDisplay.value.blowerRunning });
+}
+
+function handleBlowerPercentInput(event) {
+  updateAerationBlower({ blowerPercent: finiteNumber(event.target?.value, aerationDisplay.value.blowerPercent) });
+}
+
+function handleAerationTargetInput(field, event) {
+  const rawValue = Math.min(10, Math.max(0, finiteNumber(event.target?.value, aerationDisplay.value[field])));
+  const value = Math.round(rawValue * 10) / 10;
+  const patch = field === 'targetMin'
+    ? { targetMin: Math.min(value, aerationDisplay.value.targetMax) }
+    : { targetMax: Math.max(value, aerationDisplay.value.targetMin) };
+  if (props.prototypeData?.aeration) {
+    emit('aeration-target-range-change', patch);
+    return;
+  }
+  Object.assign(aerationPrototypeState, patch);
+  emit('aeration-target-range-change', { ...patch, prototype: true });
 }
 
 function handleMqttData(payload) {
@@ -350,8 +605,26 @@ onMounted(() => {
   text-shadow: 0 0 13px rgba(64, 195, 255, 0.42);
   white-space: nowrap;
 }
-.preview-title__arrow { display: block; width: 53px; height: 36px; flex: 0 0 53px; background: url('../assets/preview-title.png') center / 100% 100% no-repeat; }
+.preview-title__arrow {
+  display: block;
+  width: 53px;
+  height: 36px;
+  padding: 0;
+  flex: 0 0 53px;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  background: url('../assets/preview-title.png') center / 100% 100% no-repeat;
+  box-shadow: none;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: filter 0.18s ease, transform 0.18s ease;
+}
+.preview-title__arrow:hover { border: 0; background-color: transparent; filter: brightness(1.35) drop-shadow(0 0 6px rgba(58, 204, 255, 0.7)); }
+.preview-title__arrow:focus-visible { box-shadow: 0 0 0 2px rgba(100, 222, 255, 0.58); }
 .preview-title__arrow--right { transform: scaleX(-1); }
+.preview-title__arrow--left:hover { transform: translateX(-2px); }
+.preview-title__arrow--right:hover { transform: translateX(2px) scaleX(-1); }
 
 .process-status { display: flex; height: 36px; align-items: center; justify-content: center; margin-top: 7px; padding: 0 20px; border: 1px solid rgba(54, 160, 219, 0.28); background: rgba(3, 36, 64, 0.72); color: #a9c9de; font-size: 11px; }
 .process-status span { display: inline-flex; align-items: center; padding: 0 14px; white-space: nowrap; }
@@ -436,6 +709,7 @@ onMounted(() => {
 .target-inputs label > span { color: #789bb5; font-size: 10px; }
 .target-inputs label > div { display: flex; min-width: 0; height: 34px; align-items: center; border: 1px solid rgba(73, 175, 232, 0.55); background: rgba(3, 43, 76, 0.88); }
 .target-inputs input { width: 100%; min-width: 0; height: 100%; padding: 0 5px 0 9px; border: 0; outline: 0; background: transparent; color: #effaff; font-size: 14px; }
+.target-inputs--unitless input { padding-right: 9px; }
 .target-inputs b { padding-right: 7px; color: #789bb5; font-size: 9px; font-weight: 500; }
 .target-scale { position: relative; height: 7px; margin-top: 16px; overflow: hidden; border-radius: 4px; background: rgba(32, 75, 105, 0.82); }
 .target-scale__range { position: absolute; top: 0; bottom: 0; min-width: 2px; border-radius: 4px; background: #52dfa2; box-shadow: 0 0 8px rgba(82, 223, 162, 0.7); }
