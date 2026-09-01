@@ -12,6 +12,13 @@ import {
 } from '../alarm-data.js';
 import { normalizeHistoryDevices } from '../history-device-data.js';
 import { createTodayHistoryRange } from '../history-data.js';
+import {
+  DOSING_PROTOTYPE_ALARM_DEVICES,
+  buildDosingPrototypeAlarmPage,
+  buildDosingPrototypeAlarmStatistics,
+} from '../data/dosing-prototype-data.js';
+
+const USE_PROTOTYPE_DATA = true;
 
 const createDefaultQuery = () => ({
   ...createTodayHistoryRange(),
@@ -41,6 +48,7 @@ export function useAlarmQuery() {
     '全部',
     ...new Set(historyDevices.value.map((device) => device.type).filter(Boolean)),
   ]);
+  const deviceNames = computed(() => historyDevices.value.map((device) => device.name));
   const channels = computed(() => [
     '全部',
     ...new Set(historyDevices.value.map((device) => device.location).filter(Boolean)),
@@ -50,7 +58,10 @@ export function useAlarmQuery() {
   async function loadDeviceOptions() {
     devicesLoading.value = true;
     try {
-      historyDevices.value = normalizeHistoryDevices(await getBigWaterChannelHistoryDevices());
+      const source = USE_PROTOTYPE_DATA
+        ? DOSING_PROTOTYPE_ALARM_DEVICES
+        : await getBigWaterChannelHistoryDevices();
+      historyDevices.value = normalizeHistoryDevices(source);
     } catch (requestError) {
       historyDevices.value = [];
       error.value = requestError?.message || '获取告警筛选设备配置失败';
@@ -63,14 +74,19 @@ export function useAlarmQuery() {
     loading.value = true;
     error.value = '';
     try {
-      const [pageResponse, statisticsResponse] = await Promise.all([
-        getBigWaterChannelAlarms({
-          ...query,
-          current: nextCurrent,
-          size: nextPageSize,
-        }),
-        includeStatistics ? getBigWaterChannelAlarmStatistics(query) : Promise.resolve(null),
-      ]);
+      const [pageResponse, statisticsResponse] = USE_PROTOTYPE_DATA
+        ? [
+            buildDosingPrototypeAlarmPage(query, nextCurrent, nextPageSize),
+            includeStatistics ? buildDosingPrototypeAlarmStatistics(query) : null,
+          ]
+        : await Promise.all([
+            getBigWaterChannelAlarms({
+              ...query,
+              current: nextCurrent,
+              size: nextPageSize,
+            }),
+            includeStatistics ? getBigWaterChannelAlarmStatistics(query) : Promise.resolve(null),
+          ]);
       const page = normalizeAlarmPage(pageResponse);
       rows.value = page.rows;
       current.value = page.current;
@@ -159,6 +175,7 @@ export function useAlarmQuery() {
     changePage,
     current,
     deviceTypes,
+    deviceNames,
     devicesLoading,
     draft,
     error,

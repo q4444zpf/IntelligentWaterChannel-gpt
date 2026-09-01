@@ -3,7 +3,7 @@
     ref="chartElement"
     class="pac-trend-chart"
     role="img"
-    aria-label="前馈浊度、后馈浊度与PAC泵实时趋势"
+    aria-label="前馈浊度、后馈浊度与PAC配药箱水位实时趋势"
   ></div>
 </template>
 
@@ -19,7 +19,7 @@ echarts.use([LineChart, GridComponent, LegendComponent, MarkLineComponent, Toolt
 const props = defineProps({
   data: {
     type: Object,
-    default: () => ({ times: [], preTurbidity: [], postTurbidity: [], pumpPercent: [] }),
+    default: () => ({ times: [], preTurbidity: [], postTurbidity: [], tankLevel: [] }),
   },
   targetRange: { type: Array, default: () => [10, 20] },
 });
@@ -73,9 +73,9 @@ function buildChartOption() {
       },
       {
         type: 'value',
-        name: '%',
+        name: 'mm',
         min: 0,
-        max: 100,
+        max: 1000,
         splitNumber: 4,
         nameTextStyle: { color: '#789bb5', fontSize: 9 },
         axisLabel: { color: '#789bb5', fontSize: 9 },
@@ -105,7 +105,7 @@ function buildChartOption() {
         },
       },
       { ...commonSeries, name: '后馈浊度', data: props.data.postTurbidity },
-      { ...commonSeries, name: 'PAC泵', yAxisIndex: 1, data: props.data.pumpPercent },
+      { ...commonSeries, name: '配药箱水位', yAxisIndex: 1, data: props.data.tankLevel },
     ],
   };
 }

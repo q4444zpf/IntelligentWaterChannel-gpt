@@ -25,7 +25,10 @@
                 <a-date-picker v-model:value="endTimeValue" show-time format="YYYY-MM-DD HH:mm:ss" :allow-clear="false" />
               </a-form-item>
               <a-form-item label="报警类型">
-                <a-input v-model:value="draft.warnConfigName" allow-clear placeholder="请输入报警类型" />
+                <a-select v-model:value="draft.warnConfigName">
+                  <a-select-option value="">全部</a-select-option>
+                  <a-select-option :value="DOSING_PROTOTYPE_ALARM_NAME">{{ DOSING_PROTOTYPE_ALARM_NAME }}</a-select-option>
+                </a-select>
               </a-form-item>
               <a-form-item label="报警等级">
                 <a-select v-model:value="draft.grade">
@@ -42,7 +45,10 @@
                 </a-select>
               </a-form-item>
               <a-form-item label="设备名称">
-                <a-input v-model:value="draft.deviceName" allow-clear placeholder="请输入设备名称" />
+                <a-select v-model:value="draft.deviceName" :loading="devicesLoading">
+                  <a-select-option value="">全部</a-select-option>
+                  <a-select-option v-for="name in deviceNames" :key="name" :value="name">{{ name }}</a-select-option>
+                </a-select>
               </a-form-item>
               <a-form-item label="处理状态">
                 <a-select v-model:value="draft.handlingStatus">
@@ -145,6 +151,7 @@ import 'dayjs/locale/zh-cn';
 import AlarmStatIcon from '../components/alarm/AlarmStatIcon.vue';
 import StatusText from '../components/common/StatusText.vue';
 import { useAlarmQuery } from '../composables/useAlarmQuery.js';
+import { DOSING_PROTOTYPE_ALARM_NAME } from '../data/dosing-prototype-data.js';
 
 dayjs.locale('zh-cn');
 
@@ -188,6 +195,7 @@ const {
   channels,
   changePage,
   current,
+  deviceNames,
   deviceTypes,
   devicesLoading,
   draft,
@@ -211,10 +219,7 @@ const alarmStats = computed(() => [
   { key: 'total', label: '报警总数', value: statistics.value.total, icon: 'total', tone: 'cyan' },
   { key: 'unhandled', label: '未处理', value: statistics.value.unhandled, icon: 'unhandled', tone: 'orange' },
   { key: 'handled', label: '已处理', value: statistics.value.handled, icon: 'handled', tone: 'green' },
-  { key: 'fatal', label: '严重警告', value: statistics.value.fatal, icon: 'fatal', tone: 'red' },
-  { key: 'offline', label: '设备离线', value: statistics.value.offline, icon: 'offline', tone: 'yellow' },
-  { key: 'water', label: '水位超限', value: statistics.value.waterLevel, icon: 'water', tone: 'cyan' },
-  { key: 'gate', label: '闸门异常', value: statistics.value.gate, icon: 'gate', tone: 'pink' },
+  { key: 'water', label: 'PAC配药箱水位过低', value: statistics.value.waterLevel, icon: 'water', tone: 'red' },
 ]);
 const alarmPagination = computed(() => ({
   current: current.value,
@@ -463,7 +468,7 @@ defineExpose({ refresh });
 .alarm-stat-grid {
   display: grid;
   flex: 0 0 auto;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 

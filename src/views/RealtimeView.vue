@@ -43,18 +43,18 @@
         />
       </DecorativePanel>
 
-      <DecorativePanel class="panel pump-state-panel" title="PAC泵实时状态">
+      <DecorativePanel class="panel pump-state-panel" title="PAC配药箱水位">
         <div class="pump-state-head">
-          <span class="running-state" :class="{ stopped: !realtimeDisplay.pumpRunning }">
-            <i></i>{{ realtimeDisplay.pumpRunning ? '运行中' : '已停止' }}
+          <span class="running-state" :class="{ stopped: realtimeDisplay.tankLevel < 150 }">
+            <i></i>{{ realtimeDisplay.tankLevel < 150 ? '水位过低' : '水位正常' }}
           </span>
-          <strong>{{ activePumpPercent }}<small>%</small></strong>
+          <strong>{{ realtimeDisplay.tankLevel }}<small>mm</small></strong>
         </div>
         <RealtimeMetricBarChart
           :items="pumpItems"
-          :max="100"
-          unit="%"
-          aria-label="PAC泵实时状态柱状图"
+          :max="1000"
+          unit="mm"
+          aria-label="PAC配药箱水位柱状图"
         />
       </DecorativePanel>
 
@@ -157,6 +157,8 @@ import PacRealtimeTrendChart from '../components/realtime/PacRealtimeTrendChart.
 import PumpFrequencyGauge from '../components/realtime/PumpFrequencyGauge.vue';
 import RealtimeMetricBarChart from '../components/realtime/RealtimeMetricBarChart.vue';
 import SmartWaterFlumePreview from '../components/realtime/smart-water-flume-preview/SmartWaterFlumePreview.vue';
+import { PROTOTYPE_ACCESS_TOKEN } from '../constants/auth.js';
+import { getToken } from '../utils/auth.js';
 
 const props = defineProps({
   sceneTarget: { type: Object, default: null },
@@ -171,6 +173,7 @@ const alarmNotificationTopic = ref('');
 const prototypeState = reactive({
   preTurbidity: 42,
   postTurbidity: 16,
+  tankLevel: 820,
   pumpPercent: 48,
   pumpRunning: true,
   targetMin: 10,
@@ -179,7 +182,7 @@ const prototypeState = reactive({
     times: ['10:00', '10:05', '10:10', '10:15', '10:20', '10:25', '10:30', '10:35', '10:40', '10:45', '10:50', '10:55'],
     preTurbidity: [36, 38, 41, 45, 48, 46, 44, 43, 45, 44, 43, 42],
     postTurbidity: [18.2, 17.8, 17.4, 17.1, 16.8, 16.5, 16.2, 15.8, 15.7, 15.8, 15.9, 16],
-    pumpPercent: [40, 42, 45, 49, 54, 53, 51, 49, 50, 49, 48, 48],
+    tankLevel: [910, 902, 895, 884, 872, 860, 850, 842, 836, 830, 824, 820],
   },
 });
 
@@ -193,6 +196,7 @@ const realtimeDisplay = computed(() => {
   return {
     preTurbidity: finiteNumber(source.preTurbidity, prototypeState.preTurbidity),
     postTurbidity: finiteNumber(source.postTurbidity, prototypeState.postTurbidity),
+    tankLevel: Math.min(1000, Math.max(0, finiteNumber(source.tankLevel, prototypeState.tankLevel))),
     pumpPercent: Math.min(100, Math.max(0, finiteNumber(source.pumpPercent, prototypeState.pumpPercent))),
     pumpRunning: typeof source.pumpRunning === 'boolean' ? source.pumpRunning : prototypeState.pumpRunning,
     targetMin: Math.min(80, Math.max(0, finiteNumber(source.targetMin, prototypeState.targetMin))),
@@ -211,18 +215,18 @@ const turbidityItems = computed(() => [
 ]);
 
 const pumpItems = computed(() => [
-  { label: 'PAC泵', value: activePumpPercent.value, color: '#ffc65c' },
+  { label: 'PAC配药箱', value: realtimeDisplay.value.tankLevel, color: '#ffc65c' },
 ]);
 
 const trendDisplay = computed(() => {
   const trend = realtimeDisplay.value.trend;
-  const pumpValues = [...(trend.pumpPercent || [])];
-  if (pumpValues.length) pumpValues[pumpValues.length - 1] = activePumpPercent.value;
+  const tankLevelValues = [...(trend.tankLevel || [])];
+  if (tankLevelValues.length) tankLevelValues[tankLevelValues.length - 1] = realtimeDisplay.value.tankLevel;
   return {
     times: trend.times || [],
     preTurbidity: trend.preTurbidity || [],
     postTurbidity: trend.postTurbidity || [],
-    pumpPercent: pumpValues,
+    tankLevel: tankLevelValues,
   };
 });
 
@@ -270,6 +274,10 @@ function handleAlarmNotification(payload) {
 }
 
 async function loadAlarmNotificationTopic() {
+  if (getToken() === PROTOTYPE_ACCESS_TOKEN) {
+    alarmNotificationTopic.value = '';
+    return;
+  }
   try {
     alarmNotificationTopic.value = await getBigWaterChannelAlarmNotificationTopic();
   } catch (error) {

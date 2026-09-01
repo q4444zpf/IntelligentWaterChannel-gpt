@@ -101,8 +101,11 @@ import { useRouter } from 'vue-router';
 import headerBackground from '../assets/bg-header.png';
 import { getBigWaterChannelAlarmStatistics } from '../api/alarm.js';
 import { normalizeAlarmStatistics } from '../alarm-data.js';
+import { PROTOTYPE_ACCESS_TOKEN } from '../constants/auth.js';
+import { buildDosingPrototypeAlarmStatistics } from '../data/dosing-prototype-data.js';
 import { PAGE_TABS } from '../data/monitoring-data.js';
 import { authState, signOut } from '../stores/auth.js';
+import { getToken } from '../utils/auth.js';
 
 const PAGE_ICONS = {
   realtime: DashboardOutlined,
@@ -156,7 +159,10 @@ async function handleLogout() {
 
 async function refreshUnhandledAlarmCount() {
   try {
-    const statistics = normalizeAlarmStatistics(await getBigWaterChannelAlarmStatistics());
+    const source = getToken() === PROTOTYPE_ACCESS_TOKEN
+      ? buildDosingPrototypeAlarmStatistics()
+      : await getBigWaterChannelAlarmStatistics();
+    const statistics = normalizeAlarmStatistics(source);
     unhandledAlarmCount.value = statistics.unhandled;
   } catch (error) {
     console.error('获取未处理告警数量失败', error);

@@ -10,16 +10,22 @@ import {
   sortHistoryDeviceOptionIds,
 } from '../history-device-data.js';
 import {
-  DEFAULT_DEVICE_IDS,
   buildAlarmHistoryQuery,
   createTodayHistoryRange,
   validateHistoryQuery
 } from '../history-data.js';
+import {
+  DOSING_PROTOTYPE_DEFAULT_DEVICE_IDS,
+  DOSING_PROTOTYPE_DEVICES,
+  buildDosingPrototypeHistoryPage,
+} from '../data/dosing-prototype-data.js';
 import { normalizeHistoryChartResults } from '../history-chart-data.js';
 import { normalizeHistoryPage } from '../history-table-data.js';
 
+const USE_PROTOTYPE_DATA = true;
+
 const DEFAULT_QUERY = Object.freeze({
-  deviceIds: [...DEFAULT_DEVICE_IDS],
+  deviceIds: [...DOSING_PROTOTYPE_DEFAULT_DEVICE_IDS],
   deviceType: '全部',
   channel: '全部',
   intervalSeconds: 300,
@@ -72,7 +78,10 @@ export function useHistoryQuery() {
   async function loadHistoryDevices() {
     devicesLoading.value = true;
     try {
-      const devices = normalizeHistoryDevices(await getBigWaterChannelHistoryDevices());
+      const source = USE_PROTOTYPE_DATA
+        ? DOSING_PROTOTYPE_DEVICES
+        : await getBigWaterChannelHistoryDevices();
+      const devices = normalizeHistoryDevices(source);
       historyDevices.value = devices;
       const retainedIds = sortHistoryDeviceOptionIds(devices, draft.value.deviceIds);
       draft.value.deviceIds = retainedIds.length ? retainedIds : devices.slice(0, 1).map((device) => device.id);
@@ -105,14 +114,17 @@ export function useHistoryQuery() {
   }
 
   async function requestHistory(query = appliedQuery.value) {
-    const responsePage = await getBigWaterChannelHistory({
+    const options = {
       current: 1,
       size: -1,
       start: query.start,
       end: query.end,
       intervalSeconds: query.intervalSeconds,
       deviceIds: query.deviceIds,
-    });
+    };
+    const responsePage = USE_PROTOTYPE_DATA
+      ? buildDosingPrototypeHistoryPage(options)
+      : await getBigWaterChannelHistory(options);
     const normalized = normalizeHistoryPage(responsePage);
     rows.value = normalized.rows;
     results.value = normalizeHistoryChartResults(
