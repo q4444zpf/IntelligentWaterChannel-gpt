@@ -1,5 +1,11 @@
 <template>
-  <div class="sensor-realtime-bars" role="list" :aria-label="ariaLabel">
+  <div
+    class="sensor-realtime-bars"
+    :class="{ 'is-dense': normalizedItems.length > 4 }"
+    :style="{ '--sensor-row-count': normalizedItems.length || 1 }"
+    role="list"
+    :aria-label="ariaLabel"
+  >
     <div v-for="item in normalizedItems" :key="item.key" class="sensor-bar" role="listitem">
       <div class="sensor-bar__head">
         <span>{{ item.label }}</span>
@@ -55,7 +61,7 @@ const normalizedItems = computed(() => props.items.map((item, index) => {
   width: 100%;
   height: 100%;
   min-height: 0;
-  grid-template-rows: repeat(4, minmax(44px, 1fr));
+  grid-template-rows: repeat(var(--sensor-row-count), minmax(32px, 1fr));
   gap: 8px;
   padding: 7px 5px 9px;
 }
@@ -116,10 +122,21 @@ const normalizedItems = computed(() => props.items.map((item, index) => {
   box-shadow: 0 0 10px color-mix(in srgb, var(--sensor-bar-color) 55%, transparent);
 }
 
+.sensor-realtime-bars.is-dense { gap: 4px; padding: 4px 5px 6px; }
+.is-dense .sensor-bar { gap: 4px; }
+.is-dense .sensor-bar__head > span { font-size: 11px; }
+.is-dense .sensor-bar__head strong { font-size: 15px; }
+.is-dense .sensor-bar__track { height: 9px; flex-basis: 9px; }
+
 @media (max-height: 820px) {
   .sensor-realtime-bars { gap: 5px; padding-top: 4px; padding-bottom: 5px; }
   .sensor-bar { gap: 4px; }
   .sensor-bar__head strong { font-size: 15px; }
   .sensor-bar__track { height: 9px; flex-basis: 9px; }
+  .sensor-realtime-bars.is-dense { grid-template-rows: repeat(var(--sensor-row-count), minmax(25px, 1fr)); gap: 2px; padding: 2px 5px 3px; }
+  .is-dense .sensor-bar { gap: 2px; }
+  .is-dense .sensor-bar__head > span { font-size: 10px; }
+  .is-dense .sensor-bar__head strong { font-size: 13px; }
+  .is-dense .sensor-bar__track { height: 7px; flex-basis: 7px; }
 }
 </style>

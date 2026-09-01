@@ -64,27 +64,10 @@
 
     <aside class="left-stack">
       <template v-if="activeScene === 'dosing'">
-        <DecorativePanel class="panel turbidity-panel" title="浊度仪实时数据">
-          <RealtimeMetricBarChart
-            :items="turbidityItems"
-            :max="80"
-            unit="NTU"
-            aria-label="前馈浊度仪和后馈浊度仪实时数据柱状图"
-          />
-        </DecorativePanel>
-
-        <DecorativePanel class="panel pump-state-panel" title="PAC配药箱水位">
-          <div class="pump-state-head">
-            <span class="running-state" :class="{ stopped: realtimeDisplay.tankLevel < 150 }">
-              <i></i>{{ realtimeDisplay.tankLevel < 150 ? '水位过低' : '水位正常' }}
-            </span>
-            <strong>{{ realtimeDisplay.tankLevel }}<small>mm</small></strong>
-          </div>
-          <RealtimeMetricBarChart
-            :items="pumpItems"
-            :max="1000"
-            unit="mm"
-            aria-label="PAC配药箱水位柱状图"
+        <DecorativePanel class="panel sensor-data-panel dosing-sensor-data-panel" title="传感器实时数据">
+          <SensorRealtimeBars
+            :items="dosingSensorItems"
+            aria-label="进水泵频率、原水箱PH值、进水流量、前馈浊度、后馈浊度、PAC配药箱水位和PAC泵计量"
           />
         </DecorativePanel>
 
@@ -115,7 +98,7 @@
 
     <aside class="right-stack">
       <template v-if="activeScene === 'dosing'">
-        <DecorativePanel class="panel pac-control-panel" direction="left" title="PAC泵控制">
+        <DecorativePanel class="panel pac-control-panel dosing-control-panel dual-device-control-panel" direction="left" title="设备控制">
         <section class="pac-control-card">
           <header class="pac-control-card__head">
             <div>
@@ -141,6 +124,8 @@
             :max="100"
             label="当前输出"
             unit="%"
+            gauge-center-y="88%"
+            gauge-radius="151%"
           />
 
           <div class="control-value-row">
@@ -160,16 +145,55 @@
           />
           <div class="range-scale" aria-hidden="true"><span>0%</span><span>50%</span><span>100%</span></div>
 
-          <div class="control-summary">
-            <div><span>控制模式</span><strong>AUTO</strong></div>
-            <div><span>运行状态</span><strong :class="{ stopped: !realtimeDisplay.pumpRunning }">{{ realtimeDisplay.pumpRunning ? '正常' : '停止' }}</strong></div>
-            <div><span>配药箱液位</span><strong>正常</strong></div>
-          </div>
+          <section class="inlet-pump-control" aria-label="进水泵控制">
+            <header class="inlet-pump-control__head">
+              <div>
+                <span class="device-code">PMP-IN-01</span>
+                <h3>进水泵</h3>
+              </div>
+              <div class="pump-switch-control">
+                <span>{{ realtimeDisplay.inletPumpRunning ? '开' : '关' }}</span>
+                <button
+                  type="button"
+                  class="pump-switch"
+                  role="switch"
+                  :aria-checked="realtimeDisplay.inletPumpRunning"
+                  :aria-label="realtimeDisplay.inletPumpRunning ? '关闭进水泵' : '开启进水泵'"
+                  :class="{ 'is-checked': realtimeDisplay.inletPumpRunning }"
+                  @click="toggleDosingInletPump"
+                ><span aria-hidden="true"></span></button>
+              </div>
+            </header>
+            <PumpFrequencyGauge
+              :value="activeDosingInletPumpFrequency"
+              :max="50"
+              label="当前频率"
+              unit="Hz"
+              gauge-center-y="88%"
+              gauge-radius="151%"
+            />
+            <div class="control-value-row control-value-row--inlet-pump">
+              <span>频率设定</span>
+              <strong>{{ realtimeDisplay.inletPumpFrequency }}<small>Hz</small></strong>
+            </div>
+            <input
+              class="pump-range inlet-pump-range"
+              type="range"
+              min="0"
+              max="50"
+              step="1"
+              :value="realtimeDisplay.inletPumpFrequency"
+              :style="{ '--range-progress': `${realtimeDisplay.inletPumpFrequency * 2}%` }"
+              aria-label="进水泵频率"
+              @input="handleDosingInletPumpFrequencyInput"
+            />
+            <div class="range-scale inlet-pump-scale" aria-hidden="true"><span>0 Hz</span><span>25 Hz</span><span>50 Hz</span></div>
+          </section>
 
         </section>
         </DecorativePanel>
 
-        <DecorativePanel class="panel target-control-panel" direction="left" title="目标区间设置">
+        <DecorativePanel class="panel target-control-panel dosing-target-control-panel dual-target-control-panel" direction="left" title="目标区间设置">
         <section class="target-control">
           <div class="target-control__value">
             <span>目标浊度范围</span>
@@ -196,13 +220,12 @@
             @change="handleTargetRangeChange"
           />
           <div class="target-scale__labels" aria-hidden="true"><span>0</span><span>40</span><span>80 NTU</span></div>
-          <p class="prototype-note">当前为原型数据，设置操作仅更新页面状态。</p>
         </section>
         </DecorativePanel>
       </template>
 
       <template v-else>
-        <DecorativePanel class="panel pac-control-panel aeration-control-panel" direction="left" title="设备控制">
+        <DecorativePanel class="panel pac-control-panel aeration-control-panel dual-device-control-panel" direction="left" title="设备控制">
           <section class="pac-control-card">
             <header class="pac-control-card__head">
               <div>
@@ -296,7 +319,7 @@
           </section>
         </DecorativePanel>
 
-        <DecorativePanel class="panel target-control-panel aeration-target-control-panel" direction="left" title="目标区间设置">
+        <DecorativePanel class="panel target-control-panel aeration-target-control-panel dual-target-control-panel" direction="left" title="目标区间设置">
           <section class="target-control">
             <div class="target-control__value">
               <span>DO目标范围</span>
@@ -340,7 +363,6 @@ import AerationRealtimeTrendChart from '../components/realtime/AerationRealtimeT
 import FiveStageDosingProcess from '../components/realtime/FiveStageDosingProcess.vue';
 import PacRealtimeTrendChart from '../components/realtime/PacRealtimeTrendChart.vue';
 import PumpFrequencyGauge from '../components/realtime/PumpFrequencyGauge.vue';
-import RealtimeMetricBarChart from '../components/realtime/RealtimeMetricBarChart.vue';
 import SensorRealtimeBars from '../components/realtime/SensorRealtimeBars.vue';
 import SmartWaterFlumePreview from '../components/realtime/smart-water-flume-preview/SmartWaterFlumePreview.vue';
 import { PROTOTYPE_ACCESS_TOKEN } from '../constants/auth.js';
@@ -353,6 +375,7 @@ const props = defineProps({
 
 const emit = defineEmits([
   'pump-control-change',
+  'dosing-inlet-pump-control-change',
   'target-range-change',
   'blower-control-change',
   'inlet-pump-control-change',
@@ -370,6 +393,10 @@ const scenes = Object.freeze([
 ]);
 
 const prototypeState = reactive({
+  inletPumpFrequency: 38,
+  inletPumpRunning: true,
+  rawWaterPh: 7.2,
+  inletFlow: 100,
   preTurbidity: 42,
   postTurbidity: 16,
   tankLevel: 820,
@@ -411,6 +438,10 @@ const sceneTitle = computed(() => scenes.find((scene) => scene.key === activeSce
 const realtimeDisplay = computed(() => {
   const source = props.prototypeData || prototypeState;
   return {
+    inletPumpFrequency: Math.min(50, Math.max(0, finiteNumber(source.inletPumpFrequency, prototypeState.inletPumpFrequency))),
+    inletPumpRunning: typeof source.inletPumpRunning === 'boolean' ? source.inletPumpRunning : prototypeState.inletPumpRunning,
+    rawWaterPh: Math.min(14, Math.max(0, finiteNumber(source.rawWaterPh, prototypeState.rawWaterPh))),
+    inletFlow: Math.min(180, Math.max(0, finiteNumber(source.inletFlow, prototypeState.inletFlow))),
     preTurbidity: finiteNumber(source.preTurbidity, prototypeState.preTurbidity),
     postTurbidity: finiteNumber(source.postTurbidity, prototypeState.postTurbidity),
     tankLevel: Math.min(1000, Math.max(0, finiteNumber(source.tankLevel, prototypeState.tankLevel))),
@@ -440,6 +471,9 @@ const aerationDisplay = computed(() => {
 const activePumpPercent = computed(() => (
   realtimeDisplay.value.pumpRunning ? realtimeDisplay.value.pumpPercent : 0
 ));
+const activeDosingInletPumpFrequency = computed(() => (
+  realtimeDisplay.value.inletPumpRunning ? realtimeDisplay.value.inletPumpFrequency : 0
+));
 const activeBlowerPercent = computed(() => (
   aerationDisplay.value.blowerRunning ? aerationDisplay.value.blowerPercent : 0
 ));
@@ -447,13 +481,14 @@ const activeInletPumpFrequency = computed(() => (
   aerationDisplay.value.inletPumpRunning ? aerationDisplay.value.inletPumpFrequency : 0
 ));
 
-const turbidityItems = computed(() => [
-  { label: '前馈浊度仪', value: realtimeDisplay.value.preTurbidity, color: '#39d8ff' },
-  { label: '后馈浊度仪', value: realtimeDisplay.value.postTurbidity, color: '#64e59b' },
-]);
-
-const pumpItems = computed(() => [
-  { label: 'PAC配药箱', value: realtimeDisplay.value.tankLevel, color: '#ffc65c' },
+const dosingSensorItems = computed(() => [
+  { key: 'inlet-pump-frequency', label: '进水泵频率', value: activeDosingInletPumpFrequency.value, max: 50, unit: 'Hz', precision: 0, color: '#39d8ff' },
+  { key: 'raw-water-ph', label: '原水箱PH值', value: realtimeDisplay.value.rawWaterPh, max: 14, unit: '', precision: 1, color: '#64e59b' },
+  { key: 'inlet-flow', label: '进水流量', value: realtimeDisplay.value.inletFlow, max: 180, unit: 'L/h', precision: 0, color: '#ffc65c' },
+  { key: 'pre-turbidity', label: '前馈浊度', value: realtimeDisplay.value.preTurbidity, max: 80, unit: 'NTU', precision: 1, color: '#4f93ff' },
+  { key: 'post-turbidity', label: '后馈浊度', value: realtimeDisplay.value.postTurbidity, max: 80, unit: 'NTU', precision: 1, color: '#33d4c8' },
+  { key: 'pac-tank-level', label: 'PAC配药箱水位', value: realtimeDisplay.value.tankLevel, max: 1000, unit: 'mm', precision: 0, color: '#ff9f5a' },
+  { key: 'pac-metering', label: 'PAC泵计量', value: activePumpPercent.value, max: 100, unit: '%', precision: 0, color: '#ff6e66' },
 ]);
 
 const aerationSensorItems = computed(() => [
@@ -510,6 +545,24 @@ function togglePacPump() {
 
 function handlePumpPercentInput(event) {
   updatePacPump({ pumpPercent: finiteNumber(event.target?.value, realtimeDisplay.value.pumpPercent) });
+}
+
+function updateDosingInletPump(patch) {
+  if (props.prototypeData) {
+    emit('dosing-inlet-pump-control-change', patch);
+    return;
+  }
+  Object.assign(prototypeState, patch);
+  emit('dosing-inlet-pump-control-change', { ...patch, prototype: true });
+}
+
+function toggleDosingInletPump() {
+  updateDosingInletPump({ inletPumpRunning: !realtimeDisplay.value.inletPumpRunning });
+}
+
+function handleDosingInletPumpFrequencyInput(event) {
+  const inletPumpFrequency = Math.min(50, Math.max(0, finiteNumber(event.target?.value, realtimeDisplay.value.inletPumpFrequency)));
+  updateDosingInletPump({ inletPumpFrequency });
 }
 
 function updateTargetRange(patch) {
@@ -770,21 +823,21 @@ onMounted(() => {
 .inlet-pump-range { margin-top: 5px; }
 .inlet-pump-scale { margin-bottom: 0; }
 
-.aeration-control-panel :deep(.decorative-panel__content) { padding: 5px 14px 6px; }
-.aeration-control-panel .pac-control-card__head { padding: 2px 4px 4px; }
-.aeration-control-panel .pac-control-card__head h2 { margin-top: 0; font-size: 16px; }
-.aeration-control-panel :deep(.pump-frequency-gauge) {
+.dual-device-control-panel :deep(.decorative-panel__content) { padding: 5px 14px 6px; }
+.dual-device-control-panel .pac-control-card__head { padding: 2px 4px 4px; }
+.dual-device-control-panel .pac-control-card__head h2 { margin-top: 0; font-size: 16px; }
+.dual-device-control-panel :deep(.pump-frequency-gauge) {
   height: clamp(112px, calc(100vh - 772px), 150px);
   margin-top: 0;
   flex: 0 0 clamp(112px, calc(100vh - 772px), 150px);
 }
-.aeration-control-panel .control-value-row { margin-top: 0; line-height: 1; }
-.aeration-control-panel .pump-range { margin-top: 1px; margin-bottom: 1px; }
-.aeration-control-panel .range-scale { margin-bottom: 6px; }
-.aeration-control-panel .inlet-pump-control { margin-top: 0; padding-top: 4px; }
-.aeration-control-panel .inlet-pump-control__head h3 { margin-top: 0; font-size: 14px; }
-.aeration-control-panel .control-value-row--inlet-pump { margin-top: 0; }
-.aeration-control-panel .inlet-pump-scale { margin-bottom: 0; }
+.dual-device-control-panel .control-value-row { margin-top: 0; line-height: 1; }
+.dual-device-control-panel .pump-range { margin-top: 1px; margin-bottom: 1px; }
+.dual-device-control-panel .range-scale { margin-bottom: 6px; }
+.dual-device-control-panel .inlet-pump-control { margin-top: 0; padding-top: 4px; }
+.dual-device-control-panel .inlet-pump-control__head h3 { margin-top: 0; font-size: 14px; }
+.dual-device-control-panel .control-value-row--inlet-pump { margin-top: 0; }
+.dual-device-control-panel .inlet-pump-scale { margin-bottom: 0; }
 
 .control-summary { display: grid; gap: 1px; margin-top: 4px; border: 1px solid rgba(71, 151, 200, 0.25); background: rgba(2, 31, 55, 0.58); }
 .control-summary div { display: flex; height: 40px; align-items: center; justify-content: space-between; padding: 0 12px; }
@@ -794,7 +847,7 @@ onMounted(() => {
 .control-summary strong.stopped { color: #ff8a81; }
 
 .target-control-panel { flex: 0 0 230px; }
-.aeration-target-control-panel { flex-basis: max(190px, calc(100vh - 732px)); margin-bottom: 0; }
+.dual-target-control-panel { flex-basis: max(190px, calc(100vh - 732px)); margin-bottom: 0; }
 .target-control-panel :deep(.decorative-panel__content) { padding: 5px 14px 10px; overflow: hidden; }
 .target-control { display: flex; height: 100%; min-height: 0; flex-direction: column; }
 .target-control__value { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
@@ -818,13 +871,13 @@ onMounted(() => {
 .target-scale__labels { display: flex; justify-content: space-between; margin-top: 4px; color: #62849d; font-size: 9px; }
 .prototype-note { margin: auto 2px 0; padding-top: 6px; color: #65859e; font-size: 9px; text-align: center; }
 
-.aeration-target-control-panel :deep(.decorative-panel__content) { padding: 8px 14px 12px; }
-.aeration-target-control-panel .target-control__value { margin-bottom: 10px; }
-.aeration-target-control-panel .target-inputs label { gap: 5px; }
-.aeration-target-control-panel .target-inputs label > div { height: 34px; }
-.aeration-target-control-panel .target-range-slider { margin: 12px 8px 0; }
-.aeration-target-control-panel .target-scale__labels { margin-top: 5px; }
-.aeration-target-control-panel .target-control { justify-content: center; }
+.dual-target-control-panel :deep(.decorative-panel__content) { padding: 8px 14px 12px; }
+.dual-target-control-panel .target-control__value { margin-bottom: 10px; }
+.dual-target-control-panel .target-inputs label { gap: 5px; }
+.dual-target-control-panel .target-inputs label > div { height: 34px; }
+.dual-target-control-panel .target-range-slider { margin: 12px 8px 0; }
+.dual-target-control-panel .target-scale__labels { margin-top: 5px; }
+.dual-target-control-panel .target-control { justify-content: center; }
 
 @media (max-width: 1500px) {
   .left-stack { --stack-width: 300px; }
@@ -850,19 +903,19 @@ onMounted(() => {
   .control-value-row--inlet-pump { margin-top: 3px; }
   .inlet-pump-range { margin-top: 2px; margin-bottom: 1px; }
   .target-control-panel { flex-basis: 196px; }
-  .aeration-control-panel :deep(.decorative-panel__content) { padding: 1px 14px 2px; }
-  .aeration-control-panel :deep(.pump-frequency-gauge) { height: 112px; margin-top: -4px; flex-basis: 112px; }
-  .aeration-control-panel .pac-control-card__head { padding: 0 4px 2px; }
-  .aeration-control-panel .range-scale { margin-bottom: 0; }
-  .aeration-control-panel .inlet-pump-control { padding-top: 2px; }
-  .aeration-target-control-panel { flex-basis: 136px; margin-bottom: 0; }
-  .aeration-target-control-panel :deep(.decorative-panel__content) { padding: 2px 14px 0; }
-  .aeration-target-control-panel .target-control__value { margin-bottom: 2px; }
-  .aeration-target-control-panel .target-inputs label { gap: 2px; }
-  .aeration-target-control-panel .target-inputs label > div { height: 28px; }
-  .aeration-target-control-panel .target-range-slider { margin-top: 2px; }
-  .aeration-target-control-panel .target-scale__labels { margin-top: 2px; }
-  .aeration-target-control-panel .target-control { justify-content: flex-start; }
+  .dual-device-control-panel :deep(.decorative-panel__content) { padding: 1px 14px 2px; }
+  .dual-device-control-panel :deep(.pump-frequency-gauge) { height: 112px; margin-top: -4px; flex-basis: 112px; }
+  .dual-device-control-panel .pac-control-card__head { padding: 0 4px 2px; }
+  .dual-device-control-panel .range-scale { margin-bottom: 0; }
+  .dual-device-control-panel .inlet-pump-control { padding-top: 2px; }
+  .dual-target-control-panel { flex-basis: 136px; margin-bottom: 0; }
+  .dual-target-control-panel :deep(.decorative-panel__content) { padding: 2px 14px 0; }
+  .dual-target-control-panel .target-control__value { margin-bottom: 2px; }
+  .dual-target-control-panel .target-inputs label { gap: 2px; }
+  .dual-target-control-panel .target-inputs label > div { height: 28px; }
+  .dual-target-control-panel .target-range-slider { margin-top: 2px; }
+  .dual-target-control-panel .target-scale__labels { margin-top: 2px; }
+  .dual-target-control-panel .target-control { justify-content: flex-start; }
   .target-control__value { margin-bottom: 7px; }
   .target-range-slider { margin-top: 6px; }
   .prototype-note { padding-top: 3px; }
