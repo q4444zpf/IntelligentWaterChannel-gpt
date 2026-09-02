@@ -3,17 +3,23 @@
     <div class="background-mask" aria-hidden="true"></div>
     <img class="page-background" :src="backgroundImage" alt="" aria-hidden="true" />
 
-    <header class="brand-header" aria-label="智能水槽监控系统">
+    <header class="brand-header" aria-label="智能污水处理监控系统">
       <img class="brand-logo" :src="logoImage" alt="" />
-      <img class="brand-title" :src="titleImage" alt="智能水槽监控系统" />
+      <div class="brand-title" data-text="智能污水处理监控系统">
+        <span class="brand-title__main">智能污水处理监控系统</span>
+      </div>
     </header>
 
-      <section class="product-intro" aria-label="智能水槽三维实时监控系统">
-        <img
-          class="product-slogan"
-          :src="sloganImage"
-          alt="智能水槽三维实时监控系统，融合三维数字孪生与实时感知，集中呈现水槽工况、设备状态、实验数据与运行预警"
-        />
+      <section class="product-intro" aria-label="智能污水处理三维实时监控系统">
+        <div class="product-slogan">
+          <div class="product-slogan__title" data-text="智能污水处理三维实时监控系统">
+            <span class="product-slogan__title-main">智能污水处理三维实时监控系统</span>
+          </div>
+          <p class="product-slogan__description">
+            融合三维数字孪生与实时感知，<br />
+            集中呈现污水处理工况、设备状态、运行数据与告警信息
+          </p>
+        </div>
         <img class="product-model" :src="sloganModelImage" alt="" aria-hidden="true" />
       </section>
 
@@ -180,8 +186,6 @@ import backgroundImage from '../assets/login/bg.jpg';
 import formBottomImage from '../assets/login/form-bottom.png';
 import logoImage from '../assets/login/logo.png';
 import sloganModelImage from '../assets/login/slogan-img.png';
-import sloganImage from '../assets/login/slogan.png';
-import titleImage from '../assets/login/title.png';
 import { getCaptchaUrl, getCode } from '../api/auth.js';
 import { SUCCESS_CODE } from '../constants/auth.js';
 import { activatePrototypeSession, authenticate } from '../stores/auth.js';
@@ -336,10 +340,42 @@ async function handleLogin() {
 
 .brand-title {
   position: absolute;
-  left: 156px;
-  top: 12px;
-  width: 418px;
+  left: 151px;
+  top: 9px;
+  isolation: isolate;
+  margin: 0;
   opacity: 1;
+  font-family: 'Source Han Sans', 'Microsoft YaHei', 'SimHei', sans-serif;
+  font-feature-settings: 'kern' on;
+  font-size: 48px;
+  font-variation-settings: 'opsz' 48;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+  line-height: normal;
+  white-space: nowrap;
+}
+
+.brand-title__main {
+  position: relative;
+  z-index: 1;
+  display: block;
+  opacity: 1;
+  background: linear-gradient(180deg, #5e93e3 25%, #3271ce 45%, #07429a 65%);
+  background-clip: text;
+  color: transparent;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.brand-title::after {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  z-index: 0;
+  content: attr(data-text);
+  color: rgba(255, 255, 255, 0.3);
+  text-shadow: 0 2px 8px rgba(19, 71, 162, 0.7);
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.7);
 }
 
 .product-intro {
@@ -354,9 +390,57 @@ async function handleLogin() {
   position: absolute;
   left: 163px;
   top: 20vh;
+  z-index: 2;
+  width: 700px;
   opacity: 1;
-  width: 629px;
-  height: auto;
+}
+
+.product-slogan__title {
+  position: relative;
+  isolation: isolate;
+  font-family: 'Microsoft YaHei', 'SimHei', sans-serif;
+  font-feature-settings: 'kern' on;
+  font-size: 46px;
+  font-variation-settings: 'opsz' 46;
+  font-weight: bold;
+  letter-spacing: 0.06em;
+  line-height: normal;
+  white-space: nowrap;
+}
+
+.product-slogan__title-main {
+  position: relative;
+  z-index: 1;
+  display: block;
+  background: linear-gradient(94deg, #0e56c2 8%, #05b9f5 59%, #197cfd 95%);
+  background-clip: text;
+  color: transparent;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-fill-color: transparent;
+}
+
+.product-slogan__title::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  content: attr(data-text);
+  color: transparent;
+  pointer-events: none;
+  text-shadow: 0 4px 10px rgba(14, 86, 194, 0.28);
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 4px #ffffff;
+  text-fill-color: transparent;
+}
+
+.product-slogan__description {
+  margin: 58px 0 0;
+  color: #225eaf;
+  font-family: 'Microsoft YaHei', sans-serif;
+  font-size: 25px;
+  font-weight: 500;
+  line-height: 1.65;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 
 .product-model {
@@ -681,6 +765,21 @@ async function handleLogin() {
   to { transform: rotate(360deg); }
 }
 
+@media (max-width: 1500px) and (min-width: 981px) {
+  .product-slogan {
+    width: 550px;
+  }
+
+  .product-slogan__title {
+    font-size: 34px;
+  }
+
+  .product-slogan__description {
+    margin-top: 44px;
+    font-size: 22px;
+  }
+}
+
 @media (max-width: 1280px) {
   .product-model {
     width: min(92%, 650px);
@@ -737,7 +836,9 @@ async function handleLogin() {
   }
 
   .brand-title {
-    width: min(72vw, 360px);
+    left: 90px;
+    max-width: calc(100% - 100px);
+    font-size: clamp(24px, 6vw, 36px);
   }
 
   .product-intro {
@@ -792,7 +893,9 @@ async function handleLogin() {
   }
 
   .brand-title {
-    width: min(72vw, 290px);
+    left: 76px;
+    max-width: calc(100% - 84px);
+    font-size: clamp(21px, 6vw, 29px);
   }
 
   .login-card-content {

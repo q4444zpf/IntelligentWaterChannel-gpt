@@ -143,7 +143,7 @@ function handleActionClick(event) {
   color: var(--panel-title-color);
   font-family: 'SimHei', 'Microsoft YaHei', 'PingFang SC', sans-serif;
   font-size: 24px;
-  font-variation-settings: 'opsz' auto;
+  font-variation-settings: 'opsz' 24;
   font-weight: normal;
   letter-spacing: 0;
   line-height: 21px;
