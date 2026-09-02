@@ -19,6 +19,21 @@
         <span v-if="unhandledAlarmCount > 0 && !userMenuOpen" class="badge badge--menu-trigger" aria-hidden="true">{{ unhandledAlarmDisplay }}</span>
       </button>
 
+      <label class="scene-select-wrap">
+        <span class="sr-only">监控场景</span>
+        <select
+          class="scene-select"
+          :value="monitoringScene"
+          aria-label="监控场景"
+          @change="handleMonitoringSceneChange"
+        >
+          <option v-for="scene in MONITORING_SCENES" :key="scene.key" :value="scene.key">
+            {{ scene.label }}
+          </option>
+        </select>
+        <DownOutlined class="scene-select__arrow" aria-hidden="true" />
+      </label>
+
       <Transition name="menu-popover">
         <nav v-if="userMenuOpen" class="menu-popover" aria-label="主导航">
           <button
@@ -103,6 +118,10 @@ const PAGE_ICONS = {
   history: HistoryOutlined,
   alarm: AlertOutlined,
 };
+const MONITORING_SCENES = Object.freeze([
+  { key: 'dosing', label: '智能加药工艺监控' },
+  { key: 'aeration', label: '智能曝气工艺监控' },
+]);
 const router = useRouter();
 
 const props = defineProps({
@@ -110,7 +129,7 @@ const props = defineProps({
   monitoringScene: { type: String, default: 'dosing' },
 });
 
-defineEmits(['navigate']);
+const emit = defineEmits(['navigate', 'monitoring-scene-change']);
 
 const loggingOut = ref(false);
 const userMenuOpen = ref(false);
@@ -133,6 +152,11 @@ function handleAccountAreaFocusOut(event) {
   if (!event.currentTarget.contains(event.relatedTarget)) {
     accountMenuOpen.value = false;
   }
+}
+
+function handleMonitoringSceneChange(event) {
+  const scene = event.target?.value === 'aeration' ? 'aeration' : 'dosing';
+  emit('monitoring-scene-change', scene);
 }
 
 async function handleLogout() {
@@ -234,7 +258,7 @@ onBeforeUnmount(() => {
   z-index: 4;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 30px;
   pointer-events: auto;
 }
 
@@ -267,6 +291,63 @@ onBeforeUnmount(() => {
 .menu-trigger :deep(svg) {
   width: 20px;
   height: 20px;
+}
+
+.scene-select-wrap {
+  position: relative;
+  display: block;
+  width: 202px;
+  height: 40px;
+}
+
+.scene-select {
+  width: 100%;
+  height: 100%;
+  appearance: none;
+  padding: 0 38px 0 14px;
+  border: 1px solid rgba(101, 194, 255, 0.42);
+  border-radius: 5px;
+  outline: 0;
+  background: rgba(2, 31, 62, 0.8);
+  box-shadow: inset 0 0 16px rgba(37, 142, 217, 0.15);
+  color: #eaf8ff;
+  font-family: 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.scene-select:hover,
+.scene-select:focus-visible {
+  border-color: rgba(108, 219, 255, 0.85);
+  background: rgba(7, 65, 111, 0.9);
+  box-shadow: inset 0 0 18px rgba(58, 184, 255, 0.2), 0 0 14px rgba(43, 169, 255, 0.25);
+}
+
+.scene-select option {
+  background: #041c32;
+  color: #eaf8ff;
+}
+
+.scene-select__arrow {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  width: 12px;
+  height: 12px;
+  color: #6fd8ff;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .badge {
@@ -472,6 +553,10 @@ onBeforeUnmount(() => {
 
   .menu-area {
     left: 28px;
+  }
+
+  .scene-select-wrap {
+    width: 188px;
   }
 
   .header-status {

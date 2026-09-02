@@ -8,7 +8,12 @@
       <img class="app-shell__frame-side app-shell__frame-side--left" :src="borderImage" alt="">
       <img class="app-shell__frame-side app-shell__frame-side--right" :src="borderImage" alt="">
     </div>
-    <AppHeader :active-page="activePage" :monitoring-scene="monitoringScene" @navigate="$emit('navigate', $event)" />
+    <AppHeader
+      :active-page="activePage"
+      :monitoring-scene="monitoringScene"
+      @navigate="$emit('navigate', $event)"
+      @monitoring-scene-change="$emit('monitoring-scene-change', $event)"
+    />
     <main><slot /></main>
   </div>
 </template>
@@ -23,7 +28,7 @@ defineProps({
   monitoringScene: { type: String, default: 'dosing' },
 });
 
-defineEmits(['navigate']);
+defineEmits(['navigate', 'monitoring-scene-change']);
 </script>
 
 <style scoped>

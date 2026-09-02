@@ -31,23 +31,6 @@
     </div>
 
     <header class="preview-console">
-      <div class="preview-title">
-        <button
-          type="button"
-          class="preview-title__arrow preview-title__arrow--left"
-          aria-label="切换到上一个监控场景"
-          title="上一个场景"
-          @click="switchScene(-1)"
-        ></button>
-        <h1>{{ sceneTitle }}</h1>
-        <button
-          type="button"
-          class="preview-title__arrow preview-title__arrow--right"
-          aria-label="切换到下一个监控场景"
-          title="下一个场景"
-          @click="switchScene(1)"
-        ></button>
-      </div>
       <div class="process-status" aria-label="工艺运行状态">
         <template v-if="activeScene === 'dosing'">
           <span><i class="status-dot"></i>自动闭环</span>
@@ -369,6 +352,7 @@ import { PROTOTYPE_ACCESS_TOKEN } from '../constants/auth.js';
 import { getToken } from '../utils/auth.js';
 
 const props = defineProps({
+  monitoringScene: { type: String, default: 'dosing' },
   sceneTarget: { type: Object, default: null },
   prototypeData: { type: Object, default: null },
 });
@@ -380,17 +364,12 @@ const emit = defineEmits([
   'blower-control-change',
   'inlet-pump-control-change',
   'aeration-target-range-change',
-  'scene-change',
   'realtime-data',
 ]);
 const previewRef = ref(null);
 const showProcessPrototype = ref(true);
 const alarmNotificationTopic = ref('');
-const activeScene = ref('dosing');
-const scenes = Object.freeze([
-  { key: 'dosing', title: '智能加药工艺监控' },
-  { key: 'aeration', title: '智能曝气工艺监控' },
-]);
+const activeScene = computed(() => props.monitoringScene === 'aeration' ? 'aeration' : 'dosing');
 
 const prototypeState = reactive({
   inletPumpFrequency: 38,
@@ -432,8 +411,6 @@ function finiteNumber(value, fallback) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
 }
-
-const sceneTitle = computed(() => scenes.find((scene) => scene.key === activeScene.value)?.title || scenes[0].title);
 
 const realtimeDisplay = computed(() => {
   const source = props.prototypeData || prototypeState;
@@ -522,13 +499,6 @@ const aerationTrendDisplay = computed(() => {
     airFlow: airValues,
   };
 });
-
-function switchScene(direction) {
-  const currentIndex = scenes.findIndex((scene) => scene.key === activeScene.value);
-  const nextIndex = (currentIndex + direction + scenes.length) % scenes.length;
-  activeScene.value = scenes[nextIndex].key;
-  emit('scene-change', activeScene.value);
-}
 
 function updatePacPump(patch) {
   if (props.prototypeData) {
@@ -716,39 +686,6 @@ onMounted(() => {
   transform: translateX(-50%);
 }
 
-.preview-title { display: flex; min-height: 38px; align-items: center; justify-content: center; color: #fff; }
-.preview-title h1 {
-  margin: 0;
-  padding: 0 10px;
-  color: #fff;
-  font-family: 'SimHei', 'Microsoft YaHei', sans-serif;
-  font-size: 29px;
-  font-weight: normal;
-  line-height: 38px;
-  text-shadow: 0 0 13px rgba(64, 195, 255, 0.42);
-  white-space: nowrap;
-}
-.preview-title__arrow {
-  display: block;
-  width: 53px;
-  height: 36px;
-  padding: 0;
-  flex: 0 0 53px;
-  border: 0;
-  border-radius: 0;
-  outline: 0;
-  background: url('../assets/preview-title.png') center / 100% 100% no-repeat;
-  box-shadow: none;
-  cursor: pointer;
-  pointer-events: auto;
-  transition: filter 0.18s ease, transform 0.18s ease;
-}
-.preview-title__arrow:hover { border: 0; background-color: transparent; filter: brightness(1.35) drop-shadow(0 0 6px rgba(58, 204, 255, 0.7)); }
-.preview-title__arrow:focus-visible { box-shadow: 0 0 0 2px rgba(100, 222, 255, 0.58); }
-.preview-title__arrow--right { transform: scaleX(-1); }
-.preview-title__arrow--left:hover { transform: translateX(-2px); }
-.preview-title__arrow--right:hover { transform: translateX(2px) scaleX(-1); }
-
 .process-status { display: flex; height: 36px; align-items: center; justify-content: center; margin-top: 7px; padding: 0 20px; border: 1px solid rgba(54, 160, 219, 0.28); background: rgba(3, 36, 64, 0.72); color: #a9c9de; font-size: 11px; }
 .process-status span { display: inline-flex; align-items: center; padding: 0 14px; white-space: nowrap; }
 .process-status span + span { border-left: 1px solid rgba(76, 148, 191, 0.28); }
@@ -884,7 +821,6 @@ onMounted(() => {
   .right-stack { --stack-width: 290px; }
   .scene-stage { right: 300px; left: 310px; }
   .preview-console { width: calc(100% - 660px); min-width: 430px; }
-  .preview-title h1 { font-size: 25px; }
   .process-status span { padding: 0 8px; }
 }
 

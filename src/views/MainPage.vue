@@ -1,10 +1,15 @@
 <template>
-  <AppShell :active-page="activePage" :monitoring-scene="monitoringScene" @navigate="showPage">
+  <AppShell
+    :active-page="activePage"
+    :monitoring-scene="monitoringScene"
+    @navigate="showPage"
+    @monitoring-scene-change="handleMonitoringSceneChange"
+  >
     <RealtimeView
       v-show="activePage === 'realtime'"
+      :monitoring-scene="monitoringScene"
       :scene-target="realtimeSceneTarget"
       @navigate="showPage"
-      @scene-change="handleMonitoringSceneChange"
     />
     <HistoryView
       v-if="activePage === 'history'"
