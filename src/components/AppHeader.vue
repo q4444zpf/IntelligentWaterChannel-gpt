@@ -2,58 +2,38 @@
   <header class="topbar">
     <img class="topbar-background" :src="headerBackground" alt="" aria-hidden="true">
 
-    <div
-      class="menu-area"
-      @focusout="handleUserAreaFocusOut"
-      @keydown.esc="userMenuOpen = false"
-    >
+    <nav class="menu-area" aria-label="主导航">
       <button
-        class="menu-trigger"
+        v-for="tab in PAGE_TABS"
+        :key="tab.key"
+        class="menu-item"
+        :class="{ active: activePage === tab.key }"
+        :aria-label="tab.key === 'alarm' && unhandledAlarmCount > 0 ? `报警数据，${unhandledAlarmCount}条未处理告警` : undefined"
         type="button"
-        :aria-label="unhandledAlarmCount > 0 ? `打开系统菜单，${unhandledAlarmDisplay}条未处理告警` : '打开系统菜单'"
-        :aria-expanded="userMenuOpen"
-        @click="userMenuOpen = !userMenuOpen"
+        @click="$emit('navigate', tab.key)"
       >
-        <MenuOutlined aria-hidden="true" />
-        <span>菜单</span>
-        <span v-if="unhandledAlarmCount > 0 && !userMenuOpen" class="badge badge--menu-trigger" aria-hidden="true">{{ unhandledAlarmDisplay }}</span>
+        <component :is="PAGE_ICONS[tab.key]" aria-hidden="true" />
+        <span>{{ tab.label }}</span>
+        <span
+          v-if="tab.key === 'alarm' && unhandledAlarmCount > 0"
+          class="alarm-badge"
+          aria-hidden="true"
+        >{{ unhandledAlarmDisplay }}</span>
       </button>
-
-      <label class="scene-select-wrap">
-        <span class="sr-only">监控场景</span>
-        <select
-          class="scene-select"
-          :value="monitoringScene"
-          aria-label="监控场景"
-          @change="handleMonitoringSceneChange"
-        >
-          <option v-for="scene in MONITORING_SCENES" :key="scene.key" :value="scene.key">
-            {{ scene.label }}
-          </option>
-        </select>
-        <DownOutlined class="scene-select__arrow" aria-hidden="true" />
-      </label>
-
-      <Transition name="menu-popover">
-        <nav v-if="userMenuOpen" class="menu-popover" aria-label="主导航">
-          <button
-            v-for="tab in PAGE_TABS"
-            :key="tab.key"
-            class="menu-item"
-            :class="{ active: activePage === tab.key }"
-            type="button"
-            @click="$emit('navigate', tab.key); userMenuOpen = false"
-          >
-            <component :is="PAGE_ICONS[tab.key]" aria-hidden="true" />
-            <span>{{ tab.label }}</span>
-            <span v-if="tab.key === 'alarm' && unhandledAlarmCount > 0" class="badge badge--menu-item">{{ unhandledAlarmDisplay }}</span>
-          </button>
-
-        </nav>
-      </Transition>
-    </div>
+    </nav>
 
     <div class="brand">智能污水处理监控系统</div>
+
+    <div class="scene-select-wrap">
+      <ASelect
+        class="scene-select"
+        :value="monitoringScene"
+        :options="MONITORING_SCENES"
+        aria-label="监控场景"
+        popup-class-name="header-scene-select-popup"
+        @change="handleMonitoringSceneChange"
+      />
+    </div>
 
     <div class="header-status">
       <div class="plc-status" role="status">
@@ -100,8 +80,8 @@ import {
   DownOutlined,
   HistoryOutlined,
   LogoutOutlined,
-  MenuOutlined,
 } from '@ant-design/icons-vue';
+import { Select as ASelect } from 'ant-design-vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import headerBackground from '../assets/bg-header.png';
@@ -119,8 +99,8 @@ const PAGE_ICONS = {
   alarm: AlertOutlined,
 };
 const MONITORING_SCENES = Object.freeze([
-  { key: 'dosing', label: '智能加药工艺监控' },
-  { key: 'aeration', label: '智能曝气工艺监控' },
+  { value: 'dosing', label: '智能加药工艺监控' },
+  { value: 'aeration', label: '智能曝气工艺监控' },
 ]);
 const router = useRouter();
 
@@ -132,7 +112,6 @@ const props = defineProps({
 const emit = defineEmits(['navigate', 'monitoring-scene-change']);
 
 const loggingOut = ref(false);
-const userMenuOpen = ref(false);
 const accountMenuOpen = ref(false);
 const unhandledAlarmCount = ref(0);
 const unhandledAlarmDisplay = computed(() => unhandledAlarmCount.value > 999 ? '999+' : unhandledAlarmCount.value);
@@ -142,20 +121,14 @@ const username = computed(() => {
 });
 let alarmRefreshTimer = null;
 
-function handleUserAreaFocusOut(event) {
-  if (!event.currentTarget.contains(event.relatedTarget)) {
-    userMenuOpen.value = false;
-  }
-}
-
 function handleAccountAreaFocusOut(event) {
   if (!event.currentTarget.contains(event.relatedTarget)) {
     accountMenuOpen.value = false;
   }
 }
 
-function handleMonitoringSceneChange(event) {
-  const scene = event.target?.value === 'aeration' ? 'aeration' : 'dosing';
+function handleMonitoringSceneChange(value) {
+  const scene = value === 'aeration' ? 'aeration' : 'dosing';
   emit('monitoring-scene-change', scene);
 }
 
@@ -257,100 +230,93 @@ onBeforeUnmount(() => {
   left: 38px;
   z-index: 4;
   display: flex;
+  height: 40px;
   align-items: center;
-  gap: 30px;
+  gap: 4px;
   pointer-events: auto;
 }
 
-.menu-trigger {
+.menu-item {
   position: relative;
   display: inline-flex;
   height: 40px;
-  min-width: 110px;
+  min-width: 104px;
   align-items: center;
   justify-content: center;
-  gap: 9px;
-  padding: 0 14px;
-  border: 1px solid rgba(101, 194, 255, 0.42);
-  border-radius: 5px;
-  background: rgba(2, 31, 62, 0.72);
-  box-shadow: inset 0 0 16px rgba(37, 142, 217, 0.15);
-  color: #f2f9ff;
-  font-size: 17px;
+  gap: 8px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  box-shadow: none;
+  color: #b9d9ef;
+  font-size: 15px;
 }
 
-.menu-trigger:hover,
-.menu-trigger:focus-visible,
-.menu-trigger[aria-expanded='true'] {
-  border-color: rgba(108, 219, 255, 0.85);
+.menu-item:hover,
+.menu-item:focus-visible,
+.menu-item.active {
+  border-bottom-color: #58d8ff;
   outline: 0;
-  background: rgba(7, 65, 111, 0.9);
-  box-shadow: inset 0 0 18px rgba(58, 184, 255, 0.2), 0 0 14px rgba(43, 169, 255, 0.25);
+  background: linear-gradient(180deg, rgba(17, 119, 190, 0.08), rgba(17, 119, 190, 0.5));
+  color: #fff;
+  text-shadow: 0 0 8px rgba(72, 199, 255, 0.5);
 }
 
-.menu-trigger :deep(svg) {
-  width: 20px;
-  height: 20px;
+.menu-item :deep(svg) {
+  width: 18px;
+  height: 18px;
+  color: #6fd8ff;
 }
 
 .scene-select-wrap {
-  position: relative;
-  display: block;
+  position: absolute;
+  top: 37px;
+  left: calc(50% + 340px);
+  z-index: 4;
   width: 202px;
   height: 40px;
+  pointer-events: auto;
 }
 
 .scene-select {
   width: 100%;
   height: 100%;
-  appearance: none;
-  padding: 0 38px 0 14px;
-  border: 1px solid rgba(101, 194, 255, 0.42);
-  border-radius: 5px;
-  outline: 0;
-  background: rgba(2, 31, 62, 0.8);
-  box-shadow: inset 0 0 16px rgba(37, 142, 217, 0.15);
-  color: #eaf8ff;
-  font-family: 'Microsoft YaHei', sans-serif;
-  font-size: 14px;
-  cursor: pointer;
 }
 
-.scene-select:hover,
-.scene-select:focus-visible {
-  border-color: rgba(108, 219, 255, 0.85);
-  background: rgba(7, 65, 111, 0.9);
+.scene-select:deep(.ant-select-selector) {
+  height: 40px;
+  padding: 0 36px 0 14px;
+  border: 1px solid rgba(101, 194, 255, 0.42);
+  border-radius: 5px !important;
+  background: rgba(2, 31, 62, 0.8) !important;
+  box-shadow: inset 0 0 16px rgba(37, 142, 217, 0.15);
+  color: #eaf8ff;
+}
+
+.scene-select:deep(.ant-select-selection-item) {
+  align-self: center;
+  color: #eaf8ff;
+  font-size: 14px;
+  line-height: 38px;
+}
+
+.scene-select:deep(.ant-select-arrow) {
+  color: #6fd8ff;
+}
+
+.scene-select:hover:deep(.ant-select-selector),
+.scene-select.ant-select-focused:deep(.ant-select-selector),
+.scene-select.ant-select-open:deep(.ant-select-selector) {
+  border-color: rgba(108, 219, 255, 0.85) !important;
+  background: rgba(7, 65, 111, 0.9) !important;
   box-shadow: inset 0 0 18px rgba(58, 184, 255, 0.2), 0 0 14px rgba(43, 169, 255, 0.25);
 }
 
-.scene-select option {
-  background: #041c32;
-  color: #eaf8ff;
-}
-
-.scene-select__arrow {
+.alarm-badge {
   position: absolute;
-  top: 50%;
-  right: 14px;
-  width: 12px;
-  height: 12px;
-  color: #6fd8ff;
-  pointer-events: none;
-  transform: translateY(-50%);
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.badge {
+  top: -7px;
+  right: -17px;
   display: inline-grid;
   min-width: 25px;
   height: 20px;
@@ -361,60 +327,8 @@ onBeforeUnmount(() => {
   color: #fff;
   font-size: 11px;
   line-height: 20px;
-}
-
-.badge--menu-trigger {
-  position: absolute;
-  top: -8px;
-  right: -18px;
-  z-index: 1;
+  box-shadow: 0 0 8px rgba(244, 82, 88, 0.9);
   pointer-events: none;
-}
-
-.badge--menu-item {
-  justify-self: end;
-}
-
-.menu-popover {
-  position: absolute;
-  top: 48px;
-  left: 0;
-  display: grid;
-  width: 230px;
-  padding: 8px;
-  border: 1px solid rgba(81, 190, 246, 0.58);
-  border-radius: 5px;
-  background: rgba(2, 25, 49, 0.96);
-  box-shadow: 0 16px 40px rgba(0, 8, 24, 0.58), inset 0 0 24px rgba(25, 147, 225, 0.1);
-  backdrop-filter: blur(14px);
-}
-
-.menu-item {
-  display: grid;
-  min-height: 42px;
-  grid-template-columns: 22px minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: center;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 3px;
-  background: transparent;
-  box-shadow: none;
-  color: #b9d9ef;
-  text-align: left;
-}
-
-.menu-item:hover,
-.menu-item.active {
-  background: linear-gradient(90deg, rgba(17, 119, 190, 0.52), rgba(17, 119, 190, 0.08));
-  box-shadow: inset 2px 0 #58d8ff;
-  color: #fff;
-}
-
-.menu-item :deep(svg) {
-  width: 18px;
-  height: 18px;
-  color: #6fd8ff;
 }
 
 .header-status {
@@ -535,15 +449,14 @@ onBeforeUnmount(() => {
   color: #ffd2cf;
 }
 
-.menu-popover-enter-active,
-.menu-popover-leave-active {
-  transition: opacity 0.16s ease, transform 0.16s ease;
+:global(.header-scene-select-popup .ant-select-item) {
+  color: #b9d9ef;
 }
 
-.menu-popover-enter-from,
-.menu-popover-leave-to {
-  opacity: 0;
-  transform: translateY(-5px);
+:global(.header-scene-select-popup .ant-select-item-option-active:not(.ant-select-item-option-disabled)),
+:global(.header-scene-select-popup .ant-select-item-option-selected:not(.ant-select-item-option-disabled)) {
+  background: #0b4770;
+  color: #fff;
 }
 
 @media (max-width: 1500px) {
@@ -556,11 +469,12 @@ onBeforeUnmount(() => {
   }
 
   .scene-select-wrap {
+    left: calc(50% + 280px);
     width: 188px;
   }
 
   .header-status {
-    right: 30px;
+    right: 10px;
   }
 }
 </style>
