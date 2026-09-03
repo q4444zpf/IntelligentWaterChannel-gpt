@@ -18,19 +18,19 @@
         <span class="scene-control-hint" aria-hidden="true">标签设置</span>
         <TagsOutlined aria-hidden="true" />
       </button>
-<!--      <button-->
-<!--        v-if="modelGroupTree.length"-->
-<!--        type="button"-->
-<!--        class="selected-model-isolation"-->
-<!--        :class="{ active: selectedModelIsolationEnabled }"-->
-<!--        :aria-pressed="selectedModelIsolationEnabled"-->
-<!--        aria-label="只显示选中对象"-->
-<!--        title="只显示选中对象"-->
-<!--        @click="setSelectedModelIsolation(!selectedModelIsolationEnabled)"-->
-<!--      >-->
-<!--        <span class="scene-control-hint" aria-hidden="true">选中定位</span>-->
-<!--        <AimOutlined aria-hidden="true" />-->
-<!--      </button>-->
+      <button
+        v-if="modelGroupTree.length"
+        type="button"
+        class="selected-model-isolation"
+        :class="{ active: selectedModelIsolationEnabled }"
+        :aria-pressed="selectedModelIsolationEnabled"
+        aria-label="只显示选中对象"
+        title="只显示选中对象"
+        @click="setSelectedModelIsolation(!selectedModelIsolationEnabled)"
+      >
+        <span class="scene-control-hint" aria-hidden="true">选中定位</span>
+        <AimOutlined aria-hidden="true" />
+      </button>
       <button
         v-if="modelGroupTree.length"
         type="button"
@@ -293,7 +293,6 @@ import {
   applyHtmlSpriteUserData,
   isHtmlSpriteHierarchyVisible,
   updateHtmlSpriteData,
-  updateDataLabelArrowPlus,
   updateHtmlSpriteDirectionArrow,
 } from './web-topo-html-runtime.js';
 import {
@@ -456,6 +455,8 @@ let canvasPointerDown;
 let scriptRuntime;
 let materialAnimations = [];
 let previousRenderTimestamp;
+let htmlSpriteBindingsByField = new Map();
+const pendingMqttPayload = new Map();
 let pendingSceneTreeGroupName = '';
 let disposed = false;
 
@@ -477,6 +478,16 @@ function createCanvasLabelObjects() {
     if (!object) return;
     canvasLabelObjects.set(sprite.uuid, object);
     scene.add(object);
+  });
+}
+
+function indexHtmlSpriteBindings() {
+  htmlSpriteBindingsByField = new Map();
+  htmlSprites.value.forEach((sprite, index) => {
+    const field = sprite.options?.paramField;
+    if (!field) return;
+    if (!htmlSpriteBindingsByField.has(field)) htmlSpriteBindingsByField.set(field, []);
+    htmlSpriteBindingsByField.get(field).push({ index, sprite });
   });
 }
 
@@ -816,15 +827,26 @@ function setAllLabelGroupsVisible(visible) {
 }
 
 function triggerDataUpdate(field, value) {
-  htmlSprites.value.forEach((sprite, index) => {
+  htmlSpriteBindingsByField.get(field)?.forEach(({ index, sprite }) => {
     if (sprite.useCanvas) {
-      if (sprite.options?.paramField !== field) return;
       applyDataLabelArrowPlusCanvasValue(sprite, value);
-      updateDataLabelArrowPlusCanvasObject(canvasLabelObjects.get(sprite.uuid), sprite, camera);
       return;
     }
     updateHtmlSpriteData(labelElements[index], sprite, field, value);
   });
+}
+
+function flushPendingMqttData() {
+  if (!pendingMqttPayload.size) return;
+  const entries = [...pendingMqttPayload];
+  pendingMqttPayload.clear();
+  const payload = Object.fromEntries(entries);
+
+  entries.forEach(([field, value]) => {
+    triggerDataUpdate(field, value);
+    scriptRuntime?.emit(field, value);
+  });
+  scriptRuntime?.emit('mqttMessage', payload);
 }
 
 function handleMqttData(payload, receivedTopic, rawMessage) {
@@ -832,12 +854,9 @@ function handleMqttData(payload, receivedTopic, rawMessage) {
     emit('alarm-notification', payload ?? rawMessage);
     return;
   }
-  if (!payload) return;
-  Object.entries(payload).forEach(([field, value]) => {
-    triggerDataUpdate(field, value);
-    scriptRuntime?.emit(field, value);
-  });
-  scriptRuntime?.emit('mqttMessage', payload);
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return;
+  // 三维只消费每帧内各字段的最新值，避免 MQTT 突发消息阻塞动画帧。
+  Object.entries(payload).forEach(([field, value]) => pendingMqttPayload.set(field, value));
   emit('mqtt-data', payload);
 }
 
@@ -984,6 +1003,8 @@ async function loadScene({ forceReload = false } = {}) {
   cancelCameraTransition();
   if (outlinePass) outlinePass.selectedObjects = [];
   sceneObjectByUuid = new Map();
+  htmlSpriteBindingsByField = new Map();
+  pendingMqttPayload.clear();
   labelElements.length = 0;
   disposeCanvasLabelObjects();
 
@@ -1031,6 +1052,7 @@ async function loadScene({ forceReload = false } = {}) {
       target: controls.target.clone(),
     };
     htmlSprites.value = loaded.htmlSprites;
+    indexHtmlSpriteBindings();
     createCanvasLabelObjects();
     labelGroups.value = loaded.labelGroups;
     hiddenLabelGroupUuids.value = new Set(labelGroups.value
@@ -1050,7 +1072,8 @@ async function loadScene({ forceReload = false } = {}) {
         camera,
         controls,
         modules: { controls },
-        render: renderCurrentScene,
+        // 主动画循环会在下一帧统一绘制，避免脚本在 MQTT 回调中同步重复渲染。
+        render() {},
         renderer,
         scene,
       },
@@ -1266,9 +1289,6 @@ function updateLabels() {
       element.style.transform = `translate(-50%, -50%) matrix(${labelScreenAxisX.x}, ${labelScreenAxisX.y}, ${labelScreenAxisY.x}, ${labelScreenAxisY.y}, ${screenX}, ${screenY})`;
     }
     element.style.opacity = labelVisible ? '1' : '0';
-    if (sprite.options?.key === 'Html dataLabelArrowPlus' || element.querySelector('#dataLabelArrowPlusRoot')) {
-      updateDataLabelArrowPlus(element, { ...(sprite.options?.userData || {}), ...(sprite.userData || {}) });
-    }
     updateHtmlSpriteDirectionArrow(element, sprite, camera, width, height);
   });
 }
@@ -1331,6 +1351,7 @@ function reloadScene() {
 
 function renderScene(timestamp = performance.now()) {
   if (!composer || !scene || !camera) return;
+  flushPendingMqttData();
   if (previousRenderTimestamp !== undefined) {
     updateWebTopoMaterialAnimations(
       materialAnimations,
