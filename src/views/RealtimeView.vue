@@ -706,11 +706,11 @@ onBeforeUnmount(() => {
 }
 
 .sensor-panel {
-  flex: 0 0 268px;
+  flex: 1 1 0;
 }
 
 .realtime-info-panel {
-  flex: 1 1 0;
+  flex: 0 0 268px;
 }
 
 .sensor-panel :deep(.decorative-panel__content) {
@@ -918,12 +918,17 @@ onBeforeUnmount(() => {
 }
 
 .control-panel :deep(.decorative-panel__content) {
+  display: grid;
+  min-height: 0;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
   padding: 2px 14px 7px;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .control-section {
+  min-height: 0;
   padding: 11px 2px 13px;
+  overflow-y: auto;
 }
 
 /* Gate control section */
@@ -1394,6 +1399,10 @@ onBeforeUnmount(() => {
   }
 
   .sensor-panel {
+    flex-basis: 0;
+  }
+
+  .realtime-info-panel {
     flex-basis: 210px;
   }
 
