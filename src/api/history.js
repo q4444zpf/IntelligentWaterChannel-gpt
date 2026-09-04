@@ -32,7 +32,8 @@ export async function getBigWaterChannelHistoryDevices(
  *   start?: string,
  *   end?: string,
  *   intervalSeconds?: number,
- *   deviceIds?: string[]
+ *   deviceIds?: string[],
+ *   status?: '全部' | '正常' | '异常' | boolean
  * }} [options]
  */
 export async function getBigWaterChannelHistory({
@@ -43,9 +44,10 @@ export async function getBigWaterChannelHistory({
   end,
   intervalSeconds,
   deviceIds,
+  status,
 } = {}) {
   const response = await http.get('/iot/device/bigWaterChannel/history', {
-    params: buildHistoryParams({ current, size, groupId, start, end, intervalSeconds, deviceIds }),
+    params: buildHistoryParams({ current, size, groupId, start, end, intervalSeconds, deviceIds, status }),
     paramsSerializer: { indexes: null },
   });
 
@@ -117,10 +119,11 @@ export async function exportBigWaterChannelHistory({
   end,
   intervalSeconds,
   deviceIds,
+  status,
 } = {}) {
   const extension = format === 'pdf' ? 'pdf' : format === 'excel' ? 'xlsx' : 'csv';
   const response = await http.get(`/iot/device/bigWaterChannel/history/export/aligned/${format}`, {
-    params: buildHistoryFilterParams({ groupId, start, end, intervalSeconds, deviceIds }),
+    params: buildHistoryFilterParams({ groupId, start, end, intervalSeconds, deviceIds, status }),
     paramsSerializer: { indexes: null },
     responseType: 'blob',
     rawResponse: true,

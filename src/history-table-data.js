@@ -4,6 +4,12 @@ function parseTimestamp(value) {
   return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
+function formatCollectState(value) {
+  if (value === true) return '正常';
+  if (value === false) return '异常';
+  return '--';
+}
+
 export function normalizeHistoryPage(page) {
   const records = Array.isArray(page?.records) ? page.records : [];
   const current = Math.max(1, Number(page?.current) || 1);
@@ -25,7 +31,8 @@ export function normalizeHistoryPage(page) {
       metric: record?.metric || '--',
       value: record?.value ?? '--',
       unit: record?.unit ?? '',
-      state: '正常',
+      state: formatCollectState(record?.status),
+      reason: record?.reason || '',
     })),
   };
 }

@@ -16,13 +16,16 @@ test('normalizes a backend history page for the table', () => {
       metric: '水位',
       value: '0.384',
       unit: 'm',
+      status: false,
+      reason: '设备离线',
     }],
   });
 
   assert.equal(page.current, 2);
   assert.equal(page.pageCount, 3);
   assert.equal(page.rows[0].timestampValue, new Date('2026-07-08T09:30:20').getTime());
-  assert.equal(page.rows[0].state, '正常');
+  assert.equal(page.rows[0].state, '异常');
+  assert.equal(page.rows[0].reason, '设备离线');
   assert.equal(page.rows[0].value, '0.384');
 });
 
@@ -41,6 +44,7 @@ test('uses safe display defaults for incomplete records', () => {
     metric: '--',
     value: '--',
     unit: '',
-    state: '正常',
+    state: '--',
+    reason: '',
   });
 });

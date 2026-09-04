@@ -17,6 +17,7 @@ test('builds history parameters using the fields read by the history SQL', () =>
     end: '2026-07-08T10:00:30',
     intervalSeconds: 5,
     deviceIds: ['1001', '1002'],
+    status: '正常',
   }), {
     current: 2,
     size: 50,
@@ -25,6 +26,7 @@ test('builds history parameters using the fields read by the history SQL', () =>
     endTime: '2026-07-08 10:00:30',
     intervalSeconds: 5,
     deviceUids: ['1001', '1002'],
+    status: true,
   });
 });
 
@@ -35,13 +37,21 @@ test('builds unpaged history export parameters', () => {
     end: '2026-07-30T23:59:59',
     intervalSeconds: 300,
     deviceIds: ['2001'],
+    status: '异常',
   }), {
     groupId: 69,
     startTime: '2026-07-30 00:00:00',
     endTime: '2026-07-30 23:59:59',
     intervalSeconds: 300,
     deviceUids: ['2001'],
+    status: false,
   });
+});
+
+test('omits the history status parameter when all states are selected', () => {
+  const params = buildHistoryFilterParams({ status: '全部' });
+
+  assert.equal(Object.hasOwn(params, 'status'), false);
 });
 
 test('builds a negative page size for an unpaged history query', () => {

@@ -21,6 +21,12 @@ function parseValue(value) {
   return Number.isFinite(number) ? number : null;
 }
 
+function formatCollectState(value) {
+  if (value === true) return '正常';
+  if (value === false) return '异常';
+  return '--';
+}
+
 export function normalizeHistoryChartResults(records, devices, selectedIds) {
   const selectedSet = new Set((selectedIds || []).map(String));
   const selectedDevices = (devices || []).filter((device) => selectedSet.has(device.id));
@@ -37,6 +43,12 @@ export function normalizeHistoryChartResults(records, devices, selectedIds) {
     const firstRecord = deviceRecords.find((record) => record?.metric || record?.unit);
     const unit = String(firstRecord?.unit ?? option.unit ?? '');
     const metric = String(firstRecord?.metric || option.type || '数值');
+    const latestRecord = deviceRecords.reduce((latest, record) => {
+      if (!latest) return record;
+      const latestTime = parseTimestamp(latest?.timestamp) ?? Number.NEGATIVE_INFINITY;
+      const recordTime = parseTimestamp(record?.timestamp) ?? Number.NEGATIVE_INFINITY;
+      return recordTime > latestTime ? record : latest;
+    }, null);
     const points = deviceRecords
       .map((record) => ({
         timestamp: parseTimestamp(record?.timestamp),
@@ -51,7 +63,7 @@ export function normalizeHistoryChartResults(records, devices, selectedIds) {
         order,
         metric,
         unit,
-        state: '正常',
+        state: formatCollectState(latestRecord?.status),
         precision: PRECISION_BY_UNIT[unit] ?? 2,
       },
       points,

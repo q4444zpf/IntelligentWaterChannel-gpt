@@ -4,21 +4,29 @@ function formatDateTime(value) {
   return formatted.length === 16 ? `${formatted}:00` : formatted;
 }
 
-export function buildHistoryParams({ current, size, groupId, start, end, intervalSeconds, deviceIds }) {
+function formatCollectStatus(value) {
+  if (value === true || value === '正常') return true;
+  if (value === false || value === '异常') return false;
+  return undefined;
+}
+
+export function buildHistoryParams({ current, size, groupId, start, end, intervalSeconds, deviceIds, status }) {
   return {
     current,
     size,
-    ...buildHistoryFilterParams({ groupId, start, end, intervalSeconds, deviceIds }),
+    ...buildHistoryFilterParams({ groupId, start, end, intervalSeconds, deviceIds, status }),
   };
 }
 
-export function buildHistoryFilterParams({ groupId, start, end, intervalSeconds, deviceIds }) {
+export function buildHistoryFilterParams({ groupId, start, end, intervalSeconds, deviceIds, status }) {
+  const collectStatus = formatCollectStatus(status);
   return {
     groupId,
     startTime: formatDateTime(start),
     endTime: formatDateTime(end),
     intervalSeconds,
     deviceUids: deviceIds,
+    ...(collectStatus === undefined ? {} : { status: collectStatus }),
   };
 }
 

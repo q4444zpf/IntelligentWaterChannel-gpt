@@ -112,6 +112,7 @@ export function useHistoryQuery() {
       end: query.end,
       intervalSeconds: query.intervalSeconds,
       deviceIds: query.deviceIds,
+      status: query.status,
     });
     const normalized = normalizeHistoryPage(responsePage);
     rows.value = normalized.rows;
@@ -198,6 +199,7 @@ export function useHistoryQuery() {
         end: appliedQuery.value.end,
         intervalSeconds: appliedQuery.value.intervalSeconds,
         deviceIds: appliedQuery.value.deviceIds,
+        status: appliedQuery.value.status,
       });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');

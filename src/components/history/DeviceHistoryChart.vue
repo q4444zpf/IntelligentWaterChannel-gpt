@@ -5,7 +5,7 @@
         <div class="device-chart-title">
           <strong>{{ result.device.name || result.device.id }}</strong>
           <span>{{ result.device.type }}</span>
-          <i :class="statusClass">{{ result.device.state }}</i>
+          <i :class="statusClass" title="最新一条数据的采集状态">{{ result.device.state }}</i>
         </div>
         <p>{{ result.device.location }} · {{ result.device.metric }}（{{ result.device.unit }}）</p>
       </div>
@@ -63,11 +63,8 @@ const latestValue = computed(() => {
 const chartLabel = computed(() => `${props.result.device.id}${props.result.device.metric}历史变化曲线`);
 const statusClass = computed(() => ({
   正常: 'online',
-  在线: 'online',
-  异常: 'warning',
-  离线: 'offline'
+  异常: 'warning'
 }[props.result.device.state] || 'offline'));
-
 const chartColors = {
   水位计: '#26a8ff',
   流量计: '#24c98a',

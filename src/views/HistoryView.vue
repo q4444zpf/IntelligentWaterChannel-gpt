@@ -68,7 +68,7 @@
                 </a-form-item>
                 <a-form-item label="数据状态">
                   <a-select v-model:value="draft.status">
-                    <a-select-option value="全部">全部</a-select-option><a-select-option value="在线">正常</a-select-option><a-select-option value="异常">异常</a-select-option>
+                    <a-select-option value="全部">全部</a-select-option><a-select-option value="正常">正常</a-select-option><a-select-option value="异常">异常</a-select-option>
                   </a-select>
                 </a-form-item>
               </a-form>
@@ -118,7 +118,7 @@
                 @change="handleHistoryTableChange"
               >
                 <template #bodyCell="{ column, record }">
-                  <StatusText v-if="column.key === 'state'" :value="record.state" />
+                  <StatusText v-if="column.key === 'state'" :value="record.state" :title="record.reason || undefined" />
                 </template>
               </a-table>
             </div>
