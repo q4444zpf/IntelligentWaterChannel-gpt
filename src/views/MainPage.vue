@@ -27,6 +27,7 @@
       @view-history="openAlarmHistory"
     />
 
+    <!-- [临时禁用] 实时告警弹窗，改为顶部铃铛气泡通知
     <RealtimeAlarmNotificationModal
       v-if="realtimeAlarm"
       :alarm="realtimeAlarm"
@@ -38,6 +39,7 @@
       @next="removeCurrentRealtimeAlarm"
       @view-all="openRealtimeAlarmList"
     />
+    -->
 
     <a-config-provider :theme="alarmSoundPromptTheme">
       <a-modal
@@ -61,9 +63,9 @@
 
 <script setup>
 import { ConfigProvider as AConfigProvider, Modal as AModal, theme as antTheme } from 'ant-design-vue';
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
 import AlarmDetailModal from '../components/alarm/AlarmDetailModal.vue';
-import RealtimeAlarmNotificationModal from '../components/alarm/RealtimeAlarmNotificationModal.vue';
+// import RealtimeAlarmNotificationModal from '../components/alarm/RealtimeAlarmNotificationModal.vue';
 import AppShell from '../layouts/AppShell.vue';
 import AlarmView from './AlarmView.vue';
 import HistoryView from './HistoryView.vue';
@@ -74,8 +76,8 @@ const selectedAlarm = ref(null);
 const alarmView = ref(null);
 const historyAlarmContext = ref(null);
 const realtimeSceneTarget = ref(null);
-const realtimeAlarmQueue = ref([]);
-const realtimeAlarm = computed(() => realtimeAlarmQueue.value[0] || null);
+// const realtimeAlarmQueue = ref([]);
+// const realtimeAlarm = computed(() => realtimeAlarmQueue.value[0] || null);
 const alarmSoundPromptOpen = ref(false);
 const alarmSoundEnabled = ref(false);
 const alarmAudioContext = shallowRef(null);
@@ -91,8 +93,8 @@ const alarmSoundPromptTheme = {
     colorTextSecondary: '#8faccc',
   },
 };
-let realtimeAlarmSequence = 0;
 let realtimeSceneTargetSequence = 0;
+// let realtimeAlarmSequence = 0;
 
 function enableAlarmSound() {
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -120,6 +122,67 @@ function enableAlarmSound() {
 
 function disableAlarmSound() {
   alarmSoundPromptOpen.value = false;
+}
+
+function playAlarmSound() {
+  const context = alarmAudioContext.value;
+  if (!alarmSoundEnabled.value || !context || context.state !== 'running') return;
+  const playTone = () => {
+    const startTime = context.currentTime;
+    const cycleCount = 4;
+    const lowFrequency = 650;
+    const highFrequency = 1550;
+    const riseDuration = 0.16;
+    const highFrequencyHoldDuration = 0.02;
+    const fallDuration = 0.16;
+    const lowFrequencyHoldDuration = 0.02;
+    const cycleDuration = riseDuration + highFrequencyHoldDuration
+      + fallDuration + lowFrequencyHoldDuration;
+    const squareOscillator = context.createOscillator();
+    const sineOscillator = context.createOscillator();
+    const squareWaveformGain = context.createGain();
+    const sineWaveformGain = context.createGain();
+    const lowPassFilter = context.createBiquadFilter();
+    const masterGain = context.createGain();
+
+    squareOscillator.type = 'square';
+    sineOscillator.type = 'sine';
+    squareWaveformGain.gain.setValueAtTime(0.18, startTime);
+    sineWaveformGain.gain.setValueAtTime(0.18, startTime);
+    lowPassFilter.type = 'lowpass';
+    lowPassFilter.frequency.setValueAtTime(4300, startTime);
+    masterGain.gain.setValueAtTime(0.22, startTime);
+
+    const scheduleFrequencySweep = (oscillator) => {
+      for (let cycleIndex = 0; cycleIndex < cycleCount; cycleIndex += 1) {
+        const cycleStartTime = startTime + cycleIndex * cycleDuration;
+        const highFrequencyStartTime = cycleStartTime + riseDuration;
+        const fallStartTime = highFrequencyStartTime + highFrequencyHoldDuration;
+        const lowFrequencyStartTime = fallStartTime + fallDuration;
+        const cycleEndTime = lowFrequencyStartTime + lowFrequencyHoldDuration;
+        oscillator.frequency.setValueAtTime(lowFrequency, cycleStartTime);
+        oscillator.frequency.linearRampToValueAtTime(highFrequency, highFrequencyStartTime);
+        oscillator.frequency.setValueAtTime(highFrequency, fallStartTime);
+        oscillator.frequency.linearRampToValueAtTime(lowFrequency, lowFrequencyStartTime);
+        oscillator.frequency.setValueAtTime(lowFrequency, cycleEndTime);
+      }
+    };
+
+    scheduleFrequencySweep(squareOscillator);
+    scheduleFrequencySweep(sineOscillator);
+    squareOscillator.connect(squareWaveformGain);
+    squareWaveformGain.connect(lowPassFilter);
+    sineOscillator.connect(sineWaveformGain);
+    sineWaveformGain.connect(lowPassFilter);
+    lowPassFilter.connect(masterGain);
+    masterGain.connect(context.destination);
+    squareOscillator.start(startTime);
+    sineOscillator.start(startTime);
+    squareOscillator.stop(startTime + cycleCount * cycleDuration);
+    sineOscillator.stop(startTime + cycleCount * cycleDuration);
+  };
+
+  playTone();
 }
 
 function showPage(page, options) {
@@ -167,31 +230,39 @@ function handleRealtimeAlarmNotification(event) {
   const alarm = payload && typeof payload === 'object'
     ? { ...payload }
     : { title: '告警通知', content: String(payload || '收到新的告警通知') };
+
+  playAlarmSound();
+
+  window.dispatchEvent(new CustomEvent('alarm-bubble', { detail: alarm }));
+
+  /* [临时禁用] 原队列弹窗逻辑
   realtimeAlarmQueue.value.push({
     ...alarm,
     notificationKey: ++realtimeAlarmSequence,
   });
   void nextTick(() => window.dispatchEvent(new Event('realtime-alarm-arrived')));
+  */
 }
 
-function removeCurrentRealtimeAlarm() {
-  realtimeAlarmQueue.value.shift();
-}
-
-function clearRealtimeAlarmQueue() {
-  realtimeAlarmQueue.value = [];
-}
-
-function handleRealtimeAlarmHandled() {
-  removeCurrentRealtimeAlarm();
-  void alarmView.value?.refresh();
-  window.dispatchEvent(new Event('alarm-status-changed'));
-}
-
-function openRealtimeAlarmList() {
-  clearRealtimeAlarmQueue();
-  showPage('alarm');
-}
+// [临时禁用] 原队列弹窗辅助函数
+// function removeCurrentRealtimeAlarm() {
+//   realtimeAlarmQueue.value.shift();
+// }
+//
+// function clearRealtimeAlarmQueue() {
+//   realtimeAlarmQueue.value = [];
+// }
+//
+// function handleRealtimeAlarmHandled() {
+//   removeCurrentRealtimeAlarm();
+//   void alarmView.value?.refresh();
+//   window.dispatchEvent(new Event('alarm-status-changed'));
+// }
+//
+// function openRealtimeAlarmList() {
+//   clearRealtimeAlarmQueue();
+//   showPage('alarm');
+// }
 
 onMounted(() => {
   window.addEventListener('alarm-notification', handleRealtimeAlarmNotification);

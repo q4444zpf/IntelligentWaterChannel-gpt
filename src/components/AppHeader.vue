@@ -18,15 +18,35 @@
         <span>菜单</span>
       </button>
 
-      <button
-        class="alarm-trigger"
-        type="button"
-        :aria-label="unhandledAlarmCount > 0 ? `查看告警，${unhandledAlarmDisplay}条未处理` : '查看告警'"
-        @click="$emit('navigate', 'alarm'); userMenuOpen = false"
-      >
-        <BellOutlined aria-hidden="true" />
-        <span v-if="unhandledAlarmCount > 0" class="badge">{{ unhandledAlarmDisplay }}</span>
-      </button>
+      <div class="alarm-trigger-wrapper">
+        <button
+          class="alarm-trigger"
+          type="button"
+          :aria-label="unhandledAlarmCount > 0 ? `查看告警，${unhandledAlarmDisplay}条未处理` : '查看告警'"
+          @click="$emit('navigate', 'alarm'); userMenuOpen = false; alarmBubbleVisible = false"
+        >
+          <BellOutlined aria-hidden="true" />
+          <span v-if="unhandledAlarmCount > 0" class="badge">{{ unhandledAlarmDisplay }}</span>
+        </button>
+
+        <Transition name="alarm-bubble">
+          <div
+            v-if="alarmBubbleVisible"
+            class="alarm-bubble"
+            role="status"
+            :aria-live="'polite'"
+          >
+            <div class="alarm-bubble__grade">{{ bubbleGrade }}</div>
+            <div class="alarm-bubble__content">{{ bubbleContent }}</div>
+            <button
+              class="alarm-bubble__close"
+              type="button"
+              aria-label="关闭告警提示"
+              @click="dismissAlarmBubble"
+            >×</button>
+          </div>
+        </Transition>
+      </div>
 
       <Transition name="menu-popover">
         <nav v-if="userMenuOpen" class="menu-popover" aria-label="主导航">
@@ -126,7 +146,21 @@ const username = computed(() => {
   const user = authState.user.value;
   return user?.name || user?.username || user?.account || '用户';
 });
+const alarmBubbleVisible = ref(false);
+const alarmBubblePayload = ref(null);
+const bubbleGrade = computed(() => {
+  const gradeMap = { fatal: '严重', urgent: '紧急', warn: '告警', notice: '通知' };
+  const grade = alarmBubblePayload.value?.grade;
+  return gradeMap[grade] || '告警';
+});
+const bubbleContent = computed(() => {
+  const p = alarmBubblePayload.value || {};
+  const device = p.deviceName || p.deviceSn || '未知设备';
+  const content = p.content || p.message || p.title || '收到新的告警通知';
+  return `${device} · ${content}`;
+});
 let alarmRefreshTimer = null;
+let alarmBubbleTimer = null;
 
 function handleUserAreaFocusOut(event) {
   if (!event.currentTarget.contains(event.relatedTarget)) {
@@ -171,16 +205,44 @@ function scheduleUnhandledAlarmRefresh() {
   }, 300);
 }
 
+function showAlarmBubble(payload) {
+  if (alarmBubbleTimer !== null) {
+    window.clearTimeout(alarmBubbleTimer);
+    alarmBubbleTimer = null;
+  }
+  alarmBubblePayload.value = payload;
+  alarmBubbleVisible.value = true;
+  alarmBubbleTimer = window.setTimeout(() => {
+    alarmBubbleVisible.value = false;
+    alarmBubbleTimer = null;
+  }, 5000);
+}
+
+function dismissAlarmBubble() {
+  if (alarmBubbleTimer !== null) {
+    window.clearTimeout(alarmBubbleTimer);
+    alarmBubbleTimer = null;
+  }
+  alarmBubbleVisible.value = false;
+}
+
+function handleAlarmBubbleEvent(event) {
+  showAlarmBubble(event.detail);
+}
+
 onMounted(() => {
   void refreshUnhandledAlarmCount();
   window.addEventListener('alarm-notification', scheduleUnhandledAlarmRefresh);
   window.addEventListener('alarm-status-changed', refreshUnhandledAlarmCount);
+  window.addEventListener('alarm-bubble', handleAlarmBubbleEvent);
 });
 
 onBeforeUnmount(() => {
   if (alarmRefreshTimer !== null) window.clearTimeout(alarmRefreshTimer);
+  if (alarmBubbleTimer !== null) window.clearTimeout(alarmBubbleTimer);
   window.removeEventListener('alarm-notification', scheduleUnhandledAlarmRefresh);
   window.removeEventListener('alarm-status-changed', refreshUnhandledAlarmCount);
+  window.removeEventListener('alarm-bubble', handleAlarmBubbleEvent);
 });
 </script>
 
@@ -305,6 +367,137 @@ onBeforeUnmount(() => {
   color: #fff;
   font-size: 11px;
   line-height: 20px;
+}
+
+.alarm-trigger-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.alarm-bubble {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 10px);
+  z-index: 10;
+  display: flex;
+  min-width: 280px;
+  max-width: 400px;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 32px 10px 12px;
+  border: 1px solid rgba(255, 77, 79, 0.55);
+  border-radius: 6px;
+  background: linear-gradient(135deg, rgba(30, 4, 8, 0.97), rgba(5, 28, 52, 0.97));
+  box-shadow:
+    0 0 0 1px rgba(255, 77, 79, 0.18),
+    0 8px 32px rgba(0, 0, 0, 0.6),
+    inset 0 0 20px rgba(255, 77, 79, 0.08);
+  color: #f2f9ff;
+  transform: translateY(-50%);
+  pointer-events: auto;
+}
+
+.alarm-bubble::before {
+  position: absolute;
+  top: 50%;
+  left: -8px;
+  width: 0;
+  height: 0;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  border-right: 8px solid rgba(255, 77, 79, 0.55);
+  transform: translateY(-50%);
+  content: '';
+}
+
+.alarm-bubble::after {
+  position: absolute;
+  top: 50%;
+  left: -7px;
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-right: 7px solid rgba(5, 28, 52, 0.97);
+  transform: translateY(-50%);
+  content: '';
+}
+
+.alarm-bubble__grade {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 3px;
+  background: rgba(255, 77, 79, 0.2);
+  color: #ff7875;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 22px;
+  white-space: nowrap;
+}
+
+.alarm-bubble__content {
+  display: -webkit-box;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  color: #eff7ff;
+  font-size: 12px;
+  line-height: 1.6;
+  word-break: break-all;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.alarm-bubble__close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: #8faccc;
+  font-size: 14px;
+  line-height: 1;
+  place-items: center;
+  cursor: pointer;
+}
+
+.alarm-bubble__close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.alarm-bubble-enter-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.alarm-bubble-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.alarm-bubble-enter-from {
+  opacity: 0;
+  transform: translateY(-50%) translateX(-8px);
+}
+
+.alarm-bubble-leave-to {
+  opacity: 0;
+  transform: translateY(-50%) translateX(-8px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alarm-bubble-enter-active,
+  .alarm-bubble-leave-active {
+    transition: none;
+  }
 }
 
 .menu-popover {
