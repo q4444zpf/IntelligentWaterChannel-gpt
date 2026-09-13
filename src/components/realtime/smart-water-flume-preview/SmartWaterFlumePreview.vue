@@ -1152,9 +1152,8 @@ function startCameraTransition(targetPosition, targetTarget, targetZoom = camera
   const safeDistance = modelRadius + transitionClearance;
   cameraTransition = {
     startedAt: performance.now(),
-    duration: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-      ? 0
-      : CAMERA_FOCUS_DURATION,
+    // 视角定位必须保留过渡，不能被系统“减少动态效果”配置直接切换为瞬移。
+    duration: CAMERA_FOCUS_DURATION,
     fromPosition: camera.position.clone(),
     targetPosition: targetPosition.clone(),
     fromTarget,
@@ -1296,10 +1295,13 @@ function updateLabels() {
 function updateCameraTransition(timestamp) {
   if (!cameraTransition || !camera || !controls) return;
 
+  // 使用 performance.now() 与开始时间保持同一时钟，避免不同浏览器的 RAF 时间戳基准不一致。
+  const transitionTimestamp = performance.now();
+
   const progress = cameraTransition.duration === 0
     ? 1
     : THREE.MathUtils.clamp(
-      (timestamp - cameraTransition.startedAt) / cameraTransition.duration,
+      (transitionTimestamp - cameraTransition.startedAt) / cameraTransition.duration,
       0,
       1,
     );
