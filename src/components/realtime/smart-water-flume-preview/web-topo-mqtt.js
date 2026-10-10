@@ -44,6 +44,15 @@ export function unsubscribeWebTopoMqtt(client, topic, onError) {
   });
 }
 
+export function publishWebTopoMqtt(client, topic, payload, onError) {
+  const normalizedTopic = topic?.trim();
+  if (!client || !normalizedTopic || !client.connected) return false;
+  client.publish(normalizedTopic, JSON.stringify(payload), { qos: 0 }, (error) => {
+    if (error) onError?.(error);
+  });
+  return true;
+}
+
 export function disconnectWebTopoMqtt(client) {
   if (!client) return;
   client.removeAllListeners();

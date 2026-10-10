@@ -18,19 +18,19 @@
         <span class="scene-control-hint" aria-hidden="true">标签设置</span>
         <TagsOutlined aria-hidden="true" />
       </button>
-<!--      <button-->
-<!--        v-if="modelGroupTree.length"-->
-<!--        type="button"-->
-<!--        class="selected-model-isolation"-->
-<!--        :class="{ active: selectedModelIsolationEnabled }"-->
-<!--        :aria-pressed="selectedModelIsolationEnabled"-->
-<!--        aria-label="只显示选中对象"-->
-<!--        title="只显示选中对象"-->
-<!--        @click="setSelectedModelIsolation(!selectedModelIsolationEnabled)"-->
-<!--      >-->
-<!--        <span class="scene-control-hint" aria-hidden="true">选中定位</span>-->
-<!--        <AimOutlined aria-hidden="true" />-->
-<!--      </button>-->
+      <button
+        v-if="modelGroupTree.length"
+        type="button"
+        class="selected-model-isolation"
+        :class="{ active: selectedModelIsolationEnabled }"
+        :aria-pressed="selectedModelIsolationEnabled"
+        aria-label="只显示选中对象"
+        title="只显示选中对象"
+        @click="setSelectedModelIsolation(!selectedModelIsolationEnabled)"
+      >
+        <span class="scene-control-hint" aria-hidden="true">选中定位</span>
+        <AimOutlined aria-hidden="true" />
+      </button>
       <button
         v-if="modelGroupTree.length"
         type="button"
@@ -305,6 +305,7 @@ import {
 import {
   connectWebTopoMqtt,
   disconnectWebTopoMqtt,
+  publishWebTopoMqtt,
   subscribeWebTopoMqtt,
   unsubscribeWebTopoMqtt,
 } from './web-topo-mqtt.js';
@@ -443,6 +444,7 @@ let resizeObserver;
 let abortController;
 let mqttClient;
 let realtimeTopic = '';
+let mqttConfig = null;
 let modelCenter = new THREE.Vector3();
 let modelSize = new THREE.Vector3(10, 5, 2);
 let defaultCameraState;
@@ -849,15 +851,22 @@ function stopMqtt() {
   disconnectWebTopoMqtt(mqttClient);
   mqttClient = null;
   realtimeTopic = '';
+  mqttConfig = null;
 }
 
 function startMqtt(config) {
   stopMqtt();
+  mqttConfig = config || null;
   realtimeTopic = config?.topic?.trim() || '';
   mqttClient = connectWebTopoMqtt(config, handleMqttData, handleMqttError);
   if (props.alarmTopic.trim() && props.alarmTopic.trim() !== realtimeTopic) {
     subscribeWebTopoMqtt(mqttClient, props.alarmTopic, handleMqttError);
   }
+}
+
+function publishMqttCommand(commandName, payload) {
+  const topic = mqttConfig?.commands?.[commandName]?.topic;
+  return publishWebTopoMqtt(mqttClient, topic, payload, handleMqttError);
 }
 
 function createRenderer() {
@@ -911,6 +920,10 @@ function createRenderer() {
 function createControls(target) {
   controls?.dispose();
   controls = new OrbitControls(camera, renderer.domElement);
+  controls.enabled = true;
+  controls.enableRotate = true;
+  controls.enableZoom = true;
+  controls.enablePan = true;
   controls.enableDamping = true;
   controls.dampingFactor = 0.07;
   controls.autoRotateSpeed = roamingSpeed.value;
@@ -1420,6 +1433,7 @@ onBeforeUnmount(() => {
 defineExpose({
   focusSceneTreeGroupByName,
   handleAction: setView,
+  publishMqttCommand,
   reload: reloadScene,
   triggerDataUpdate,
 });

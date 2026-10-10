@@ -19,7 +19,7 @@ echarts.use([LineChart, GridComponent, LegendComponent, MarkLineComponent, Toolt
 const props = defineProps({
   data: {
     type: Object,
-    default: () => ({ times: [], preTurbidity: [], postTurbidity: [], tankLevel: [] }),
+    default: () => ({ times: [], preTurbidity: [], postTurbidity: [], pacDose: [] }),
   },
   targetRange: { type: Array, default: () => [10, 20] },
 });
@@ -73,9 +73,9 @@ function buildChartOption() {
       },
       {
         type: 'value',
-        name: 'mm',
+        name: 'mg/L',
         min: 0,
-        max: 1000,
+        max: 72,
         splitNumber: 4,
         nameTextStyle: { color: '#789bb5', fontSize: 9 },
         axisLabel: { color: '#789bb5', fontSize: 9 },
@@ -106,7 +106,7 @@ function buildChartOption() {
         },
       },
       { ...commonSeries, name: '后馈浊度', data: props.data.postTurbidity },
-      { ...commonSeries, name: '配药箱水位', yAxisIndex: 1, data: props.data.tankLevel },
+      { ...commonSeries, name: 'PAC 基准投加量', yAxisIndex: 1, data: props.data.pacDose },
     ],
   };
 }
