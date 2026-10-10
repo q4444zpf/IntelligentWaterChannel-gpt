@@ -50,7 +50,7 @@ const deviceGroups = [{
 }];
 
 test('uses the configured realtime device group', () => {
-  assert.equal(WEB_TOPO_CONFIG.deviceGroupId, 69);
+  assert.equal(WEB_TOPO_CONFIG.deviceGroupId, 96);
 });
 
 test('builds realtime tables from API metadata and MQTT values', () => {

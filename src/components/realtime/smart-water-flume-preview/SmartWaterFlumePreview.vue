@@ -838,7 +838,7 @@ function handleMqttData(payload, receivedTopic, rawMessage) {
     scriptRuntime?.emit(field, value);
   });
   scriptRuntime?.emit('mqttMessage', payload);
-  emit('mqtt-data', payload);
+  emit('mqtt-data', { payload, topic: receivedTopic });
 }
 
 function handleMqttError(error) {

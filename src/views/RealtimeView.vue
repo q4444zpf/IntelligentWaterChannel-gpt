@@ -22,7 +22,9 @@
       <!-- 原三维组件继续保留，后续接入真实模型时切换展示状态即可。 -->
       <SmartWaterFlumePreview
         v-else
+        :key="activeSceneConfig.webTopoId"
         ref="previewRef"
+        :web-topo-id="activeSceneConfig.webTopoId"
         :alarm-topic="alarmNotificationTopic"
         performance-mode
         @mqtt-data="handleMqttData"
@@ -340,6 +342,7 @@
 import { Slider as ASlider } from 'ant-design-vue';
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { getBigWaterChannelAlarmNotificationTopic } from '../api/alarm.js';
+import { getRealtimeGroupDevices } from '../api/realtime.js';
 import DecorativePanel from '../components/common/DecorativePanel.vue';
 import AerationProcess from '../components/realtime/AerationProcess.vue';
 import AerationRealtimeTrendChart from '../components/realtime/AerationRealtimeTrendChart.vue';
@@ -349,6 +352,7 @@ import PumpFrequencyGauge from '../components/realtime/PumpFrequencyGauge.vue';
 import SensorRealtimeBars from '../components/realtime/SensorRealtimeBars.vue';
 import SmartWaterFlumePreview from '../components/realtime/smart-water-flume-preview/SmartWaterFlumePreview.vue';
 import { PROTOTYPE_ACCESS_TOKEN } from '../constants/auth.js';
+import { getWebTopoSceneConfig } from '../config/webTopoConfig.js';
 import { getToken } from '../utils/auth.js';
 
 const props = defineProps({
@@ -367,9 +371,12 @@ const emit = defineEmits([
   'realtime-data',
 ]);
 const previewRef = ref(null);
-const showProcessPrototype = ref(true);
+const showProcessPrototype = ref(false);
 const alarmNotificationTopic = ref('');
 const activeScene = computed(() => props.monitoringScene === 'aeration' ? 'aeration' : 'dosing');
+const activeSceneConfig = computed(() => getWebTopoSceneConfig(activeScene.value));
+const sceneDevices = ref([]);
+const sceneTelemetry = reactive({ dosing: {}, aeration: {} });
 
 const prototypeState = reactive({
   inletPumpFrequency: 38,
@@ -413,7 +420,7 @@ function finiteNumber(value, fallback) {
 }
 
 const realtimeDisplay = computed(() => {
-  const source = props.prototypeData || prototypeState;
+  const source = props.prototypeData || { ...prototypeState, ...sceneTelemetry.dosing };
   return {
     inletPumpFrequency: Math.min(50, Math.max(0, finiteNumber(source.inletPumpFrequency, prototypeState.inletPumpFrequency))),
     inletPumpRunning: typeof source.inletPumpRunning === 'boolean' ? source.inletPumpRunning : prototypeState.inletPumpRunning,
@@ -422,8 +429,8 @@ const realtimeDisplay = computed(() => {
     preTurbidity: finiteNumber(source.preTurbidity, prototypeState.preTurbidity),
     postTurbidity: finiteNumber(source.postTurbidity, prototypeState.postTurbidity),
     tankLevel: Math.min(1000, Math.max(0, finiteNumber(source.tankLevel, prototypeState.tankLevel))),
-    pumpPercent: Math.min(100, Math.max(0, finiteNumber(source.pumpPercent, prototypeState.pumpPercent))),
-    pumpRunning: typeof source.pumpRunning === 'boolean' ? source.pumpRunning : prototypeState.pumpRunning,
+    pumpPercent: Math.min(100, Math.max(0, finiteNumber(source.pumpPercent, finiteNumber(source.pumpFlow, 0) / 10))),
+    pumpRunning: typeof source.pumpRunning === 'boolean' ? source.pumpRunning : finiteNumber(source.pumpFlow, 0) > 0,
     targetMin: Math.min(80, Math.max(0, finiteNumber(source.targetMin, prototypeState.targetMin))),
     targetMax: Math.min(80, Math.max(0, finiteNumber(source.targetMax, prototypeState.targetMax))),
     trend: source.trend || prototypeState.trend,
@@ -431,14 +438,14 @@ const realtimeDisplay = computed(() => {
 });
 
 const aerationDisplay = computed(() => {
-  const source = props.prototypeData?.aeration || aerationPrototypeState;
+  const source = props.prototypeData?.aeration || { ...aerationPrototypeState, ...sceneTelemetry.aeration };
   return {
     inletPumpFrequency: Math.min(50, Math.max(0, finiteNumber(source.inletPumpFrequency, aerationPrototypeState.inletPumpFrequency))),
     inletPumpRunning: typeof source.inletPumpRunning === 'boolean' ? source.inletPumpRunning : aerationPrototypeState.inletPumpRunning,
     doValue: Math.min(10, Math.max(0, finiteNumber(source.doValue, aerationPrototypeState.doValue))),
-    airFlow: Math.min(40, Math.max(0, finiteNumber(source.airFlow, aerationPrototypeState.airFlow))),
-    blowerPercent: Math.min(100, Math.max(0, finiteNumber(source.blowerPercent, aerationPrototypeState.blowerPercent))),
-    blowerRunning: typeof source.blowerRunning === 'boolean' ? source.blowerRunning : aerationPrototypeState.blowerRunning,
+    airFlow: Math.min(40, Math.max(0, finiteNumber(source.airFlow, source.inletFlow))),
+    blowerPercent: Math.min(100, Math.max(0, finiteNumber(source.blowerPercent, finiteNumber(source.blowerHz, 0) * 2))),
+    blowerRunning: typeof source.blowerRunning === 'boolean' ? source.blowerRunning : finiteNumber(source.blowerHz, 0) > 0,
     targetMin: Math.min(10, Math.max(0, finiteNumber(source.targetMin, aerationPrototypeState.targetMin))),
     targetMax: Math.min(10, Math.max(0, finiteNumber(source.targetMax, aerationPrototypeState.targetMax))),
     trend: source.trend || aerationPrototypeState.trend,
@@ -613,7 +620,43 @@ function handleAerationTargetRangeChange(values) {
   updateAerationTargetRange({ targetMin: values[0], targetMax: values[1] });
 }
 
-function handleMqttData(payload) {
+function flattenRealtimeDevices(groups) {
+  return groups.flatMap((group) => Array.isArray(group?.data) ? group.data : []);
+}
+
+async function loadRealtimeDevices() {
+  try {
+    const groups = await getRealtimeGroupDevices(activeSceneConfig.value.deviceGroupId);
+    sceneDevices.value = flattenRealtimeDevices(groups);
+  } catch (error) {
+    sceneDevices.value = [];
+    console.error('获取实时设备映射失败', error);
+  }
+}
+
+function handleMqttData(message) {
+  const payload = message?.payload ?? message;
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return;
+
+  const tagCounts = sceneDevices.value.reduce((counts, device) => {
+    const tag = device?.tag;
+    if (tag) counts.set(tag, (counts.get(tag) || 0) + 1);
+    return counts;
+  }, new Map());
+
+  sceneDevices.value.forEach((device) => {
+    const preciseTag = device?.deviceSn && device?.tag ? `${device.deviceSn}:${device.tag}` : '';
+    const hasPreciseValue = preciseTag && Object.prototype.hasOwnProperty.call(payload || {}, preciseTag);
+    // 同名 tag 必须使用设备编号限定，避免不同设备的测点覆盖彼此。
+    const hasUniqueTagValue = device?.tag
+      && tagCounts.get(device.tag) === 1
+      && Object.prototype.hasOwnProperty.call(payload, device.tag);
+    if (device?.viewField && (hasPreciseValue || hasUniqueTagValue)) {
+      sceneTelemetry[activeScene.value][device.viewField] = hasPreciseValue
+        ? payload[preciseTag]
+        : payload[device.tag];
+    }
+  });
   emit('realtime-data', payload);
 }
 
@@ -639,6 +682,11 @@ watch(() => props.sceneTarget, async (target) => {
   await nextTick();
   previewRef.value?.focusSceneTreeGroupByName(channelName);
 });
+
+watch(activeSceneConfig, () => {
+  sceneDevices.value = [];
+  void loadRealtimeDevices();
+}, { immediate: true });
 
 onMounted(() => {
   void loadAlarmNotificationTopic();
