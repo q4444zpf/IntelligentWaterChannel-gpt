@@ -326,6 +326,7 @@ import {
   collectWebTopoMaterialAnimations,
   updateWebTopoMaterialAnimations,
 } from './web-topo-material-runtime.js';
+import { createWebTopoAnimationRuntime } from './web-topo-animation-runtime.js';
 import { createWebTopoScriptRuntime } from './web-topo-script-runtime.js';
 
 const props = defineProps({
@@ -457,6 +458,7 @@ let cameraTransition;
 let canvasPointerDown;
 let scriptRuntime;
 let materialAnimations = [];
+let objectAnimationRuntime;
 let previousRenderTimestamp;
 let pendingSceneTreeGroupName = '';
 let disposed = false;
@@ -971,6 +973,8 @@ function applyControlsState(state) {
 async function loadScene({ forceReload = false } = {}) {
   scriptRuntime?.dispose();
   scriptRuntime = undefined;
+  objectAnimationRuntime?.dispose();
+  objectAnimationRuntime = undefined;
   materialAnimations = [];
   previousRenderTimestamp = undefined;
   resetModelExpansion();
@@ -1019,6 +1023,8 @@ async function loadScene({ forceReload = false } = {}) {
     scene = loaded.scene;
     scene.background = null;
     materialAnimations = collectWebTopoMaterialAnimations(scene, loaded.metadata);
+    objectAnimationRuntime = createWebTopoAnimationRuntime(scene);
+    if (scene.userData?.autoPlayAnimations === true) objectAnimationRuntime.play();
     applySceneBackgroundColor(loaded.backgroundColor);
     indexSceneObjects(scene);
     modelGroupTree.value = buildGroupTreeUnder(scene, '模型');
@@ -1345,10 +1351,12 @@ function reloadScene() {
 function renderScene(timestamp = performance.now()) {
   if (!composer || !scene || !camera) return;
   if (previousRenderTimestamp !== undefined) {
+    const deltaSeconds = (timestamp - previousRenderTimestamp) / 1000;
     updateWebTopoMaterialAnimations(
       materialAnimations,
-      (timestamp - previousRenderTimestamp) / 1000,
+      deltaSeconds,
     );
+    objectAnimationRuntime?.update(deltaSeconds);
   }
   previousRenderTimestamp = timestamp;
   updateModelExpansionTransition(timestamp);
@@ -1409,6 +1417,8 @@ onBeforeUnmount(() => {
   disposed = true;
   scriptRuntime?.dispose();
   scriptRuntime = undefined;
+  objectAnimationRuntime?.dispose();
+  objectAnimationRuntime = undefined;
   abortController?.abort();
   resizeObserver?.disconnect();
   controls?.dispose();

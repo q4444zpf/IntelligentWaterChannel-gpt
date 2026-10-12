@@ -515,7 +515,16 @@ function handlePumpPercentInput(event) {
 
 function updateDosingInletPump(patch) {
   Object.assign(dosingControl, patch);
+  publishDosingInletPumpCommand();
   emit('dosing-inlet-pump-control-change', patch);
+}
+
+function publishDosingInletPumpCommand() {
+  previewRef.value?.publishMqttCommand('inletPump', {
+    action: 'configure',
+    running: dosingControl.inletPumpRunning,
+    frequency: dosingControl.inletPumpFrequency,
+  });
 }
 
 function toggleDosingInletPump() {
@@ -571,7 +580,16 @@ function handleBlowerPercentInput(event) {
 
 function updateAerationInletPump(patch) {
   Object.assign(aerationControl, patch);
+  publishAerationInletPumpCommand();
   emit('inlet-pump-control-change', patch);
+}
+
+function publishAerationInletPumpCommand() {
+  previewRef.value?.publishMqttCommand('inletPump', {
+    action: 'configure',
+    running: aerationControl.inletPumpRunning,
+    frequency: aerationControl.inletPumpFrequency,
+  });
 }
 
 function toggleAerationInletPump() {
