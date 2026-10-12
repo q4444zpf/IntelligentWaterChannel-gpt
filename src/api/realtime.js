@@ -3,6 +3,7 @@ import { TREND_PRODUCT_TYPES } from '../config/trendConfig.ts';
 import {
   buildGateOpeningControlRequest,
   buildPumpControlRequest,
+  buildSimulationCommandRequest,
   buildValveOpeningControlRequest,
 } from '../realtime-control.js';
 import { ApiError, http } from '../utils/request.js';
@@ -57,6 +58,20 @@ export async function setValveOpening(uid, opening) {
   if (response?.code !== 200) {
     throw new ApiError(
       response?.message || response?.msg || '阀门开度设置失败',
+      response?.code,
+    );
+  }
+
+  return response.data;
+}
+
+export async function sendSimulationCommand(uid, apiCode, command) {
+  const request = buildSimulationCommandRequest(uid, apiCode, command);
+  const response = await http.post(request.url, request.payload);
+
+  if (response?.code !== 200) {
+    throw new ApiError(
+      response?.message || response?.msg || '仿真设备控制下发失败',
       response?.code,
     );
   }

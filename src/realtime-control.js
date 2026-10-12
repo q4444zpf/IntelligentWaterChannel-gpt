@@ -4,6 +4,7 @@ const PUMP_CONTROL_API_CODE = 'setData';
 const PUMP_CONTROL_PARAM_FIELD = 'PublicPayload';
 const VALVE_OPENING_API_CODE = 'setValveOpening';
 const VALVE_OPENING_PARAM_FIELD = 'PublicPayload';
+const SIMULATION_COMMAND_PARAM_FIELD = 'PublicPayload';
 
 export function buildGateOpeningControlRequest(uid, opening) {
   const normalizedUid = String(uid ?? '').trim();
@@ -69,6 +70,32 @@ export function buildValveOpeningControlRequest(uid, opening) {
       uid: normalizedUid,
       param: {
         [VALVE_OPENING_PARAM_FIELD]: JSON.stringify({ opening: normalizedOpening }),
+      },
+    },
+  };
+}
+
+export function buildSimulationCommandRequest(uid, apiCode, command) {
+  const normalizedUid = String(uid ?? '').trim();
+  if (!normalizedUid) {
+    throw new Error('当前仿真设备缺少设备标识，无法下发控制');
+  }
+
+  const normalizedApiCode = String(apiCode ?? '').trim();
+  if (!normalizedApiCode) {
+    throw new Error('当前仿真设备缺少物模型控制接口');
+  }
+
+  if (!command || typeof command !== 'object' || Array.isArray(command)) {
+    throw new Error('仿真控制命令必须是 JSON 对象');
+  }
+
+  return {
+    url: `/iot/instruct/ctrl/${encodeURIComponent(normalizedApiCode)}`,
+    payload: {
+      uid: normalizedUid,
+      param: {
+        [SIMULATION_COMMAND_PARAM_FIELD]: JSON.stringify(command),
       },
     },
   };

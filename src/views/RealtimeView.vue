@@ -104,7 +104,20 @@
               <span class="device-code">PAC-01</span>
               <h2>PAC 计量泵</h2>
             </div>
-            <div class="pump-switch-control">
+            <div class="inlet-pump-control__switches">
+              <div class="auto-mode-switch-control">
+                <span>自动投加</span>
+                <button
+                  type="button"
+                  class="pump-switch"
+                  role="switch"
+                  :aria-checked="dosingControl.pacAutoMode"
+                  :aria-label="dosingControl.pacAutoMode ? '退出PAC自动投加' : '进入PAC自动投加'"
+                  :class="{ 'is-checked': dosingControl.pacAutoMode }"
+                  @click="togglePacAutoMode"
+                ><span aria-hidden="true"></span></button>
+              </div>
+              <div class="pump-switch-control">
               <span>{{ dosingControl.pumpRunning ? '开' : '关' }}</span>
               <button
                 type="button"
@@ -116,14 +129,15 @@
                 :disabled="dosingControl.pacAutoMode"
                 @click="togglePacPump"
               ><span aria-hidden="true"></span></button>
+              </div>
             </div>
           </header>
 
           <PumpFrequencyGauge
-            :value="activeControlPumpPercent"
-            :max="100"
-            label="当前输出"
-            unit="%"
+            :value="activePumpFlow"
+            :max="420"
+            label="实时流量"
+            unit="mL/h"
             gauge-center-y="88%"
             gauge-radius="151%"
           />
@@ -153,18 +167,6 @@
                 <h3>进水泵</h3>
               </div>
               <div class="inlet-pump-control__switches">
-                <div class="auto-mode-switch-control">
-                  <span>自动投加</span>
-                  <button
-                    type="button"
-                    class="pump-switch"
-                    role="switch"
-                    :aria-checked="dosingControl.pacAutoMode"
-                    :aria-label="dosingControl.pacAutoMode ? '退出PAC自动投加' : '进入PAC自动投加'"
-                    :class="{ 'is-checked': dosingControl.pacAutoMode }"
-                    @click="togglePacAutoMode"
-                  ><span aria-hidden="true"></span></button>
-                </div>
                 <div class="pump-switch-control">
                   <span>{{ dosingControl.inletPumpRunning ? '开' : '关' }}</span>
                   <button
@@ -180,7 +182,7 @@
               </div>
             </header>
             <PumpFrequencyGauge
-              :value="activeControlDosingInletPumpFrequency"
+              :value="activeDosingInletPumpFrequency"
               :max="50"
               label="当前频率"
               unit="Hz"
@@ -277,31 +279,31 @@
             </header>
 
             <PumpFrequencyGauge
-              :value="activeControlBlowerPercent"
-              :max="100"
-              label="当前输出"
-              unit="%"
+              :value="activeBlowerFrequency"
+              :max="50"
+              label="当前频率"
+              unit="Hz"
               gauge-center-y="88%"
               gauge-radius="151%"
             />
 
             <div class="control-value-row">
-              <span>输出设定</span>
-              <strong>{{ aerationControl.blowerPercent }}<small>%</small></strong>
+              <span>频率设定</span>
+              <strong>{{ aerationControl.blowerFrequency }}<small>Hz</small></strong>
             </div>
             <input
               class="pump-range"
               type="range"
               min="0"
-              max="100"
+              max="50"
               step="1"
-            :value="aerationControl.blowerPercent"
-            :style="{ '--range-progress': `${aerationControl.blowerPercent}%` }"
-            aria-label="曝气风机输出百分比"
+            :value="aerationControl.blowerFrequency"
+            :style="{ '--range-progress': `${aerationControl.blowerFrequency * 2}%` }"
+            aria-label="曝气风机频率"
             :disabled="aerationControl.autoMode"
-            @input="handleBlowerPercentInput"
+            @input="handleBlowerFrequencyInput"
             />
-            <div class="range-scale" aria-hidden="true"><span>0%</span><span>50%</span><span>100%</span></div>
+            <div class="range-scale" aria-hidden="true"><span>0 Hz</span><span>25 Hz</span><span>50 Hz</span></div>
 
             <section class="inlet-pump-control" aria-label="进水泵控制">
               <header class="inlet-pump-control__head">
@@ -323,7 +325,7 @@
                 </div>
               </header>
               <PumpFrequencyGauge
-                :value="activeControlInletPumpFrequency"
+                :value="activeInletPumpFrequency"
                 :max="50"
                 label="当前频率"
                 unit="Hz"
@@ -388,7 +390,7 @@
 import { Slider as ASlider } from 'ant-design-vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { getBigWaterChannelAlarmNotificationTopic } from '../api/alarm.js';
-import { getRealtimeGroupDevices } from '../api/realtime.js';
+import { getRealtimeGroupDevices, sendSimulationCommand } from '../api/realtime.js';
 import DecorativePanel from '../components/common/DecorativePanel.vue';
 import AerationProcess from '../components/realtime/AerationProcess.vue';
 import FiveStageDosingProcess from '../components/realtime/FiveStageDosingProcess.vue';
@@ -445,7 +447,7 @@ const dosingControl = reactive({
 const aerationControl = reactive({
   inletPumpFrequency: 42,
   inletPumpRunning: true,
-  blowerPercent: 54,
+  blowerFrequency: 27,
   blowerRunning: true,
   autoMode: true,
   targetMin: 0.5,
@@ -454,6 +456,19 @@ const aerationControl = reactive({
 
 const lastDosingInletPumpFrequency = ref(dosingControl.inletPumpFrequency);
 const lastAerationInletPumpFrequency = ref(aerationControl.inletPumpFrequency);
+const simulationControlApiCodes = Object.freeze({
+  dosing: Object.freeze({
+    'inlet-pump-01': 'psim_cmd_inlet_pump',
+    'pac-pump-01': 'psim_cmd_pump',
+    'pac-plc-01': 'psim_cmd_plc',
+  }),
+  aeration: Object.freeze({
+    'inlet-pump-01': 'asim_cmd_inlet_pump',
+    'blower-01': 'asim_cmd_blower',
+    'aeration-plc-01': 'asim_cmd_plc',
+  }),
+});
+const simulationCommandQueues = new Map();
 
 const mqttTrend = reactive({
   dosing: { times: [], values: {} },
@@ -558,26 +573,20 @@ const aerationBlowerStatus = computed(() => {
 const activePumpPercent = computed(() => (
   realtimeDisplay.value.pumpRunning ? realtimeDisplay.value.pumpPercent : 0
 ));
+const activePumpFlow = computed(() => (
+  realtimeDisplay.value.pumpRunning ? realtimeDisplay.value.pumpFlow : 0
+));
 const activeDosingInletPumpFrequency = computed(() => (
   realtimeDisplay.value.inletPumpRunning ? realtimeDisplay.value.inletPumpFrequency : 0
 ));
 const activeBlowerPercent = computed(() => (
   aerationDisplay.value.blowerRunning ? aerationDisplay.value.blowerPercent : 0
 ));
+const activeBlowerFrequency = computed(() => (
+  aerationDisplay.value.blowerRunning ? aerationDisplay.value.blowerHz : 0
+));
 const activeInletPumpFrequency = computed(() => (
   aerationDisplay.value.inletPumpRunning ? aerationDisplay.value.inletPumpFrequency : 0
-));
-const activeControlPumpPercent = computed(() => (
-  dosingControl.pumpRunning ? dosingControl.pumpPercent : 0
-));
-const activeControlDosingInletPumpFrequency = computed(() => (
-  dosingControl.inletPumpRunning ? dosingControl.inletPumpFrequency : 0
-));
-const activeControlBlowerPercent = computed(() => (
-  aerationControl.blowerRunning ? aerationControl.blowerPercent : 0
-));
-const activeControlInletPumpFrequency = computed(() => (
-  aerationControl.inletPumpRunning ? aerationControl.inletPumpFrequency : 0
 ));
 
 const activeSensorItems = computed(() => sceneDevices.value
@@ -630,6 +639,35 @@ const activeTrendDisplay = computed(() => ({
   })),
 }));
 
+function submitSimulationCommand(deviceSn, command) {
+  const scene = activeScene.value;
+  const apiCode = simulationControlApiCodes[scene]?.[deviceSn];
+  const device = sceneDevices.value.find((item) => item?.deviceSn === deviceSn);
+  if (!apiCode || !device?.uid) {
+    const error = new Error(`未找到 ${deviceSn} 的物模型控制配置`);
+    console.error('仿真设备控制下发失败', error);
+    return Promise.resolve(false);
+  }
+
+  const queueKey = `${scene}:${deviceSn}`;
+  const previous = simulationCommandQueues.get(queueKey) || Promise.resolve();
+  // 同一设备的物模型控制按顺序执行，避免 MQTT 适配器并发下发时覆盖前一条命令。
+  const current = previous
+    .catch(() => undefined)
+    .then(() => sendSimulationCommand(device.uid, apiCode, command));
+  simulationCommandQueues.set(queueKey, current);
+  current.then(
+    () => {
+      if (simulationCommandQueues.get(queueKey) === current) simulationCommandQueues.delete(queueKey);
+    },
+    (error) => {
+      if (simulationCommandQueues.get(queueKey) === current) simulationCommandQueues.delete(queueKey);
+      console.error('仿真设备控制下发失败', error);
+    },
+  );
+  return current;
+}
+
 function updatePacPump(patch) {
   Object.assign(dosingControl, patch);
   publishPacPumpCommand();
@@ -640,7 +678,7 @@ function publishPacPumpCommand() {
   const mlh = dosingControl.pumpRunning
     ? Math.round(dosingControl.pumpPercent * 4.2 * 10) / 10
     : 0;
-  previewRef.value?.publishMqttCommand('pacPump', { action: 'manual', mlh });
+  void submitSimulationCommand('pac-pump-01', { action: 'manual', mlh });
 }
 
 function togglePacPump() {
@@ -650,7 +688,7 @@ function togglePacPump() {
 function togglePacAutoMode() {
   const pacAutoMode = !dosingControl.pacAutoMode;
   dosingControl.pacAutoMode = pacAutoMode;
-  previewRef.value?.publishMqttCommand('pacPlc', {
+  void submitSimulationCommand('pac-plc-01', {
     action: 'mode',
     mode: pacAutoMode ? 'auto' : 'manual',
   });
@@ -667,7 +705,7 @@ function updateDosingInletPump(patch) {
 }
 
 function publishDosingInletPumpCommand() {
-  previewRef.value?.publishMqttCommand('inletPump', {
+  void submitSimulationCommand('inlet-pump-01', {
     action: 'configure',
     running: dosingControl.inletPumpRunning,
     frequency: dosingControl.inletPumpFrequency,
@@ -690,7 +728,7 @@ function handleDosingInletPumpFrequencyInput(event) {
 
 function updateTargetRange(patch) {
   Object.assign(dosingControl, patch);
-  previewRef.value?.publishMqttCommand('pacPlc', {
+  void submitSimulationCommand('pac-plc-01', {
     action: 'target',
     targetMin: dosingControl.targetMin,
     targetMax: dosingControl.targetMax,
@@ -717,10 +755,8 @@ function updateAerationBlower(patch) {
 }
 
 function publishAerationBlowerCommand() {
-  const manualHz = aerationControl.blowerRunning
-    ? Math.round(aerationControl.blowerPercent / 2 * 10) / 10
-    : 0;
-  previewRef.value?.publishMqttCommand('blower', {
+  const manualHz = aerationControl.blowerRunning ? aerationControl.blowerFrequency : 0;
+  void submitSimulationCommand('blower-01', {
     action: 'configure',
     mode: 'manual',
     manual_hz: manualHz,
@@ -730,10 +766,8 @@ function publishAerationBlowerCommand() {
 function toggleAerationAutoMode() {
   const autoMode = !aerationControl.autoMode;
   aerationControl.autoMode = autoMode;
-  const manualHz = aerationControl.blowerRunning
-    ? Math.round(aerationControl.blowerPercent / 2 * 10) / 10
-    : 0;
-  previewRef.value?.publishMqttCommand('aerationPlc', {
+  const manualHz = aerationControl.blowerRunning ? aerationControl.blowerFrequency : 0;
+  void submitSimulationCommand('aeration-plc-01', {
     action: 'configure',
     config: autoMode ? { mode: 'optimize' } : { mode: 'manual', manual_hz: manualHz },
   });
@@ -743,8 +777,9 @@ function toggleAerationBlower() {
   updateAerationBlower({ blowerRunning: !aerationControl.blowerRunning });
 }
 
-function handleBlowerPercentInput(event) {
-  updateAerationBlower({ blowerPercent: finiteNumber(event.target?.value, aerationControl.blowerPercent) });
+function handleBlowerFrequencyInput(event) {
+  const blowerFrequency = Math.min(50, Math.max(0, finiteNumber(event.target?.value, aerationControl.blowerFrequency)));
+  updateAerationBlower({ blowerFrequency, blowerRunning: blowerFrequency > 0 });
 }
 
 function updateAerationInletPump(patch) {
@@ -754,7 +789,7 @@ function updateAerationInletPump(patch) {
 }
 
 function publishAerationInletPumpCommand() {
-  previewRef.value?.publishMqttCommand('inletPump', {
+  void submitSimulationCommand('inlet-pump-01', {
     action: 'configure',
     running: aerationControl.inletPumpRunning,
     frequency: aerationControl.inletPumpFrequency,
@@ -777,7 +812,7 @@ function handleInletPumpFrequencyInput(event) {
 
 function updateAerationTargetRange(patch) {
   Object.assign(aerationControl, patch);
-  previewRef.value?.publishMqttCommand('aerationPlc', {
+  void submitSimulationCommand('aeration-plc-01', {
     action: 'target',
     targetMin: aerationControl.targetMin,
     targetMax: aerationControl.targetMax,

@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   buildGateOpeningControlRequest,
   buildPumpControlRequest,
+  buildSimulationCommandRequest,
   buildValveOpeningControlRequest,
 } from '../src/realtime-control.js';
 
@@ -43,6 +44,25 @@ test('rejects an invalid pump frequency before sending a request', () => {
   assert.throws(
     () => buildPumpControlRequest('2092915057435348994', { running: false, frequency: 51 }),
     /0 至 50 Hz/,
+  );
+});
+
+test('builds a simulation command through the model API', () => {
+  assert.deepEqual(
+    buildSimulationCommandRequest('2092915057435348994', 'asim_cmd_blower', {
+      action: 'configure',
+      mode: 'manual',
+      manual_hz: 25,
+    }),
+    {
+      url: '/iot/instruct/ctrl/asim_cmd_blower',
+      payload: {
+        uid: '2092915057435348994',
+        param: {
+          PublicPayload: '{"action":"configure","mode":"manual","manual_hz":25}',
+        },
+      },
+    },
   );
 });
 
