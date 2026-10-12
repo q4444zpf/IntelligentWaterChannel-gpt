@@ -28,16 +28,17 @@
         :alarm-topic="alarmNotificationTopic"
         performance-mode
         @mqtt-data="handleMqttData"
+        @mqtt-connection="handleMqttConnectionChange"
         @alarm-notification="handleAlarmNotification"
       />
     </div>
 
     <header class="preview-console">
-      <div class="preview-title">
-        <span class="preview-title__arrow preview-title__arrow--left" aria-hidden="true"></span>
-        <h1>三维工艺实时监控</h1>
-        <span class="preview-title__arrow preview-title__arrow--right" aria-hidden="true"></span>
-      </div>
+<!--      <div class="preview-title">-->
+<!--        <span class="preview-title__arrow preview-title__arrow&#45;&#45;left" aria-hidden="true"></span>-->
+<!--        <h1>三维工艺实时监控</h1>-->
+<!--        <span class="preview-title__arrow preview-title__arrow&#45;&#45;right" aria-hidden="true"></span>-->
+<!--      </div>-->
       <div class="preview-actions" aria-label="三维视角控制">
         <button
           v-for="action in VIEW_ACTIONS"
@@ -48,14 +49,14 @@
       </div>
       <div class="process-status" aria-label="工艺运行状态">
         <template v-if="activeScene === 'dosing'">
-          <span><i class="status-dot"></i>自动闭环</span>
-          <span>MQTT 实时遥测</span>
-          <span>PAC 配药箱液位正常</span>
+          <span :class="['process-status__item', `is-${dosingProcessStatus.tone}`]"><i class="status-dot"></i>{{ dosingProcessStatus.label }}</span>
+          <span :class="['process-status__item', `is-${mqttTelemetryStatus.tone}`]"><i class="status-dot"></i>{{ mqttTelemetryStatus.label }}</span>
         </template>
         <template v-else>
-          <span><i class="status-dot"></i>DO-PI / PID 自动闭环</span>
-          <span>MQTT 实时遥测</span>
-          <span>实时数据由设备组定义</span>
+          <span :class="['process-status__item', `is-${aerationProcessStatus.tone}`]"><i class="status-dot"></i>{{ aerationProcessStatus.label }}</span>
+          <span :class="['process-status__item', `is-${aerationControlStatus.tone}`]"><i class="status-dot"></i>{{ aerationControlStatus.label }}</span>
+          <span :class="['process-status__item', `is-${aerationBlowerStatus.tone}`]"><i class="status-dot"></i>{{ aerationBlowerStatus.label }}</span>
+          <span :class="['process-status__item', `is-${mqttTelemetryStatus.tone}`]"><i class="status-dot"></i>{{ mqttTelemetryStatus.label }}</span>
         </template>
       </div>
     </header>
@@ -70,7 +71,10 @@
         </DecorativePanel>
 
         <DecorativePanel class="panel trend-panel" title="实时趋势分析">
-          <RealtimeTrendChart :data="activeTrendDisplay" />
+          <PacRealtimeTrendChart
+            :data="dosingTrendDisplay"
+            :target-range="[dosingControl.targetMin, dosingControl.targetMax]"
+          />
         </DecorativePanel>
       </template>
 
@@ -83,7 +87,10 @@
         </DecorativePanel>
 
         <DecorativePanel class="panel trend-panel" title="实时趋势分析">
-          <RealtimeTrendChart :data="activeTrendDisplay" />
+          <AerationRealtimeTrendChart
+            :data="aerationTrendDisplay"
+            :target-range="aerationTrendTargetRange"
+          />
         </DecorativePanel>
       </template>
     </aside>
@@ -106,6 +113,7 @@
                 :aria-checked="dosingControl.pumpRunning"
                 :aria-label="dosingControl.pumpRunning ? '关闭PAC泵' : '开启PAC泵'"
                 :class="{ 'is-checked': dosingControl.pumpRunning }"
+                :disabled="dosingControl.pacAutoMode"
                 @click="togglePacPump"
               ><span aria-hidden="true"></span></button>
             </div>
@@ -133,6 +141,7 @@
             :value="dosingControl.pumpPercent"
             :style="{ '--range-progress': `${dosingControl.pumpPercent}%` }"
             aria-label="PAC泵输出百分比"
+            :disabled="dosingControl.pacAutoMode"
             @input="handlePumpPercentInput"
           />
           <div class="range-scale" aria-hidden="true"><span>0%</span><span>50%</span><span>100%</span></div>
@@ -143,17 +152,31 @@
                 <span class="device-code">PMP-IN-01</span>
                 <h3>进水泵</h3>
               </div>
-              <div class="pump-switch-control">
-                <span>{{ dosingControl.inletPumpRunning ? '开' : '关' }}</span>
-                <button
-                  type="button"
-                  class="pump-switch"
-                  role="switch"
-                  :aria-checked="dosingControl.inletPumpRunning"
-                  :aria-label="dosingControl.inletPumpRunning ? '关闭进水泵' : '开启进水泵'"
-                  :class="{ 'is-checked': dosingControl.inletPumpRunning }"
-                  @click="toggleDosingInletPump"
-                ><span aria-hidden="true"></span></button>
+              <div class="inlet-pump-control__switches">
+                <div class="auto-mode-switch-control">
+                  <span>自动投加</span>
+                  <button
+                    type="button"
+                    class="pump-switch"
+                    role="switch"
+                    :aria-checked="dosingControl.pacAutoMode"
+                    :aria-label="dosingControl.pacAutoMode ? '退出PAC自动投加' : '进入PAC自动投加'"
+                    :class="{ 'is-checked': dosingControl.pacAutoMode }"
+                    @click="togglePacAutoMode"
+                  ><span aria-hidden="true"></span></button>
+                </div>
+                <div class="pump-switch-control">
+                  <span>{{ dosingControl.inletPumpRunning ? '开' : '关' }}</span>
+                  <button
+                    type="button"
+                    class="pump-switch"
+                    role="switch"
+                    :aria-checked="dosingControl.inletPumpRunning"
+                    :aria-label="dosingControl.inletPumpRunning ? '关闭进水泵' : '开启进水泵'"
+                    :class="{ 'is-checked': dosingControl.inletPumpRunning }"
+                    @click="toggleDosingInletPump"
+                  ><span aria-hidden="true"></span></button>
+                </div>
               </div>
             </header>
             <PumpFrequencyGauge
@@ -224,17 +247,32 @@
                 <span class="device-code">BLW-01</span>
                 <h2>曝气风机</h2>
               </div>
-              <div class="pump-switch-control">
-                <span>{{ aerationControl.blowerRunning ? '开' : '关' }}</span>
-                <button
-                  type="button"
-                  class="pump-switch"
-                  role="switch"
-                  :aria-checked="aerationControl.blowerRunning"
-                  :aria-label="aerationControl.blowerRunning ? '关闭曝气风机' : '开启曝气风机'"
-                  :class="{ 'is-checked': aerationControl.blowerRunning }"
-                  @click="toggleAerationBlower"
-                ><span aria-hidden="true"></span></button>
+              <div class="inlet-pump-control__switches">
+                <div class="auto-mode-switch-control">
+                  <span>DO自动控制</span>
+                  <button
+                    type="button"
+                    class="pump-switch"
+                    role="switch"
+                    :aria-checked="aerationControl.autoMode"
+                    :aria-label="aerationControl.autoMode ? '退出DO自动控制' : '进入DO自动控制'"
+                    :class="{ 'is-checked': aerationControl.autoMode }"
+                    @click="toggleAerationAutoMode"
+                  ><span aria-hidden="true"></span></button>
+                </div>
+                <div class="pump-switch-control">
+                  <span>{{ aerationControl.blowerRunning ? '开' : '关' }}</span>
+                  <button
+                    type="button"
+                    class="pump-switch"
+                    role="switch"
+                    :aria-checked="aerationControl.blowerRunning"
+                    :aria-label="aerationControl.blowerRunning ? '关闭曝气风机' : '开启曝气风机'"
+                    :class="{ 'is-checked': aerationControl.blowerRunning }"
+                    :disabled="aerationControl.autoMode"
+                    @click="toggleAerationBlower"
+                  ><span aria-hidden="true"></span></button>
+                </div>
               </div>
             </header>
 
@@ -257,10 +295,11 @@
               min="0"
               max="100"
               step="1"
-              :value="aerationControl.blowerPercent"
-              :style="{ '--range-progress': `${aerationControl.blowerPercent}%` }"
-              aria-label="曝气风机输出百分比"
-              @input="handleBlowerPercentInput"
+            :value="aerationControl.blowerPercent"
+            :style="{ '--range-progress': `${aerationControl.blowerPercent}%` }"
+            aria-label="曝气风机输出百分比"
+            :disabled="aerationControl.autoMode"
+            @input="handleBlowerPercentInput"
             />
             <div class="range-scale" aria-hidden="true"><span>0%</span><span>50%</span><span>100%</span></div>
 
@@ -320,24 +359,24 @@
             <div class="target-inputs target-inputs--unitless">
               <label>
                 <span>下限</span>
-                <div><input type="number" min="0" max="10" step="0.1" :value="aerationControl.targetMin" @change="handleAerationTargetInput('targetMin', $event)" /></div>
+                <div><input type="number" min="0.5" max="4" step="0.1" :value="aerationControl.targetMin" @change="handleAerationTargetInput('targetMin', $event)" /></div>
               </label>
               <label>
                 <span>上限</span>
-                <div><input type="number" min="0" max="10" step="0.1" :value="aerationControl.targetMax" @change="handleAerationTargetInput('targetMax', $event)" /></div>
+                <div><input type="number" min="0.5" max="4" step="0.1" :value="aerationControl.targetMax" @change="handleAerationTargetInput('targetMax', $event)" /></div>
               </label>
             </div>
             <a-slider
               class="target-range-slider"
               range
-              :min="0"
-              :max="10"
+              :min="0.5"
+              :max="4"
               :step="0.1"
               :value="[aerationControl.targetMin, aerationControl.targetMax]"
               aria-label="DO目标范围"
               @change="handleAerationTargetRangeChange"
             />
-            <div class="target-scale__labels" aria-hidden="true"><span>0</span><span>5</span><span>10</span></div>
+            <div class="target-scale__labels" aria-hidden="true"><span>0.5</span><span>2</span><span>4 mg/L</span></div>
           </section>
         </DecorativePanel>
       </template>
@@ -347,14 +386,15 @@
 
 <script setup>
 import { Slider as ASlider } from 'ant-design-vue';
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { getBigWaterChannelAlarmNotificationTopic } from '../api/alarm.js';
 import { getRealtimeGroupDevices } from '../api/realtime.js';
 import DecorativePanel from '../components/common/DecorativePanel.vue';
 import AerationProcess from '../components/realtime/AerationProcess.vue';
 import FiveStageDosingProcess from '../components/realtime/FiveStageDosingProcess.vue';
+import PacRealtimeTrendChart from '../components/realtime/PacRealtimeTrendChart.vue';
 import PumpFrequencyGauge from '../components/realtime/PumpFrequencyGauge.vue';
-import RealtimeTrendChart from '../components/realtime/RealtimeTrendChart.vue';
+import AerationRealtimeTrendChart from '../components/realtime/AerationRealtimeTrendChart.vue';
 import SensorRealtimeBars from '../components/realtime/SensorRealtimeBars.vue';
 import SmartWaterFlumePreview from '../components/realtime/smart-water-flume-preview/SmartWaterFlumePreview.vue';
 import { PROTOTYPE_ACCESS_TOKEN } from '../constants/auth.js';
@@ -386,12 +426,18 @@ const sceneDevices = ref([]);
 const sceneTelemetry = reactive({ dosing: {}, aeration: {} });
 
 const MAX_TREND_POINTS = 60;
+const MQTT_STALE_MS = 5000;
+const mqttConnected = ref(false);
+const lastMqttReceivedAt = ref(0);
+const statusClock = ref(Date.now());
+let statusClockTimer = null;
 
 const dosingControl = reactive({
   inletPumpFrequency: 38,
   inletPumpRunning: true,
   pumpPercent: 48,
   pumpRunning: true,
+  pacAutoMode: false,
   targetMin: 10,
   targetMax: 20,
 });
@@ -401,9 +447,13 @@ const aerationControl = reactive({
   inletPumpRunning: true,
   blowerPercent: 54,
   blowerRunning: true,
-  targetMin: 0,
+  autoMode: true,
+  targetMin: 0.5,
   targetMax: 2,
 });
+
+const lastDosingInletPumpFrequency = ref(dosingControl.inletPumpFrequency);
+const lastAerationInletPumpFrequency = ref(aerationControl.inletPumpFrequency);
 
 const mqttTrend = reactive({
   dosing: { times: [], values: {} },
@@ -413,6 +463,12 @@ const mqttTrend = reactive({
 function finiteNumber(value, fallback) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
+}
+
+function booleanOrNull(value) {
+  if (value === true || value === 1 || value === 'true' || value === '1') return true;
+  if (value === false || value === 0 || value === 'false' || value === '0') return false;
+  return null;
 }
 
 const realtimeDisplay = computed(() => {
@@ -428,6 +484,13 @@ const realtimeDisplay = computed(() => {
     pumpFlow: Math.min(420, Math.max(0, finiteNumber(source.pumpFlow, 0))),
     pumpPercent: Math.min(100, Math.max(0, finiteNumber(source.pumpPercent, finiteNumber(source.pumpFlow, 0) / 10))),
     pumpRunning: typeof source.pumpRunning === 'boolean' ? source.pumpRunning : finiteNumber(source.pumpFlow, 0) > 0,
+    pacAutoMode: booleanOrNull(source.pacAutoMode),
+    pacTakeoverRequired: booleanOrNull(source.pacTakeoverRequired),
+    pacOddInside: booleanOrNull(source.pacOddInside),
+    pacCommFault: booleanOrNull(source.pacCommFault),
+    pacLowLevel: booleanOrNull(source.pacLowLevel),
+    targetMin: finiteNumber(source.dosingTargetMin, null),
+    targetMax: finiteNumber(source.dosingTargetMax, null),
   };
 });
 
@@ -440,7 +503,56 @@ const aerationDisplay = computed(() => {
     airFlow: Math.min(40, Math.max(0, finiteNumber(source.airFlow, source.inletFlow))),
     blowerPercent: Math.min(100, Math.max(0, finiteNumber(source.blowerPercent, finiteNumber(source.blowerHz, 0) * 2))),
     blowerRunning: typeof source.blowerRunning === 'boolean' ? source.blowerRunning : finiteNumber(source.blowerHz, 0) > 0,
+    mode: typeof source.aerationMode === 'string' ? source.aerationMode.trim().toLowerCase() : '',
+    optimizing: booleanOrNull(source.aerationOptimizing),
+    plcFault: booleanOrNull(source.aerationPlcFault),
+    probeFault: booleanOrNull(source.aerationProbeFault),
+    airFault: booleanOrNull(source.aerationAirFault),
+    supervisorLevel: Math.max(0, finiteNumber(source.aerationSupervisorLevel, 0)),
+    targetMin: finiteNumber(source.aerationTargetMin, null),
+    targetMax: finiteNumber(source.aerationTargetMax, null),
+    blowerHz: Math.min(50, Math.max(0, finiteNumber(source.blowerHz, 0))),
   };
+});
+
+const mqttTelemetryStatus = computed(() => {
+  const elapsed = statusClock.value - lastMqttReceivedAt.value;
+  if (!mqttConnected.value) return { tone: 'danger', label: 'MQTT 已断开' };
+  if (!lastMqttReceivedAt.value) return { tone: 'warning', label: 'MQTT 等待遥测' };
+  if (elapsed > MQTT_STALE_MS) return { tone: 'warning', label: 'MQTT 遥测超时' };
+  return { tone: 'success', label: 'MQTT 实时遥测' };
+});
+
+const dosingProcessStatus = computed(() => {
+  const telemetry = realtimeDisplay.value;
+  if (telemetry.pacAutoMode === true) return { tone: 'success', label: '自动控制' };
+  if (telemetry.pacAutoMode === false) return { tone: 'info', label: '手动控制' };
+  return { tone: 'warning', label: '等待 PLC 状态' };
+});
+
+const aerationProcessStatus = computed(() => {
+  const telemetry = aerationDisplay.value;
+  if (telemetry.plcFault === true) return { tone: 'danger', label: '曝气 PLC 故障' };
+  if (telemetry.probeFault === true) return { tone: 'danger', label: 'DO 探头故障' };
+  if (telemetry.airFault === true) return { tone: 'warning', label: '曝气风量异常' };
+  if (telemetry.supervisorLevel > 0) return { tone: 'warning', label: 'ODD安全接管中' };
+  if (!telemetry.mode) return { tone: 'warning', label: '等待曝气设备状态' };
+  return { tone: 'success', label: '曝气系统运行正常' };
+});
+
+const aerationControlStatus = computed(() => {
+  const telemetry = aerationDisplay.value;
+  if (telemetry.mode === 'optimize') return { tone: 'success', label: telemetry.optimizing === true ? 'DO自动寻优中' : 'DO自动控制' };
+  if (telemetry.mode === 'fixed') return { tone: 'info', label: '固定DO控制' };
+  if (telemetry.mode === 'manual') return { tone: 'info', label: '风机手动控制' };
+  return { tone: 'warning', label: '等待曝气PLC状态' };
+});
+
+const aerationBlowerStatus = computed(() => {
+  const telemetry = aerationDisplay.value;
+  if (!telemetry.mode) return { tone: 'warning', label: '等待风机遥测' };
+  if (!telemetry.blowerRunning) return { tone: 'warning', label: '曝气风机已停止' };
+  return { tone: 'success', label: `风机运行 ${telemetry.blowerHz.toFixed(1)} Hz` };
 });
 
 const activePumpPercent = computed(() => (
@@ -469,7 +581,12 @@ const activeControlInletPumpFrequency = computed(() => (
 ));
 
 const activeSensorItems = computed(() => sceneDevices.value
-  .filter((device) => device?.viewField && Number.isFinite(Number(device.displayMax)))
+  .filter((device) => (
+    device?.viewField
+    && device.displayMax !== null
+    && device.displayMax !== undefined
+    && Number.isFinite(Number(device.displayMax))
+  ))
   .map((device) => ({
     key: device.viewField,
     label: device.label || device.deviceName || device.viewField,
@@ -482,6 +599,28 @@ const activeSensorItems = computed(() => sceneDevices.value
 
 const activeTrendDevices = computed(() => sceneDevices.value
   .filter((device) => device?.trendEnabled && device?.viewField));
+
+const dosingTrendDisplay = computed(() => ({
+  times: mqttTrend.dosing.times,
+  preTurbidity: mqttTrend.dosing.values.preTurbidity || [],
+  postTurbidity: mqttTrend.dosing.values.postTurbidity || [],
+  pacDose: mqttTrend.dosing.values.pacDose || [],
+}));
+
+const aerationTrendDisplay = computed(() => ({
+  times: mqttTrend.aeration.times,
+  dissolvedOxygen: mqttTrend.aeration.values.doValue || [],
+  airFlow: mqttTrend.aeration.values.blowerHz || [],
+}));
+
+const aerationTrendTargetRange = computed(() => {
+  const telemetry = aerationDisplay.value;
+  return Number.isFinite(telemetry.targetMin)
+    && Number.isFinite(telemetry.targetMax)
+    && telemetry.targetMin <= telemetry.targetMax
+    ? [telemetry.targetMin, telemetry.targetMax]
+    : [aerationControl.targetMin, aerationControl.targetMax];
+});
 
 const activeTrendDisplay = computed(() => ({
   times: mqttTrend[activeScene.value].times,
@@ -501,12 +640,20 @@ function publishPacPumpCommand() {
   const mlh = dosingControl.pumpRunning
     ? Math.round(dosingControl.pumpPercent * 4.2 * 10) / 10
     : 0;
-  previewRef.value?.publishMqttCommand('pacPlc', { action: 'mode', mode: 'manual' });
   previewRef.value?.publishMqttCommand('pacPump', { action: 'manual', mlh });
 }
 
 function togglePacPump() {
   updatePacPump({ pumpRunning: !dosingControl.pumpRunning });
+}
+
+function togglePacAutoMode() {
+  const pacAutoMode = !dosingControl.pacAutoMode;
+  dosingControl.pacAutoMode = pacAutoMode;
+  previewRef.value?.publishMqttCommand('pacPlc', {
+    action: 'mode',
+    mode: pacAutoMode ? 'auto' : 'manual',
+  });
 }
 
 function handlePumpPercentInput(event) {
@@ -528,16 +675,26 @@ function publishDosingInletPumpCommand() {
 }
 
 function toggleDosingInletPump() {
-  updateDosingInletPump({ inletPumpRunning: !dosingControl.inletPumpRunning });
+  const inletPumpRunning = !dosingControl.inletPumpRunning;
+  updateDosingInletPump({
+    inletPumpRunning,
+    inletPumpFrequency: inletPumpRunning ? lastDosingInletPumpFrequency.value : 0,
+  });
 }
 
 function handleDosingInletPumpFrequencyInput(event) {
   const inletPumpFrequency = Math.min(50, Math.max(0, finiteNumber(event.target?.value, dosingControl.inletPumpFrequency)));
-  updateDosingInletPump({ inletPumpFrequency });
+  if (inletPumpFrequency > 0) lastDosingInletPumpFrequency.value = inletPumpFrequency;
+  updateDosingInletPump({ inletPumpFrequency, inletPumpRunning: inletPumpFrequency > 0 });
 }
 
 function updateTargetRange(patch) {
   Object.assign(dosingControl, patch);
+  previewRef.value?.publishMqttCommand('pacPlc', {
+    action: 'target',
+    targetMin: dosingControl.targetMin,
+    targetMax: dosingControl.targetMax,
+  });
   emit('target-range-change', patch);
 }
 
@@ -570,6 +727,18 @@ function publishAerationBlowerCommand() {
   });
 }
 
+function toggleAerationAutoMode() {
+  const autoMode = !aerationControl.autoMode;
+  aerationControl.autoMode = autoMode;
+  const manualHz = aerationControl.blowerRunning
+    ? Math.round(aerationControl.blowerPercent / 2 * 10) / 10
+    : 0;
+  previewRef.value?.publishMqttCommand('aerationPlc', {
+    action: 'configure',
+    config: autoMode ? { mode: 'optimize' } : { mode: 'manual', manual_hz: manualHz },
+  });
+}
+
 function toggleAerationBlower() {
   updateAerationBlower({ blowerRunning: !aerationControl.blowerRunning });
 }
@@ -593,21 +762,31 @@ function publishAerationInletPumpCommand() {
 }
 
 function toggleAerationInletPump() {
-  updateAerationInletPump({ inletPumpRunning: !aerationControl.inletPumpRunning });
+  const inletPumpRunning = !aerationControl.inletPumpRunning;
+  updateAerationInletPump({
+    inletPumpRunning,
+    inletPumpFrequency: inletPumpRunning ? lastAerationInletPumpFrequency.value : 0,
+  });
 }
 
 function handleInletPumpFrequencyInput(event) {
   const inletPumpFrequency = Math.min(50, Math.max(0, finiteNumber(event.target?.value, aerationControl.inletPumpFrequency)));
-  updateAerationInletPump({ inletPumpFrequency });
+  if (inletPumpFrequency > 0) lastAerationInletPumpFrequency.value = inletPumpFrequency;
+  updateAerationInletPump({ inletPumpFrequency, inletPumpRunning: inletPumpFrequency > 0 });
 }
 
 function updateAerationTargetRange(patch) {
   Object.assign(aerationControl, patch);
+  previewRef.value?.publishMqttCommand('aerationPlc', {
+    action: 'target',
+    targetMin: aerationControl.targetMin,
+    targetMax: aerationControl.targetMax,
+  });
   emit('aeration-target-range-change', patch);
 }
 
 function handleAerationTargetInput(field, event) {
-  const rawValue = Math.min(10, Math.max(0, finiteNumber(event.target?.value, aerationControl[field])));
+  const rawValue = Math.min(4, Math.max(0.5, finiteNumber(event.target?.value, aerationControl[field])));
   const value = Math.round(rawValue * 10) / 10;
   const patch = field === 'targetMin'
     ? { targetMin: Math.min(value, aerationControl.targetMax) }
@@ -673,6 +852,7 @@ function resetMqttData(scene) {
 function handleMqttData(message) {
   const payload = message?.payload ?? message;
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return;
+  if (message?.isRealtimeTelemetry !== false) lastMqttReceivedAt.value = Date.now();
   let hasTelemetryUpdate = false;
 
   const tagCounts = sceneDevices.value.reduce((counts, device) => {
@@ -697,6 +877,11 @@ function handleMqttData(message) {
   });
   if (hasTelemetryUpdate) appendMqttTrend(activeScene.value, payload);
   emit('realtime-data', payload);
+}
+
+function handleMqttConnectionChange(connected) {
+  mqttConnected.value = connected === true;
+  if (!mqttConnected.value) lastMqttReceivedAt.value = 0;
 }
 
 function handleViewAction(action) {
@@ -733,11 +918,43 @@ watch(() => props.sceneTarget, async (target) => {
 watch(activeSceneConfig, () => {
   sceneDevices.value = [];
   resetMqttData(activeScene.value);
+  lastMqttReceivedAt.value = 0;
   void loadRealtimeDevices();
 }, { immediate: true });
 
+watch(() => realtimeDisplay.value.pacAutoMode, (pacAutoMode) => {
+  // 自动状态以加药 PLC 的 MQTT 遥测为准，避免命令未送达时界面误判。
+  if (pacAutoMode !== null) dosingControl.pacAutoMode = pacAutoMode;
+});
+
+watch(() => [realtimeDisplay.value.targetMin, realtimeDisplay.value.targetMax], ([targetMin, targetMax]) => {
+  if (Number.isFinite(targetMin) && Number.isFinite(targetMax) && targetMin <= targetMax) {
+    dosingControl.targetMin = targetMin;
+    dosingControl.targetMax = targetMax;
+  }
+});
+
+watch(() => aerationDisplay.value.mode, (mode) => {
+  if (mode === 'optimize') aerationControl.autoMode = true;
+  if (mode === 'fixed' || mode === 'manual') aerationControl.autoMode = false;
+});
+
+watch(() => [aerationDisplay.value.targetMin, aerationDisplay.value.targetMax], ([targetMin, targetMax]) => {
+  if (Number.isFinite(targetMin) && Number.isFinite(targetMax) && targetMin <= targetMax) {
+    aerationControl.targetMin = targetMin;
+    aerationControl.targetMax = targetMax;
+  }
+});
+
 onMounted(() => {
+  statusClockTimer = window.setInterval(() => {
+    statusClock.value = Date.now();
+  }, 1000);
   void loadAlarmNotificationTopic();
+});
+
+onBeforeUnmount(() => {
+  if (statusClockTimer !== null) window.clearInterval(statusClockTimer);
 });
 </script>
 
@@ -787,7 +1004,14 @@ onMounted(() => {
 .process-status { display: flex; height: 36px; align-items: center; justify-content: center; margin-top: 7px; padding: 0 20px; border: 1px solid rgba(54, 160, 219, 0.28); background: rgba(3, 36, 64, 0.72); color: #a9c9de; font-size: 11px; }
 .process-status span { display: inline-flex; align-items: center; padding: 0 14px; white-space: nowrap; }
 .process-status span + span { border-left: 1px solid rgba(76, 148, 191, 0.28); }
+.process-status__item.is-success { color: #83edb8; }
+.process-status__item.is-info { color: #a9c9de; }
+.process-status__item.is-warning { color: #ffd168; }
+.process-status__item.is-danger { color: #ff8e85; }
 .status-dot { width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: #4be49d; box-shadow: 0 0 7px rgba(75, 228, 157, 0.84); }
+.process-status__item.is-info .status-dot { background: #69c8f2; box-shadow: 0 0 7px rgba(105, 200, 242, 0.84); }
+.process-status__item.is-warning .status-dot { background: #ffd168; box-shadow: 0 0 7px rgba(255, 209, 104, 0.84); }
+.process-status__item.is-danger .status-dot { background: #ff756d; box-shadow: 0 0 7px rgba(255, 117, 109, 0.84); }
 
 .left-stack,
 .right-stack { position: absolute; z-index: 5; top: 22px; bottom: 18px; display: flex; min-height: 0; flex-direction: column; gap: 10px; }
@@ -832,11 +1056,14 @@ onMounted(() => {
 .device-code { color: #63dfff; font-size: 11px; }
 .pac-control-card__head h2 { margin: 3px 0 0; padding: 0; color: #f2fbff; font-size: 18px; font-weight: 600; }
 .pump-switch-control { display: inline-flex; align-items: center; gap: 7px; color: #cde8f7; font-size: 12px; }
+.inlet-pump-control__switches { display: inline-flex; align-items: center; gap: 10px; }
+.auto-mode-switch-control { display: inline-flex; align-items: center; gap: 7px; color: #cde8f7; font-size: 12px; }
 .pump-switch { position: relative; width: 40px; height: 22px; padding: 0; border: 1px solid rgba(121, 158, 182, 0.72); border-radius: 11px; outline: 0; background: rgba(63, 83, 101, 0.78); cursor: pointer; }
 .pump-switch > span { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #c7d4dc; transition: transform 0.2s ease; }
 .pump-switch.is-checked { border-color: #4adce7; background: rgba(10, 156, 176, 0.82); box-shadow: 0 0 8px rgba(5, 252, 253, 0.35); }
 .pump-switch.is-checked > span { transform: translateX(18px); background: #fff; }
 .pump-switch:focus-visible { box-shadow: 0 0 0 2px rgba(100, 222, 255, 0.38); }
+.pump-switch:disabled { cursor: not-allowed; opacity: 0.45; }
 
 .pac-control-card :deep(.pump-frequency-gauge) { height: 180px; margin-top: 18px; flex: 0 0 180px; }
 .control-value-row { display: flex; align-items: baseline; justify-content: space-between; margin: 6px 8px 3px; color: #8fb4cd; font-size: 12px; }
@@ -848,6 +1075,7 @@ onMounted(() => {
 .pump-range::-webkit-slider-thumb { width: 17px; height: 17px; margin-top: -6px; appearance: none; border: 2px solid #c5f4ff; border-radius: 50%; background: #57c9ef; box-shadow: 0 0 7px rgba(75, 201, 255, 0.8); }
 .pump-range::-moz-range-track { height: 7px; border: 1px solid #0b9dcc; border-radius: 4px; background: linear-gradient(90deg, #30c6ec 0%, #087ebc var(--range-progress), rgba(3, 45, 78, 0.92) var(--range-progress), rgba(3, 45, 78, 0.92) 100%); }
 .pump-range::-moz-range-thumb { width: 15px; height: 15px; border: 2px solid #c5f4ff; border-radius: 50%; background: #57c9ef; box-shadow: 0 0 7px rgba(75, 201, 255, 0.8); }
+.pump-range:disabled { cursor: not-allowed; opacity: 0.45; }
 .range-scale { display: flex; justify-content: space-between; margin: 0 8px 18px; color: #62849d; font-size: 9px; }
 
 .inlet-pump-control { margin-top: 8px; border-top: 1px solid rgba(70, 171, 228, 0.3); padding: 12px 4px 0; }

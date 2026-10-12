@@ -47,7 +47,7 @@ function buildChartOption() {
   return {
     animationDuration: 650,
     color: props.data.series.map((item) => item.displayColor || '#39d8ff'),
-    grid: { top: 46, right: 48, bottom: 30, left: 42 },
+    grid: { top: 46, right: 48, bottom: 52, left: 42 },
     legend: {
       top: 5,
       itemWidth: 18,
@@ -66,7 +66,13 @@ function buildChartOption() {
       data: props.data.times,
       axisTick: { show: false },
       axisLine: { lineStyle: { color: 'rgba(87, 154, 198, 0.42)' } },
-      axisLabel: { color: '#789bb5', fontSize: 9, interval: 2 },
+      axisLabel: {
+        color: '#789bb5',
+        fontSize: 9,
+        interval: 2,
+        rotate: 45,
+        margin: 10,
+      },
     },
     yAxis: axisOptions(),
     series: props.data.series.map((item) => ({

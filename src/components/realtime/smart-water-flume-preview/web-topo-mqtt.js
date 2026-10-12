@@ -1,7 +1,7 @@
 import mqtt from 'mqtt';
 import { parseMqttPayload } from './web-topo-html-runtime.js';
 
-export function connectWebTopoMqtt(config, onData, onError) {
+export function connectWebTopoMqtt(config, onData, onError, onConnectionChange) {
   const url = config?.url?.trim();
   const topic = config?.topic?.trim();
   if (!url || !topic) return null;
@@ -16,6 +16,7 @@ export function connectWebTopoMqtt(config, onData, onError) {
 
   const client = mqtt.connect(url, options);
   client.on('connect', () => {
+    onConnectionChange?.(true);
     client.subscribe(topic, { qos: 0 }, (error) => {
       if (error) onError?.(error);
     });
@@ -24,7 +25,12 @@ export function connectWebTopoMqtt(config, onData, onError) {
     const payload = parseMqttPayload(message);
     onData?.(payload, receivedTopic, message?.toString?.() || '');
   });
-  client.on('error', (error) => onError?.(error));
+  client.on('error', (error) => {
+    onConnectionChange?.(false);
+    onError?.(error);
+  });
+  client.on('close', () => onConnectionChange?.(false));
+  client.on('offline', () => onConnectionChange?.(false));
   return client;
 }
 

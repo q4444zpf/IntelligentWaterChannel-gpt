@@ -337,7 +337,7 @@ const props = defineProps({
   alarmTopic: { type: String, default: '' },
   performanceMode: { type: Boolean, default: false },
 });
-const emit = defineEmits(['mqtt-data', 'alarm-notification', 'auto-roaming-change']);
+const emit = defineEmits(['mqtt-data', 'mqtt-connection', 'alarm-notification', 'auto-roaming-change']);
 
 const canvasHostRef = ref(null);
 const loading = ref(true);
@@ -842,7 +842,7 @@ function handleMqttData(payload, receivedTopic, rawMessage) {
     scriptRuntime?.emit(field, value);
   });
   scriptRuntime?.emit('mqttMessage', payload);
-  emit('mqtt-data', { payload, topic: receivedTopic });
+  emit('mqtt-data', { payload, topic: receivedTopic, isRealtimeTelemetry: receivedTopic === realtimeTopic });
 }
 
 function handleMqttError(error) {
@@ -854,13 +854,18 @@ function stopMqtt() {
   mqttClient = null;
   realtimeTopic = '';
   mqttConfig = null;
+  emit('mqtt-connection', false);
+}
+
+function handleMqttConnectionChange(connected) {
+  emit('mqtt-connection', connected);
 }
 
 function startMqtt(config) {
   stopMqtt();
   mqttConfig = config || null;
   realtimeTopic = config?.topic?.trim() || '';
-  mqttClient = connectWebTopoMqtt(config, handleMqttData, handleMqttError);
+  mqttClient = connectWebTopoMqtt(config, handleMqttData, handleMqttError, handleMqttConnectionChange);
   if (props.alarmTopic.trim() && props.alarmTopic.trim() !== realtimeTopic) {
     subscribeWebTopoMqtt(mqttClient, props.alarmTopic, handleMqttError);
   }
@@ -1024,7 +1029,8 @@ async function loadScene({ forceReload = false } = {}) {
     scene.background = null;
     materialAnimations = collectWebTopoMaterialAnimations(scene, loaded.metadata);
     objectAnimationRuntime = createWebTopoAnimationRuntime(scene);
-    if (scene.userData?.autoPlayAnimations === true) objectAnimationRuntime.play();
+    // 组态编辑器导出的关键帧动画默认应在预览中持续播放。
+    objectAnimationRuntime.play();
     applySceneBackgroundColor(loaded.backgroundColor);
     indexSceneObjects(scene);
     modelGroupTree.value = buildGroupTreeUnder(scene, '模型');

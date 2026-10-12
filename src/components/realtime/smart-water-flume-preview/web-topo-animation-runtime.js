@@ -1,6 +1,182 @@
 import * as THREE from 'three';
 
 const MAX_FRAME_DELTA_SECONDS = 0.1;
+const MAX_BUBBLE_PARTICLES = 2048;
+
+const BUBBLE_VERTEX_SHADER = /* glsl */ `
+  attribute float aSize;
+  attribute float aAlpha;
+  attribute vec3 aColor;
+  varying float vAlpha;
+  varying vec3 vColor;
+  uniform float uScale;
+
+  void main() {
+    vAlpha = aAlpha;
+    vColor = aColor;
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    gl_PointSize = max(aSize * (uScale / -mvPosition.z), 5.0 * step(0.0001, aSize));
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+
+const BUBBLE_FRAGMENT_SHADER = /* glsl */ `
+  varying float vAlpha;
+  varying vec3 vColor;
+
+  void main() {
+    vec2 uv = gl_PointCoord - vec2(0.5);
+    float distanceToCenter = length(uv) * 2.0;
+    if (distanceToCenter > 1.0) discard;
+
+    float rim = smoothstep(0.45, 0.95, distanceToCenter);
+    float highlight = 1.0 - smoothstep(0.0, 0.6, length(uv - vec2(-0.18, 0.18)) * 2.0);
+    vec3 color = mix(vColor, vec3(1.0), highlight * 0.8);
+    float alpha = (rim * 0.9 + highlight * 0.9 + 0.25) * vAlpha;
+    gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
+  }
+`;
+
+function isBubbleEmitter(object) {
+  const bubble = object.userData?.bubble;
+  return bubble
+    && Number.isFinite(bubble.rate)
+    && Number.isFinite(bubble.height)
+    && Number.isFinite(bubble.spread)
+    && Number.isFinite(bubble.size)
+    && Number.isFinite(bubble.speed);
+}
+
+function isVisibleInScene(object) {
+  let current = object;
+  while (current) {
+    if (current.visible === false) return false;
+    current = current.parent;
+  }
+  return true;
+}
+
+function createBubbleRuntime(root) {
+  const emitters = [];
+  const spawnAccumulators = new Map();
+  const positions = new Float32Array(MAX_BUBBLE_PARTICLES * 3);
+  const sizes = new Float32Array(MAX_BUBBLE_PARTICLES);
+  const alphas = new Float32Array(MAX_BUBBLE_PARTICLES);
+  const colors = new Float32Array(MAX_BUBBLE_PARTICLES * 3);
+  const originX = new Float32Array(MAX_BUBBLE_PARTICLES);
+  const originY = new Float32Array(MAX_BUBBLE_PARTICLES);
+  const originZ = new Float32Array(MAX_BUBBLE_PARTICLES);
+  const heights = new Float32Array(MAX_BUBBLE_PARTICLES);
+  const targetY = new Float32Array(MAX_BUBBLE_PARTICLES);
+  const speeds = new Float32Array(MAX_BUBBLE_PARTICLES);
+  const swayAmplitudes = new Float32Array(MAX_BUBBLE_PARTICLES);
+  const swayFrequencies = new Float32Array(MAX_BUBBLE_PARTICLES);
+  const swayPhases = new Float32Array(MAX_BUBBLE_PARTICLES);
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+  geometry.setAttribute('aAlpha', new THREE.BufferAttribute(alphas, 1));
+  geometry.setAttribute('aColor', new THREE.BufferAttribute(colors, 3));
+
+  const material = new THREE.ShaderMaterial({
+    vertexShader: BUBBLE_VERTEX_SHADER,
+    fragmentShader: BUBBLE_FRAGMENT_SHADER,
+    uniforms: { uScale: { value: 540 } },
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+  });
+  const points = new THREE.Points(geometry, material);
+  points.name = 'WebTopoBubbleParticles';
+  points.frustumCulled = false;
+  points.renderOrder = 999;
+
+  root?.traverse((object) => {
+    // ObjectLoader 会将 BubbleEmitter 降级为 Object3D，但会保留 userData.bubble。
+    if (isBubbleEmitter(object)) emitters.push(object);
+  });
+  if (emitters.length) root.add(points);
+
+  let cursor = 0;
+  let elapsedSeconds = 0;
+  const worldPosition = new THREE.Vector3();
+  const color = new THREE.Color();
+
+  function spawn(emitter) {
+    const data = emitter.userData.bubble;
+    const angle = Math.random() * Math.PI * 2;
+    const radius = Math.sqrt(Math.random()) * data.spread;
+    const index = cursor;
+    const index3 = index * 3;
+    cursor = (cursor + 1) % MAX_BUBBLE_PARTICLES;
+
+    emitter.getWorldPosition(worldPosition);
+    originX[index] = worldPosition.x + Math.cos(angle) * radius;
+    originY[index] = worldPosition.y;
+    originZ[index] = worldPosition.z + Math.sin(angle) * radius;
+    color.set(data.color || '#99d9ff');
+    colors[index3] = color.r;
+    colors[index3 + 1] = color.g;
+    colors[index3 + 2] = color.b;
+    heights[index] = data.height;
+    targetY[index] = worldPosition.y + data.height;
+    speeds[index] = data.speed * (0.5 + Math.random());
+    sizes[index] = data.size * (0.5 + Math.random());
+    swayAmplitudes[index] = sizes[index] * 0.8 * (0.5 + Math.random());
+    swayFrequencies[index] = 1 + Math.random() * 2;
+    swayPhases[index] = Math.random() * Math.PI * 2;
+    alphas[index] = 0;
+  }
+
+  function update(delta) {
+    if (!emitters.length) return false;
+    elapsedSeconds += delta;
+    root.updateMatrixWorld();
+
+    emitters.forEach((emitter) => {
+      if (!isVisibleInScene(emitter)) return;
+      const rate = emitter.userData.bubble.rate;
+      let accumulator = (spawnAccumulators.get(emitter) || 0) + rate * delta;
+      while (accumulator >= 1) {
+        accumulator -= 1;
+        spawn(emitter);
+      }
+      spawnAccumulators.set(emitter, accumulator);
+    });
+
+    for (let index = 0; index < MAX_BUBBLE_PARTICLES; index += 1) {
+      if (sizes[index] <= 0) continue;
+      originY[index] += speeds[index] * delta;
+      if (originY[index] >= targetY[index]) {
+        sizes[index] = 0;
+        alphas[index] = 0;
+        continue;
+      }
+
+      const sway = elapsedSeconds * swayFrequencies[index] + swayPhases[index];
+      const index3 = index * 3;
+      positions[index3] = originX[index] + Math.sin(sway) * swayAmplitudes[index];
+      positions[index3 + 1] = originY[index];
+      positions[index3 + 2] = originZ[index] + Math.cos(sway * 0.9) * swayAmplitudes[index];
+      const travelled = originY[index] - (targetY[index] - heights[index]);
+      alphas[index] = Math.min(1, travelled / 0.15);
+    }
+
+    geometry.attributes.position.needsUpdate = true;
+    geometry.attributes.aSize.needsUpdate = true;
+    geometry.attributes.aAlpha.needsUpdate = true;
+    geometry.attributes.aColor.needsUpdate = true;
+    return true;
+  }
+
+  function dispose() {
+    points.removeFromParent();
+    geometry.dispose();
+    material.dispose();
+  }
+
+  return { dispose, update };
+}
 
 /**
  * 管理组态包中挂载到各个对象上的关键帧动画。
@@ -9,6 +185,7 @@ const MAX_FRAME_DELTA_SECONDS = 0.1;
 export function createWebTopoAnimationRuntime(root) {
   const bindings = new Map();
   const pathLoops = new Map();
+  const bubbleRuntime = createBubbleRuntime(root);
   const pathUp = new THREE.Vector3(0, 1, 0);
   const pathDirection = new THREE.Vector3();
 
@@ -89,6 +266,8 @@ export function createWebTopoAnimationRuntime(root) {
       updated = true;
     });
 
+    if (bubbleRuntime.update(delta)) updated = true;
+
     return updated;
   }
 
@@ -99,6 +278,7 @@ export function createWebTopoAnimationRuntime(root) {
     });
     bindings.clear();
     pathLoops.clear();
+    bubbleRuntime.dispose();
   }
 
   return {

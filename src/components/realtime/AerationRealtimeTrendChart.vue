@@ -73,9 +73,9 @@ function buildChartOption() {
       },
       {
         type: 'value',
-        name: 'Nm³/h',
+        name: 'Hz',
         min: 0,
-        max: 40,
+        max: 50,
         splitNumber: 4,
         nameTextStyle: { color: '#789bb5', fontSize: 9 },
         axisLabel: { color: '#789bb5', fontSize: 9 },
@@ -105,7 +105,7 @@ function buildChartOption() {
           ],
         },
       },
-      { ...commonSeries, name: '气量', yAxisIndex: 1, data: props.data.airFlow },
+      { ...commonSeries, name: '风机频率', yAxisIndex: 1, data: props.data.airFlow },
     ],
   };
 }

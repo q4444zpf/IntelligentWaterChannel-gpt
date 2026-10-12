@@ -62,3 +62,29 @@ test('沿管路径循环移动实体颗粒', () => {
 
   runtime.dispose();
 });
+
+test('恢复导出 BubbleEmitter 的气泡粒子动画', () => {
+  const scene = new THREE.Scene();
+  const emitter = new THREE.Object3D();
+  emitter.userData.bubble = {
+    rate: 20,
+    height: 1.2,
+    spread: 0.12,
+    size: 0.042,
+    speed: 0.22,
+    color: '#d8f7ff',
+  };
+  emitter.position.set(1, 2, 3);
+  scene.add(emitter);
+
+  const runtime = createWebTopoAnimationRuntime(scene);
+  assert.equal(runtime.update(0.1), true);
+
+  const particles = scene.getObjectByName('WebTopoBubbleParticles');
+  assert.ok(particles?.isPoints);
+  assert.ok(particles.geometry.attributes.aSize.array.some((size) => size > 0));
+  assert.ok(particles.geometry.attributes.position.array[1] > 2);
+
+  runtime.dispose();
+  assert.equal(particles.parent, null);
+});
