@@ -45,3 +45,20 @@ test('长时间切回页面时限制单帧动画步长', () => {
 
   runtime.dispose();
 });
+
+test('沿管路径循环移动实体颗粒', () => {
+  const scene = new THREE.Scene();
+  const particle = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial());
+  particle.userData.visualPathLoop = {
+    duration: 2,
+    offset: 0,
+    points: [[0, 0, 0], [4, 0, 0]],
+  };
+  scene.add(particle);
+  const runtime = createWebTopoAnimationRuntime(scene);
+
+  assert.equal(runtime.update(0.1), true);
+  assert.deepEqual(particle.position.toArray(), [0.2, 0, 0]);
+
+  runtime.dispose();
+});

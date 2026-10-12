@@ -9,6 +9,7 @@ const MATERIAL_TIME_UNITS_PER_SECOND = Object.freeze({
   BrickShaderMaterial: 1.2,
   PipelineWaterFlowShaderMaterial: 1.2,
   PipelineWaterFlowRefractionShaderMaterial: 1.2,
+  PipeFlowShaderMaterial: 1.2,
 });
 
 const MAX_FRAME_DELTA_SECONDS = 0.1;

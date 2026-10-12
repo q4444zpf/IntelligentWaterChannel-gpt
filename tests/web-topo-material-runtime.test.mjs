@@ -46,6 +46,18 @@ test('uses exported class metadata when a material was renamed', () => {
   assert.ok(Math.abs(material.uniforms.uTime.value - 3.02) < 1e-12);
 });
 
+test('updates pipe flow material by the exported class metadata', () => {
+  const material = animatedMaterial('管道颗粒', 2);
+  const animations = collectWebTopoMaterialAnimations(sceneWithMaterials(material), {
+    _ShaderMaterialClassMap: { PipeFlowShaderMaterial: material.uuid },
+  });
+
+  updateWebTopoMaterialAnimations(animations, 1 / 60);
+
+  assert.equal(animations.length, 1);
+  assert.ok(Math.abs(material.uniforms.uTime.value - 2.02) < 1e-12);
+});
+
 test('updates a shared material once and ignores unrelated shaders', () => {
   const shared = animatedMaterial('StreamerWallShaderMaterial');
   const unrelated = animatedMaterial('UnrelatedShaderMaterial');
