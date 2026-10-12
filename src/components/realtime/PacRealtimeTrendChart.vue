@@ -3,7 +3,7 @@
     ref="chartElement"
     class="pac-trend-chart"
     role="img"
-    aria-label="前馈浊度、后馈浊度与PAC配药箱水位实时趋势"
+    aria-label="前馈浊度、后馈浊度、PAC基准投加量与计量泵流量实时趋势"
   ></div>
 </template>
 
@@ -19,7 +19,7 @@ echarts.use([LineChart, GridComponent, LegendComponent, MarkLineComponent, Toolt
 const props = defineProps({
   data: {
     type: Object,
-    default: () => ({ times: [], preTurbidity: [], postTurbidity: [], pacDose: [] }),
+    default: () => ({ times: [], preTurbidity: [], postTurbidity: [], pacDose: [], pumpFlow: [] }),
   },
   targetRange: { type: Array, default: () => [10, 20] },
 });
@@ -38,8 +38,8 @@ function buildChartOption() {
   };
   return {
     animationDuration: 650,
-    color: ['#3de0ff', '#64e59b', '#ffc65c'],
-    grid: { top: 46, right: 44, bottom: 52, left: 42 },
+    color: ['#3de0ff', '#64e59b', '#ffc65c', '#ff6e66'],
+    grid: { top: 46, right: 84, bottom: 52, left: 42 },
     legend: {
       top: 5,
       itemWidth: 18,
@@ -87,6 +87,18 @@ function buildChartOption() {
         axisLabel: { color: '#789bb5', fontSize: 9 },
         splitLine: { show: false },
       },
+      {
+        type: 'value',
+        name: 'mL/h',
+        min: 0,
+        max: 420,
+        splitNumber: 4,
+        position: 'right',
+        offset: 38,
+        nameTextStyle: { color: '#789bb5', fontSize: 9 },
+        axisLabel: { color: '#789bb5', fontSize: 9 },
+        splitLine: { show: false },
+      },
     ],
     series: [
       {
@@ -113,6 +125,13 @@ function buildChartOption() {
       },
       { ...commonSeries, name: '后馈浊度', data: props.data.postTurbidity },
       { ...commonSeries, name: 'PAC 基准投加量', yAxisIndex: 1, data: props.data.pacDose },
+      {
+        ...commonSeries,
+        name: '计量泵流量',
+        yAxisIndex: 2,
+        data: props.data.pumpFlow,
+        lineStyle: { width: 2, type: 'dashed' },
+      },
     ],
   };
 }

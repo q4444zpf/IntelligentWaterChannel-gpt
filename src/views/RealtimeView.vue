@@ -577,7 +577,7 @@ const activePumpFlow = computed(() => (
   realtimeDisplay.value.pumpRunning ? realtimeDisplay.value.pumpFlow : 0
 ));
 const activeDosingInletPumpFrequency = computed(() => (
-  realtimeDisplay.value.inletPumpRunning ? realtimeDisplay.value.inletPumpFrequency : 0
+  realtimeDisplay.value.inletPumpFrequency
 ));
 const activeBlowerPercent = computed(() => (
   aerationDisplay.value.blowerRunning ? aerationDisplay.value.blowerPercent : 0
@@ -586,7 +586,7 @@ const activeBlowerFrequency = computed(() => (
   aerationDisplay.value.blowerRunning ? aerationDisplay.value.blowerHz : 0
 ));
 const activeInletPumpFrequency = computed(() => (
-  aerationDisplay.value.inletPumpRunning ? aerationDisplay.value.inletPumpFrequency : 0
+  aerationDisplay.value.inletPumpFrequency
 ));
 
 const activeSensorItems = computed(() => sceneDevices.value
@@ -614,6 +614,7 @@ const dosingTrendDisplay = computed(() => ({
   preTurbidity: mqttTrend.dosing.values.preTurbidity || [],
   postTurbidity: mqttTrend.dosing.values.postTurbidity || [],
   pacDose: mqttTrend.dosing.values.pacDose || [],
+  pumpFlow: mqttTrend.dosing.values.pumpFlow || [],
 }));
 
 const aerationTrendDisplay = computed(() => ({
@@ -760,6 +761,8 @@ function publishAerationBlowerCommand() {
     action: 'configure',
     mode: 'manual',
     manual_hz: manualHz,
+    // 风机手动操作即确认 ODD 人工接管，允许更新被保护的手动频率。
+    manual_command: true,
   });
 }
 
