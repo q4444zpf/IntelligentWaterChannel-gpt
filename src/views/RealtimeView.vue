@@ -867,7 +867,7 @@ function formatMqttTime(payload) {
 }
 
 function appendMqttTrend(scene, payload) {
-  const trendDevices = activeTrendDevices.value;
+  const trendDevices = getTrendDevices(scene);
   if (!trendDevices.length) return;
   const target = mqttTrend[scene];
   target.times.push(formatMqttTime(payload));
@@ -879,6 +879,22 @@ function appendMqttTrend(scene, payload) {
   if (target.times.length <= MAX_TREND_POINTS) return;
   target.times.shift();
   trendDevices.forEach((device) => target.values[device.viewField]?.shift());
+}
+
+function getTrendDevices(scene) {
+  const devices = [...activeTrendDevices.value];
+  if (scene !== 'dosing') return devices;
+
+  // 兼容后端尚未刷新趋势标记的存量设备配置，仍以服务端返回的设备映射为准。
+  const pumpFlowDevice = sceneDevices.value.find(
+    (device) => device?.deviceSn === 'pac-pump-01'
+      && device?.tag === 'actualMLH'
+      && device?.viewField === 'pumpFlow'
+  );
+  if (pumpFlowDevice && !devices.some((device) => device.viewField === pumpFlowDevice.viewField)) {
+    devices.push(pumpFlowDevice);
+  }
+  return devices;
 }
 
 function resetMqttData(scene) {
