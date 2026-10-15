@@ -166,7 +166,18 @@ export function buildRealtimeTableData(deviceGroups, values = {}) {
 export function mergeRealtimeValues(target, payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return;
 
-  for (const [tag, value] of Object.entries(payload)) {
-    if (tag) target[tag] = value;
+  for (const [tag, value] of flattenRealtimeValues(payload)) {
+    target[tag] = value;
   }
+}
+
+function flattenRealtimeValues(payload, parentTag = '') {
+  if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) {
+    return parentTag ? [[parentTag, payload]] : [];
+  }
+
+  return Object.entries(payload).flatMap(([tag, value]) => {
+    const fullTag = parentTag ? `${parentTag}.${tag}` : tag;
+    return flattenRealtimeValues(value, fullTag);
+  });
 }

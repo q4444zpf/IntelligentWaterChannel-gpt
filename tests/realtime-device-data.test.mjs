@@ -156,6 +156,21 @@ test('merges flat MQTT payloads while retaining previous tag values', () => {
   assert.deepEqual(values, { wl1: 100, ' WL2 ': 0, G1: 35 });
 });
 
+test('flattens nested MQTT device fields into stable binding paths', () => {
+  const values = {};
+
+  mergeRealtimeValues(values, {
+    'effluent-01': { COD: 27.859, TN: 57.306 },
+    time: '2026-10-15 15:26:43',
+  });
+
+  assert.deepEqual(values, {
+    'effluent-01.COD': 27.859,
+    'effluent-01.TN': 57.306,
+    time: '2026-10-15 15:26:43',
+  });
+});
+
 test('matches reactive MQTT tag values with case sensitivity', () => {
   const values = reactive({});
   const tableData = computed(() => buildRealtimeTableData(deviceGroups, values));

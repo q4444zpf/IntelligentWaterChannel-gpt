@@ -837,12 +837,23 @@ function handleMqttData(payload, receivedTopic, rawMessage) {
     return;
   }
   if (!payload) return;
-  Object.entries(payload).forEach(([field, value]) => {
+  flattenMqttPayload(payload).forEach(([field, value]) => {
     triggerDataUpdate(field, value);
     scriptRuntime?.emit(field, value);
   });
   scriptRuntime?.emit('mqttMessage', payload);
   emit('mqtt-data', { payload, topic: receivedTopic, isRealtimeTelemetry: receivedTopic === realtimeTopic });
+}
+
+function flattenMqttPayload(payload, parentField = '') {
+  if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) {
+    return parentField ? [[parentField, payload]] : [];
+  }
+
+  return Object.entries(payload).flatMap(([field, value]) => {
+    const fullField = parentField ? `${parentField}.${field}` : field;
+    return flattenMqttPayload(value, fullField);
+  });
 }
 
 function handleMqttError(error) {

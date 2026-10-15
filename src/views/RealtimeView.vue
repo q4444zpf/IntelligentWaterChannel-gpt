@@ -909,28 +909,35 @@ function handleMqttData(message) {
   if (message?.isRealtimeTelemetry !== false) lastMqttReceivedAt.value = Date.now();
   let hasTelemetryUpdate = false;
 
-  const tagCounts = sceneDevices.value.reduce((counts, device) => {
-    const tag = device?.tag;
-    if (tag) counts.set(tag, (counts.get(tag) || 0) + 1);
-    return counts;
-  }, new Map());
-
   sceneDevices.value.forEach((device) => {
-    const preciseTag = device?.deviceSn && device?.tag ? `${device.deviceSn}:${device.tag}` : '';
-    const hasPreciseValue = preciseTag && Object.prototype.hasOwnProperty.call(payload || {}, preciseTag);
-    // 同名 tag 必须使用设备编号限定，避免不同设备的测点覆盖彼此。
-    const hasUniqueTagValue = device?.tag
-      && tagCounts.get(device.tag) === 1
-      && Object.prototype.hasOwnProperty.call(payload, device.tag);
-    if (device?.viewField && (hasPreciseValue || hasUniqueTagValue)) {
-      sceneTelemetry[activeScene.value][device.viewField] = hasPreciseValue
-        ? payload[preciseTag]
-        : payload[device.tag];
+    const telemetry = telemetryValue(payload, device?.telemetryKey);
+    if (device?.viewField && telemetry.found) {
+      sceneTelemetry[activeScene.value][device.viewField] = telemetry.value;
       hasTelemetryUpdate = true;
     }
   });
   if (hasTelemetryUpdate) appendMqttTrend(activeScene.value, payload);
   emit('realtime-data', payload);
+}
+
+function telemetryValue(payload, telemetryKey) {
+  if (typeof telemetryKey !== 'string' || !telemetryKey) {
+    return { found: false, value: undefined };
+  }
+
+  // 兼容预览组件已扁平化后的完整路径。
+  if (Object.prototype.hasOwnProperty.call(payload, telemetryKey)) {
+    return { found: true, value: payload[telemetryKey] };
+  }
+
+  let value = payload;
+  for (const segment of telemetryKey.split('.')) {
+    if (!value || typeof value !== 'object' || !Object.prototype.hasOwnProperty.call(value, segment)) {
+      return { found: false, value: undefined };
+    }
+    value = value[segment];
+  }
+  return { found: true, value };
 }
 
 function handleMqttConnectionChange(connected) {
