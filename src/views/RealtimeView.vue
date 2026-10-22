@@ -130,7 +130,7 @@
             </button>
             <ControlValueSettingPopover
               :value="selectedGateOpening"
-              :max="80"
+              :max="selectedGateMaxOpening"
               label="目标开度："
               unit="mm"
               :submit="confirmGateSetting"
@@ -316,8 +316,9 @@ const selectedGateOpening = computed(() => {
   const gate = selectedGate.value;
   if (!gate) return 0;
   const val = parseFloat(gate.open);
-  return Number.isNaN(val) ? 0 : Math.round(val * 100);
+  return Number.isNaN(val) ? 0 : Math.round(val * 1000) / 1000;
 });
+const selectedGateMaxOpening = computed(() => selectedGate.value?.maxOpening ?? 90);
 const sensorGroups = computed(() => tableData.value.sensorGroups);
 const activeSensorGroup = ref('');
 const selectedSensorGroup = computed(() => sensorGroups.value.find(

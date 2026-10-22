@@ -88,6 +88,9 @@ export function buildRealtimeTableData(deviceGroups, values = {}) {
         openingTag: gate.openingTag || '',
         upLevelTag: gate.upLevelTag || '',
         downLevelTag: gate.downLevelTag || '',
+        maxOpening: Number.isFinite(Number(gate.maxOpening)) && Number(gate.maxOpening) > 0
+          ? Number(gate.maxOpening)
+          : 90,
         open: displayValue(values, gate.openingTag),
         before: displayValue(values, gate.upLevelTag),
         after: displayValue(values, gate.downLevelTag),

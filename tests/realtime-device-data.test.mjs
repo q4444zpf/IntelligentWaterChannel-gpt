@@ -70,6 +70,7 @@ test('builds realtime tables from API metadata and MQTT values', () => {
     openingTag: 'G1',
     upLevelTag: 'wl1',
     downLevelTag: 'wl2',
+    maxOpening: 90,
     open: '0',
     before: '120.5',
     after: '--',

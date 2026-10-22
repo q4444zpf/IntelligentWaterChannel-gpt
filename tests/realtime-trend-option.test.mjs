@@ -29,7 +29,7 @@ test('formats device tooltip values with the configured unit', async () => {
   const option = buildRealtimeTrendOption(TREND_CONFIGS.flow, snapshot);
   const html = option.tooltip.formatter([{ seriesIndex: 0, marker: '<i></i>', value: option.series[0].data[0] }]);
   assert.match(html, /进水总管流量计/);
-  assert.match(html, /L\/s/);
+  assert.match(html, /m³\/s/);
   assert.match(html, /进水总管/);
   assert.equal(option.series[0].markLine, undefined);
 });

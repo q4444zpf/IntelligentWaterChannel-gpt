@@ -58,9 +58,9 @@ function deviceSeed(id: string): number {
 function pointValue(type: TrendType, seed: number, timestamp: number): { value: number; running?: boolean } {
   const phase = timestamp / 180_000 + seed * 0.37;
   const wave = Math.sin(phase) + Math.sin(phase * 0.31 + seed) * 0.35;
-  if (type === 'flow') return { value: Number((16 + seed % 5 + wave * 1.4).toFixed(2)) };
+  if (type === 'flow') return { value: Number((0.006 + (seed % 5) * 0.0002 + wave * 0.00014).toFixed(6)) };
   if (type === 'level') return { value: Number((0.31 + (seed % 9) * 0.009 + wave * 0.014).toFixed(3)) };
-  if (type === 'siphon') return { value: Number((0.1 + (seed % 6) * 0.012 + wave * 0.008).toFixed(3)) };
+  if (type === 'siphon') return { value: Number((5 + (seed % 6) * 0.12 + wave * 0.08).toFixed(3)) };
   const running = Math.floor(timestamp / 300_000 + seed) % 9 !== 0;
   return { value: running ? Number((30 + seed % 7 + wave * 2.8).toFixed(1)) : 0, running };
 }

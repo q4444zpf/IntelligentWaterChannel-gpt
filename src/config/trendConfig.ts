@@ -2,7 +2,7 @@ export type TrendType = 'flow' | 'level' | 'pump' | 'siphon';
 export type TrendTabKey = 'node' | TrendType;
 export type TimeRangeKey = '10m' | '1h' | '24h' | 'custom';
 export type DeviceState = '在线' | '异常' | '离线';
-export type TrendUnit = 'L/s' | 'm' | 'Hz' | 'MPa';
+export type TrendUnit = 'm³/s' | 'm' | 'Hz' | 'kPa';
 
 export interface TrendDevice {
   id: string;
@@ -57,10 +57,10 @@ export interface TrendSnapshot {
 }
 
 export const TREND_CONFIGS: Record<TrendType, TrendConfig> = {
-  flow: { key: 'flow', label: '流量计趋势分析', shortLabel: '流量计趋势', axisName: '流量', metric: '流量', unit: 'L/s', precision: 2, regionLabel: '区域', supportsRegion: false, showStatistics: true, showRunningState: false },
+  flow: { key: 'flow', label: '流量计趋势分析', shortLabel: '流量计趋势', axisName: '流量', metric: '流量', unit: 'm³/s', precision: 6, regionLabel: '区域', supportsRegion: false, showStatistics: true, showRunningState: false },
   level: { key: 'level', label: '水位计趋势分析', shortLabel: '水位计趋势', axisName: '水位高度', metric: '水位', unit: 'm', precision: 3, regionLabel: '渠道/区域', supportsRegion: true, showStatistics: true, showRunningState: false },
   pump: { key: 'pump', label: '泵频率趋势分析', shortLabel: '泵频率', axisName: '运行频率', metric: '频率', unit: 'Hz', precision: 1, regionLabel: '泵站', supportsRegion: false, showStatistics: true, showRunningState: true },
-  siphon: { key: 'siphon', label: '倒虹吸压力', shortLabel: '倒虹吸压力', axisName: '压力', metric: '压力', unit: 'MPa', precision: 3, regionLabel: '区域', supportsRegion: false, showStatistics: true, showRunningState: false }
+  siphon: { key: 'siphon', label: '倒虹吸压力', shortLabel: '倒虹吸压力', axisName: '压力', metric: '压力', unit: 'kPa', precision: 3, regionLabel: '区域', supportsRegion: false, showStatistics: true, showRunningState: false }
 };
 
 const device = (type: TrendType, id: string, name: string, location: string, region: string, state: DeviceState, color: string, order: number): TrendDevice => ({

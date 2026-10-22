@@ -71,7 +71,7 @@ export function buildGateStatusChartOption(gates = []) {
       formatter: (params) => {
         const data = params?.[0]?.data;
         if (!data) return '';
-        return `<strong>${data.gateId}</strong><br>开度：${data.openingLabel} m<br>状态：${data.state}`;
+        return `<strong>${data.gateId}</strong><br>开度：${data.openingLabel} mm<br>状态：${data.state}`;
       },
     },
     xAxis: {
@@ -86,7 +86,7 @@ export function buildGateStatusChartOption(gates = []) {
       min: 0,
       max,
       splitNumber: 5,
-      name: '开度（m）',
+      name: '开度（mm）',
       nameTextStyle: { color: '#7599b6', fontSize: 9, padding: [0, 0, 0, -4] },
       axisLine: { show: false },
       axisTick: { show: false },

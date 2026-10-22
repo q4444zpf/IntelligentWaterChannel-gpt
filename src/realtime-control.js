@@ -12,8 +12,8 @@ export function buildGateOpeningControlRequest(uid, opening) {
   }
 
   const normalizedOpening = Number(opening);
-  if (!Number.isFinite(normalizedOpening) || normalizedOpening < 0 || normalizedOpening > 80) {
-    throw new Error('闸门开度必须在 0 至 80 mm 之间');
+  if (!Number.isFinite(normalizedOpening) || normalizedOpening < 0 || normalizedOpening > 90) {
+    throw new Error('闸门开度必须在 0 至 90 mm 之间');
   }
 
   return {
