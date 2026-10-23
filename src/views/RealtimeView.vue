@@ -60,8 +60,8 @@
               </thead>
               <tbody>
                 <tr v-for="row in selectedSensorGroup.rows" :key="row.tag || row.name">
-                  <td :class="sensorStatusClass(row.state)">
-                    <span class="status-dot" :class="sensorStatusDotClass(row.state)"></span>
+                  <td :class="sensorStatusClass(sensorRowState(row))">
+                    <span class="status-dot" :class="sensorStatusDotClass(sensorRowState(row))"></span>
                   </td>
                   <td>{{ row.name }}</td>
                   <td>{{ row.location }}</td>
@@ -316,6 +316,7 @@ const profileLoading = ref(true);
 const profileError = ref('');
 const latestMqttAt = ref(null);
 const alarmNotificationTopic = ref('');
+const alarmDeviceKeys = reactive(new Set());
 let realtimeUpdateTimer = null;
 let pendingRealtimePayload = null;
 
@@ -375,7 +376,38 @@ function handleViewAction(action) {
 }
 
 function handleAlarmNotification(payload) {
+  for (const record of alarmRecords(payload)) {
+    const uid = normalizedAlarmIdentifier(record?.uid);
+    const deviceSn = normalizedAlarmIdentifier(record?.deviceSn);
+    if (uid) alarmDeviceKeys.add(`uid:${uid}`);
+    if (deviceSn) alarmDeviceKeys.add(`deviceSn:${deviceSn}`);
+  }
   window.dispatchEvent(new CustomEvent('alarm-notification', { detail: payload }));
+}
+
+function alarmRecords(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== 'object') return [];
+  if (Array.isArray(payload.records)) return payload.records;
+  if (Array.isArray(payload.values)) return payload.values;
+  if (Array.isArray(payload.data)) return payload.data;
+  if (payload.data && typeof payload.data === 'object') return [payload.data];
+  return [payload];
+}
+
+function normalizedAlarmIdentifier(value) {
+  if (value === null || value === undefined) return '';
+  return String(value).trim();
+}
+
+function sensorRowState(row) {
+  const uid = normalizedAlarmIdentifier(row?.uid);
+  const deviceSn = normalizedAlarmIdentifier(row?.deviceSn);
+  if ((uid && alarmDeviceKeys.has(`uid:${uid}`))
+    || (deviceSn && alarmDeviceKeys.has(`deviceSn:${deviceSn}`))) {
+    return '报警';
+  }
+  return row?.state || '离线';
 }
 
 function handleLocate(row) {

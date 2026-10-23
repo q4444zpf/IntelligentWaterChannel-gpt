@@ -152,6 +152,8 @@ export function buildRealtimeTableData(deviceGroups, values = {}) {
       const rows = sensorGroupMap.get(groupName).rows;
       for (const sensor of Array.isArray(sensorGroup.data) ? sensorGroup.data : []) {
         rows.push({
+          uid: sensor.uid == null ? '' : String(sensor.uid),
+          deviceSn: sensor.deviceSn || '',
           name: sensor.name || sensor.tag || '--',
           location: sensor.place || '--',
           value: displayValue(values, sensor.tag),

@@ -43,7 +43,7 @@ const deviceGroups = [{
   other: [{
     name: '水位计',
     data: [
-      { unit: 'mm', name: '水位计1', place: '渠①', tag: 'wl1' },
+      { uid: '2092915057435348995', deviceSn: 'WL-1', unit: 'mm', name: '水位计1', place: '渠①', tag: 'wl1' },
       { unit: 'mm', name: '水位计2', place: null, tag: 'wl2' },
     ],
   }],
@@ -79,6 +79,8 @@ test('builds realtime tables from API metadata and MQTT values', () => {
   });
   assert.equal(result.sensorGroups[0].rows[0].value, '120.5');
   assert.equal(result.sensorGroups[0].rows[0].state, '在线');
+  assert.equal(result.sensorGroups[0].rows[0].uid, '2092915057435348995');
+  assert.equal(result.sensorGroups[0].rows[0].deviceSn, 'WL-1');
   assert.equal(result.sensorGroups[0].rows[1].location, '--');
   assert.equal(result.sensorGroups[0].rows[1].state, '离线');
   assert.deepEqual(result.pump, {
