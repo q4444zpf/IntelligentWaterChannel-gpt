@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  buildGateAutoControlRequest,
   buildGateOpeningControlRequest,
+  buildPumpAutoControlRequest,
   buildPumpControlRequest,
   buildValveOpeningControlRequest,
 } from '../src/realtime-control.js';
@@ -12,7 +14,7 @@ test('builds the gate opening model API request', () => {
     url: '/iot/instruct/ctrl/setOpening',
     payload: {
       uid: '2082047504001417217',
-      param: { PublicPayload: 10 },
+      param: { PublicPayload: JSON.stringify({ opening: 10 }) },
     },
   });
 });
@@ -22,6 +24,16 @@ test('rejects an invalid gate opening before sending a request', async () => {
     () => buildGateOpeningControlRequest('2082047504001417217', 91),
     /0 至 90 mm/,
   );
+});
+
+test('builds the gate automatic control request', () => {
+  assert.deepEqual(buildGateAutoControlRequest('2082047504001417217'), {
+    url: '/iot/instruct/ctrl/setOpening',
+    payload: {
+      uid: '2082047504001417217',
+      param: { PublicPayload: JSON.stringify({ mode: 'auto' }) },
+    },
+  });
 });
 
 test('builds the pump MQTT control request', () => {
@@ -44,6 +56,16 @@ test('rejects an invalid pump frequency before sending a request', () => {
     () => buildPumpControlRequest('2092915057435348994', { running: false, frequency: 51 }),
     /0 至 50 Hz/,
   );
+});
+
+test('builds the pump automatic control request', () => {
+  assert.deepEqual(buildPumpAutoControlRequest('2092915057435348994'), {
+    url: '/iot/instruct/ctrl/setData',
+    payload: {
+      uid: '2092915057435348994',
+      param: { PublicPayload: JSON.stringify({ mode: 'auto' }) },
+    },
+  });
 });
 
 test('builds the valve opening MQTT control request', () => {

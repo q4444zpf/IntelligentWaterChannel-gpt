@@ -60,8 +60,8 @@
               </thead>
               <tbody>
                 <tr v-for="row in selectedSensorGroup.rows" :key="row.tag || row.name">
-                  <td :class="row.state === '在线' ? 'status-online' : 'status-offline'">
-                    <span class="status-dot" :class="row.state === '在线' ? 'dot-online' : 'dot-offline'"></span>
+                  <td :class="sensorStatusClass(row.state)">
+                    <span class="status-dot" :class="sensorStatusDotClass(row.state)"></span>
                   </td>
                   <td>{{ row.name }}</td>
                   <td>{{ row.location }}</td>
@@ -90,7 +90,21 @@
     </aside>
 
     <aside class="right-stack">
-      <DecorativePanel class="panel control-panel" title="手动控制设备">
+      <DecorativePanel class="panel control-panel" title="设备控制">
+        <template #heading-action>
+          <button
+            type="button"
+            class="control-mode-switch"
+            role="switch"
+            :aria-checked="manualControl"
+            :aria-label="manualControl ? '切换为自动控制' : '切换为手动控制'"
+            :disabled="modeSwitching || !gateList.length || !pump?.uid"
+            @click="toggleControlMode"
+          >
+            <span>{{ manualControl ? '手动' : '自动' }}</span>
+            <i aria-hidden="true"></i>
+          </button>
+        </template>
         <section class="control-section gate-control-section">
           <div class="gate-header">
             <h2 class="gate-title">闸门</h2>
@@ -115,8 +129,8 @@
             <div class="gate-value-display">
               <div class="gate-value-bg"></div>
               <div class="gate-value-content">
-                <span class="gate-value-number">{{ selectedGateOpening }}</span>
-                <span class="gate-value-label">当前开度</span>
+                <span class="gate-value-number">{{ selectedGateDisplayOpening }}</span>
+                <span class="gate-value-label">当前开度(mm)</span>
               </div>
             </div>
             <button type="button" class="gate-arrow gate-arrow--right" @click="cycleGate(1)" aria-label="下一个闸门">
@@ -135,7 +149,7 @@
               unit="mm"
               :submit="confirmGateSetting"
             >
-              <button type="button" class="gate-action-btn gate-action-btn--setting">
+            <button type="button" class="gate-action-btn gate-action-btn--setting" :disabled="!manualControl || !selectedGate?.uid">
                 <GateOpeningSettingIcon />
                 <span>设置开度</span>
               </button>
@@ -155,7 +169,7 @@
                 :aria-checked="pumpRunning"
                 :aria-label="pumpRunning ? '关闭水泵' : '开启水泵'"
                 :class="{ 'is-checked': pumpRunning }"
-                :disabled="!pump?.uid || pumpControlSubmitting"
+                :disabled="!manualControl || !pump?.uid || pumpControlSubmitting"
                 @click="togglePumpRunning"
               >
                 <span aria-hidden="true"></span>
@@ -166,6 +180,7 @@
           <PumpFrequencyGauge
             :value="pumpRunning ? pumpFrequency : 0"
             :max="pumpMaxFrequency"
+            unit="Hz"
           />
 
           <div class="gate-actions pump-actions">
@@ -188,7 +203,7 @@
               <button
                 type="button"
                 class="gate-action-btn pump-frequency-action"
-                :disabled="!pump?.uid || pumpControlSubmitting"
+                :disabled="!manualControl || !pump?.uid || pumpControlSubmitting"
               >
                 <PumpFrequencySettingIcon />
                 <span>设置频率</span>
@@ -263,7 +278,9 @@ import { getBigWaterChannelAlarmNotificationTopic } from '../api/alarm.js';
 import {
   getRealtimeGroupDevices,
   getRealtimeWaterProfileTopology,
+  setGateAutoControl,
   setGateOpening,
+  setPumpAutoControl,
   setPumpControl,
   setValveOpening,
 } from '../api/realtime.js';
@@ -288,6 +305,8 @@ const previewRef = ref(null);
 const targetGateOpening = ref(50);
 const pumpControlSubmitting = ref(false);
 const valveControlSubmitting = ref(false);
+const manualControl = ref(false);
+const modeSwitching = ref(false);
 const deviceGroups = ref([]);
 const deviceLoading = ref(true);
 const deviceError = ref('');
@@ -318,6 +337,7 @@ const selectedGateOpening = computed(() => {
   const val = parseFloat(gate.open);
   return Number.isNaN(val) ? 0 : Math.round(val * 1000) / 1000;
 });
+const selectedGateDisplayOpening = computed(() => Math.round(selectedGateOpening.value));
 const selectedGateMaxOpening = computed(() => selectedGate.value?.maxOpening ?? 90);
 const sensorGroups = computed(() => tableData.value.sensorGroups);
 const activeSensorGroup = ref('');
@@ -364,6 +384,18 @@ function handleLocate(row) {
   }
 }
 
+function sensorStatusClass(state) {
+  if (state === '在线') return 'status-online';
+  if (state === '报警') return 'status-alarm';
+  return 'status-offline';
+}
+
+function sensorStatusDotClass(state) {
+  if (state === '在线') return 'dot-online';
+  if (state === '报警') return 'dot-alarm';
+  return 'dot-offline';
+}
+
 function cycleGate(direction) {
   if (!gateList.value.length) return;
   const idx = gateList.value.findIndex((g) => g.id === selectedGate.value?.id);
@@ -378,6 +410,11 @@ function handleGateLocate() {
 }
 
 async function confirmGateSetting(value) {
+  if (!manualControl.value) {
+    const error = new Error('请先切换到手动控制模式');
+    message.warning(error.message);
+    throw error;
+  }
   const gate = selectedGate.value;
   if (!gate?.uid) {
     const error = new Error('当前闸门缺少设备标识，无法下发开度');
@@ -397,7 +434,7 @@ async function confirmGateSetting(value) {
 
 async function togglePumpRunning() {
   const currentPump = pump.value;
-  if (!currentPump?.uid || pumpControlSubmitting.value) return;
+  if (!manualControl.value || !currentPump?.uid || pumpControlSubmitting.value) return;
 
   const nextRunning = !pumpRunning.value;
   pumpControlSubmitting.value = true;
@@ -406,10 +443,6 @@ async function togglePumpRunning() {
       running: nextRunning,
       frequency: pumpFrequency.value,
     });
-    realtimeValues[currentPump.tag] = {
-      [currentPump.statusField]: nextRunning,
-      [currentPump.frequencyField]: pumpFrequency.value,
-    };
     message.success(`${currentPump.name}已${nextRunning ? '开启' : '关闭'}`);
   } catch (error) {
     message.error(error?.message || '水泵开关控制失败');
@@ -419,6 +452,11 @@ async function togglePumpRunning() {
 }
 
 async function confirmPumpFrequency(value) {
+  if (!manualControl.value) {
+    const error = new Error('请先切换到手动控制模式');
+    message.warning(error.message);
+    throw error;
+  }
   const currentPump = pump.value;
   if (!currentPump?.uid) {
     const error = new Error('当前水泵缺少设备标识，无法下发频率');
@@ -432,10 +470,6 @@ async function confirmPumpFrequency(value) {
       running: pumpRunning.value,
       frequency: value,
     });
-    realtimeValues[currentPump.tag] = {
-      [currentPump.statusField]: pumpRunning.value,
-      [currentPump.frequencyField]: value,
-    };
     message.success(`${currentPump.name}目标频率已设置为 ${value} Hz`);
   } catch (error) {
     message.error(error?.message || '水泵频率设置失败');
@@ -443,6 +477,47 @@ async function confirmPumpFrequency(value) {
   } finally {
     pumpControlSubmitting.value = false;
   }
+}
+
+async function toggleControlMode() {
+  if (modeSwitching.value) return;
+
+  const nextManual = !manualControl.value;
+  const currentGates = gateList.value.filter((gate) => gate.uid);
+  const currentPump = pump.value;
+  if (!currentGates.length || !currentPump?.uid) {
+    message.warning('设备配置尚未加载完成');
+    return;
+  }
+
+  modeSwitching.value = true;
+  try {
+    if (nextManual) {
+      await Promise.all([
+        ...currentGates.map((gate) => setGateOpening(gate.uid, gateOpeningValue(gate))),
+        setPumpControl(currentPump.uid, {
+          running: currentPump.running,
+          frequency: currentPump.frequency,
+        }),
+      ]);
+    } else {
+      await Promise.all([
+        ...currentGates.map((gate) => setGateAutoControl(gate.uid)),
+        setPumpAutoControl(currentPump.uid),
+      ]);
+    }
+    manualControl.value = nextManual;
+    message.success(nextManual ? '已切换为手动控制' : '已切换为自动控制');
+  } catch (error) {
+    message.error(error?.message || '控制模式切换失败');
+  } finally {
+    modeSwitching.value = false;
+  }
+}
+
+function gateOpeningValue(gate) {
+  const value = Number.parseFloat(gate?.open);
+  return Number.isFinite(value) ? value : 0;
 }
 
 async function confirmValveSetting(value) {
@@ -770,6 +845,10 @@ onBeforeUnmount(() => {
 }
 
 .status-offline {
+  color: #8b98a8 !important;
+}
+
+.status-alarm {
   color: #ff6862 !important;
 }
 
@@ -874,6 +953,11 @@ onBeforeUnmount(() => {
 }
 
 .status-dot.dot-offline {
+  background: #8b98a8;
+  box-shadow: 0 0 6px rgba(139, 152, 168, 0.8);
+}
+
+.status-dot.dot-alarm {
   background: #ff6862;
   box-shadow: 0 0 6px rgba(255, 104, 98, 0.8);
 }
@@ -916,6 +1000,66 @@ onBeforeUnmount(() => {
 
 .control-panel {
   height: 100%;
+}
+
+.control-mode-switch {
+  position: absolute;
+  top: 8px;
+  right: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 70px;
+  height: 25px;
+  border: 1px solid rgba(76, 194, 239, 0.64);
+  border-radius: 13px;
+  padding: 0 7px 0 9px;
+  background: rgba(6, 52, 85, 0.82);
+  color: #cdeeff;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.control-mode-switch i {
+  position: relative;
+  display: block;
+  width: 22px;
+  height: 12px;
+  border-radius: 6px;
+  background: rgba(100, 133, 153, 0.82);
+  transition: background 0.2s ease;
+}
+
+.control-mode-switch i::after {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e1f7ff;
+  box-shadow: 0 0 6px rgba(223, 247, 255, 0.78);
+  content: '';
+  transition: transform 0.2s ease;
+}
+
+.control-mode-switch[aria-checked='true'] {
+  border-color: rgba(67, 239, 190, 0.84);
+  color: #d9fff2;
+}
+
+.control-mode-switch[aria-checked='true'] i {
+  background: #18aa7c;
+}
+
+.control-mode-switch[aria-checked='true'] i::after {
+  transform: translateX(10px);
+}
+
+.control-mode-switch:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
 }
 
 .control-panel :deep(.decorative-panel__content) {
@@ -1053,6 +1197,9 @@ onBeforeUnmount(() => {
 }
 
 .gate-value-number {
+  position: relative;
+  display: inline-block;
+  min-width: 2ch;
   background: linear-gradient(180deg, #facb64 0%, #ffffff 55%, #e0a115 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -1061,6 +1208,7 @@ onBeforeUnmount(() => {
   font-size: 36px;
   font-weight: 700;
   line-height: 1;
+  text-align: center;
 }
 
 .gate-value-label {
