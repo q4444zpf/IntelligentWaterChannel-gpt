@@ -27,23 +27,6 @@ export function buildGateOpeningControlRequest(uid, opening) {
   };
 }
 
-export function buildGateAutoControlRequest(uid) {
-  const normalizedUid = String(uid ?? '').trim();
-  if (!normalizedUid) {
-    throw new Error('当前闸门缺少设备标识，无法切换自动控制');
-  }
-
-  return {
-    url: `/iot/instruct/ctrl/${GATE_OPENING_API_CODE}`,
-    payload: {
-      uid: normalizedUid,
-      param: {
-        [GATE_OPENING_PARAM_FIELD]: JSON.stringify({mode: 'auto'}),
-      },
-    },
-  };
-}
-
 export function buildPumpControlRequest(uid, { running, frequency }) {
   const normalizedUid = String(uid ?? '').trim();
   if (!normalizedUid) {
@@ -64,23 +47,6 @@ export function buildPumpControlRequest(uid, { running, frequency }) {
           stats: Boolean(running),
           frequency: normalizedFrequency,
         }),
-      },
-    },
-  };
-}
-
-export function buildPumpAutoControlRequest(uid) {
-  const normalizedUid = String(uid ?? '').trim();
-  if (!normalizedUid) {
-    throw new Error('当前水泵缺少设备标识，无法切换自动控制');
-  }
-
-  return {
-    url: `/iot/instruct/ctrl/${PUMP_CONTROL_API_CODE}`,
-    payload: {
-      uid: normalizedUid,
-      param: {
-        [PUMP_CONTROL_PARAM_FIELD]: JSON.stringify({mode: 'auto'}),
       },
     },
   };

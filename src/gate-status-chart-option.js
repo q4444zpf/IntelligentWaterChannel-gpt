@@ -102,7 +102,7 @@ export function buildGateStatusChartOption(gates = []) {
       name: '闸门开度',
       type: 'bar',
       barMaxWidth: 20,
-      barMinHeight: 16,
+      barMinHeight: 1,
       data: normalizedGates.map((gate) => ({
         id: gate.id,
         name: gate.id,

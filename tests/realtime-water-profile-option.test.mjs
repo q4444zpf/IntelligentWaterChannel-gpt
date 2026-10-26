@@ -22,6 +22,8 @@ test('builds a latest-time profile using the backend topology labels', () => {
   assert.deepEqual(option.xAxis.data, ['前池', '渠①', '集水池']);
   assert.match(option.yAxis.name, /m/);
   assert.deepEqual(option.legend.data, ['最新水位']);
+  assert.equal(option.legend.left, 20);
+  assert.equal(option.legend.right, undefined);
   assert.equal(option.series.length, 1);
   assert.equal(option.series[0].id, 'latest-water-level');
   assert.equal(option.series[0].smooth, undefined);

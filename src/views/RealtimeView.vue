@@ -98,7 +98,7 @@
             role="switch"
             :aria-checked="manualControl"
             :aria-label="manualControl ? '切换为自动控制' : '切换为手动控制'"
-            :disabled="modeSwitching || !gateList.length || !pump?.uid"
+            :disabled="modeSwitching"
             @click="toggleControlMode"
           >
             <span>{{ manualControl ? '手动' : '自动' }}</span>
@@ -278,9 +278,8 @@ import { getBigWaterChannelAlarmNotificationTopic } from '../api/alarm.js';
 import {
   getRealtimeGroupDevices,
   getRealtimeWaterProfileTopology,
-  setGateAutoControl,
   setGateOpening,
-  setPumpAutoControl,
+  setControlModelMode,
   setPumpControl,
   setValveOpening,
 } from '../api/realtime.js';
@@ -515,30 +514,24 @@ async function toggleControlMode() {
   if (modeSwitching.value) return;
 
   const nextManual = !manualControl.value;
-  const currentGates = gateList.value.filter((gate) => gate.uid);
-  const currentPump = pump.value;
-  if (!currentGates.length || !currentPump?.uid) {
-    message.warning('设备配置尚未加载完成');
-    return;
-  }
-
   modeSwitching.value = true;
   try {
     if (nextManual) {
+      await setControlModelMode(false);
+      manualControl.value = true;
+      const currentGates = gateList.value.filter((gate) => gate.uid);
+      const currentPump = pump.value;
       await Promise.all([
         ...currentGates.map((gate) => setGateOpening(gate.uid, gateOpeningValue(gate))),
-        setPumpControl(currentPump.uid, {
+        ...(currentPump?.uid ? [setPumpControl(currentPump.uid, {
           running: currentPump.running,
           frequency: currentPump.frequency,
-        }),
+        })] : []),
       ]);
     } else {
-      await Promise.all([
-        ...currentGates.map((gate) => setGateAutoControl(gate.uid)),
-        setPumpAutoControl(currentPump.uid),
-      ]);
+      await setControlModelMode(true);
+      manualControl.value = false;
     }
-    manualControl.value = nextManual;
     message.success(nextManual ? '已切换为手动控制' : '已切换为自动控制');
   } catch (error) {
     message.error(error?.message || '控制模式切换失败');

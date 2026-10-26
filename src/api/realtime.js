@@ -1,9 +1,7 @@
 import { WEB_TOPO_CONFIG } from '../config/webTopoConfig.js';
 import { TREND_PRODUCT_TYPES } from '../config/trendConfig.ts';
 import {
-  buildGateAutoControlRequest,
   buildGateOpeningControlRequest,
-  buildPumpAutoControlRequest,
   buildPumpControlRequest,
   buildValveOpeningControlRequest,
 } from '../realtime-control.js';
@@ -38,18 +36,6 @@ export async function setGateOpening(uid, opening) {
   return response.data;
 }
 
-async function invokeControl(request) {
-  const response = await http.post(request.url, request.payload);
-  if (response?.code !== 200) {
-    throw new ApiError(response?.message || response?.msg || '设备控制失败', response?.code);
-  }
-  return response.data;
-}
-
-export function setGateAutoControl(uid) {
-  return invokeControl(buildGateAutoControlRequest(uid));
-}
-
 export async function setPumpControl(uid, control) {
   const request = buildPumpControlRequest(uid, control);
   const response = await http.post(request.url, request.payload);
@@ -64,8 +50,19 @@ export async function setPumpControl(uid, control) {
   return response.data;
 }
 
-export function setPumpAutoControl(uid) {
-  return invokeControl(buildPumpAutoControlRequest(uid));
+export async function setControlModelMode(
+  automatic,
+  groupId = WEB_TOPO_CONFIG.deviceGroupId,
+) {
+  const response = await http.post('/iot/device/bigWaterChannel/control/mode', null, {
+    params: { groupId, automatic },
+  });
+
+  if (response?.code !== 200) {
+    throw new ApiError(response?.message || response?.msg || '控制模型模式切换失败', response?.code);
+  }
+
+  return response.data;
 }
 
 export async function setValveOpening(uid, opening) {

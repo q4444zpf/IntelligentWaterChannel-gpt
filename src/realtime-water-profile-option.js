@@ -33,7 +33,7 @@ export function buildRealtimeWaterProfileOption(snapshot) {
     animationDurationUpdate: 650,
     animationEasingUpdate: 'cubicInOut',
     textStyle: { color: '#a9bdd5', fontFamily: 'Microsoft YaHei, sans-serif' },
-    legend: { data: ['最新水位'], top: 10, right: 20, textStyle: { color: '#b9d2e8' } },
+    legend: { data: ['最新水位'], top: 10, left: 20, textStyle: { color: '#b9d2e8' } },
     tooltip: {
       trigger: 'axis', confine: true, formatter: tooltipFormatter,
       axisPointer: { type: 'cross', label: { backgroundColor: '#1c668d' } },
