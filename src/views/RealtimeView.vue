@@ -306,6 +306,7 @@ const pumpControlSubmitting = ref(false);
 const valveControlSubmitting = ref(false);
 const manualControl = ref(true);
 const modeSwitching = ref(false);
+const PUMP_DEFAULT_FREQUENCY = 30;
 const deviceGroups = ref([]);
 const deviceLoading = ref(true);
 const deviceError = ref('');
@@ -468,11 +469,14 @@ async function togglePumpRunning() {
   if (!manualControl.value || !currentPump?.uid || pumpControlSubmitting.value) return;
 
   const nextRunning = !pumpRunning.value;
+  const nextFrequency = nextRunning
+    ? (pumpFrequency.value > 0 ? pumpFrequency.value : PUMP_DEFAULT_FREQUENCY)
+    : 0;
   pumpControlSubmitting.value = true;
   try {
     await setPumpControl(currentPump.uid, {
       running: nextRunning,
-      frequency: pumpFrequency.value,
+      frequency: nextFrequency,
     });
     message.success(`${currentPump.name}已${nextRunning ? '开启' : '关闭'}`);
   } catch (error) {
