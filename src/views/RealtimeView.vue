@@ -307,6 +307,7 @@ const valveControlSubmitting = ref(false);
 const manualControl = ref(true);
 const modeSwitching = ref(false);
 const PUMP_DEFAULT_FREQUENCY = 30;
+const PUMP_RUNNING_DISPLAY_DURATION = 5000;
 const deviceGroups = ref([]);
 const deviceLoading = ref(true);
 const deviceError = ref('');
@@ -319,12 +320,14 @@ const alarmNotificationTopic = ref('');
 const alarmDeviceKeys = reactive(new Set());
 let realtimeUpdateTimer = null;
 let pendingRealtimePayload = null;
+let pumpRunningDisplayTimer = null;
+const pumpRunningOverride = ref(null);
 
 const tableData = computed(() => buildRealtimeTableData(deviceGroups.value, realtimeValues));
 const gates = computed(() => tableData.value.gates);
 const gateList = computed(() => tableData.value.gateList || []);
 const pump = computed(() => tableData.value.pump);
-const pumpRunning = computed(() => pump.value?.running ?? false);
+const pumpRunning = computed(() => pumpRunningOverride.value ?? pump.value?.running ?? false);
 const pumpFrequency = computed(() => pump.value?.frequency ?? 0);
 const pumpMaxFrequency = computed(() => pump.value?.maxFrequency ?? 50);
 const valves = computed(() => tableData.value.valves || []);
@@ -383,6 +386,25 @@ function handleAlarmNotification(payload) {
     if (deviceSn) alarmDeviceKeys.add(`deviceSn:${deviceSn}`);
   }
   window.dispatchEvent(new CustomEvent('alarm-notification', { detail: payload }));
+}
+
+function showPumpRunningState(running) {
+  if (pumpRunningDisplayTimer !== null) {
+    window.clearTimeout(pumpRunningDisplayTimer);
+  }
+  pumpRunningOverride.value = running;
+  pumpRunningDisplayTimer = window.setTimeout(() => {
+    pumpRunningOverride.value = null;
+    pumpRunningDisplayTimer = null;
+  }, PUMP_RUNNING_DISPLAY_DURATION);
+}
+
+function clearPumpRunningState() {
+  if (pumpRunningDisplayTimer !== null) {
+    window.clearTimeout(pumpRunningDisplayTimer);
+  }
+  pumpRunningDisplayTimer = null;
+  pumpRunningOverride.value = null;
 }
 
 function alarmRecords(payload) {
@@ -473,6 +495,7 @@ async function togglePumpRunning() {
     ? (pumpFrequency.value > 0 ? pumpFrequency.value : PUMP_DEFAULT_FREQUENCY)
     : 0;
   pumpControlSubmitting.value = true;
+  showPumpRunningState(nextRunning);
   try {
     await setPumpControl(currentPump.uid, {
       running: nextRunning,
@@ -480,6 +503,7 @@ async function togglePumpRunning() {
     });
     message.success(`${currentPump.name}已${nextRunning ? '开启' : '关闭'}`);
   } catch (error) {
+    clearPumpRunningState();
     message.error(error?.message || '水泵开关控制失败');
   } finally {
     pumpControlSubmitting.value = false;
@@ -655,6 +679,7 @@ onBeforeUnmount(() => {
   if (realtimeUpdateTimer !== null) window.clearTimeout(realtimeUpdateTimer);
   realtimeUpdateTimer = null;
   pendingRealtimePayload = null;
+  clearPumpRunningState();
 });
 </script>
 
